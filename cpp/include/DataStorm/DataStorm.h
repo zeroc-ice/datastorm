@@ -409,7 +409,7 @@ public:
     {
     }
 
-    void waitForWriters(unsigned int count)
+    void waitForWriters(unsigned int count = 1)
     {
         _impl->waitForWriters(count);
     }
@@ -453,7 +453,7 @@ public:
         return samples;
     }
 
-    void waitForUnread(unsigned int count) const
+    void waitForUnread(unsigned int count = 1) const
     {
         _impl->waitForUnread(count);
     }
@@ -488,7 +488,7 @@ public:
         return _impl->hasReaders();
     }
 
-    void waitForReaders(unsigned int count) const
+    void waitForReaders(unsigned int count = 1) const
     {
         return _impl->waitForReaders(count);
     }
@@ -667,5 +667,51 @@ createTopicFactory(int& argc, char* argv[])
     Ice::stringSeqToArgs(args, argc, argv);
     return std::shared_ptr<TopicFactory>(new TopicFactory(DataStormInternal::createTopicFactory(communicator)));
 }
+
+//
+// RAII helper class
+//
+class ICE_API TopicFactoryHolder
+{
+public:
+
+    //
+    // Empty holder
+    //
+    TopicFactoryHolder();
+
+    //
+    // Call initialize to create factory with the provided args (all except default ctor above)
+    //
+    //
+    template<class... T>
+    explicit TopicFactoryHolder(T&&... args) :
+        _factory(std::move(initialize(std::forward<T>(args)...)))
+    {
+    }
+
+    //
+    // Adopt topic factory
+    //
+    explicit TopicFactoryHolder(std::shared_ptr<TopicFactory>);
+    TopicFactoryHolder& operator=(std::shared_ptr<TopicFactory>);
+
+    TopicFactoryHolder(const TopicFactoryHolder&) = delete;
+
+    TopicFactoryHolder(TopicFactoryHolder&&) = default;
+    TopicFactoryHolder& operator=(TopicFactoryHolder&&);
+
+    explicit operator bool() const;
+
+    ~TopicFactoryHolder();
+
+    const std::shared_ptr<TopicFactory>& factory() const;
+    const std::shared_ptr<TopicFactory>& operator->() const;
+    std::shared_ptr<TopicFactory> release();
+
+private:
+
+    std::shared_ptr<TopicFactory>  _factory;
+};
 
 }
