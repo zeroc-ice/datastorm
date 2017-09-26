@@ -43,6 +43,12 @@ main(int argc, char* argv[])
         testSample(SampleType::Update, "elem1", "value2");
         testSample(SampleType::Remove, "elem1");
 
+        auto samples = reader->getAll();
+        test(samples.size() == 3);
+
+        samples = reader->getAllUnread();
+        test(samples.empty());
+
         reader->destroy();
     }
 
@@ -167,7 +173,7 @@ main(int argc, char* argv[])
         auto topic = factory->createTopicReader<string, Test::BasePtr>("baseclass4");
 
         auto testSample = [&topic](SampleType type,
-                                   const unique_ptr<DataReader<pair<string, Test::BasePtr>>>& reader,
+                                   shared_ptr<DataReader<pair<string, Test::BasePtr>>> reader,
                                    string key,
                                    string value = "")
         {
@@ -206,6 +212,26 @@ main(int argc, char* argv[])
         test(reader->hasWriters());
         testSample(SampleType::Add, reader, "elemd4", "value1");
         reader->destroy();
+
+        for(int i = 0; i < 5; ++i)
+        {
+            ostringstream os;
+            os << "elem" << i;
+            reader = topic->getDataReader(os.str());
+            reader->waitForWriters(1);
+        }
+        for(int i = 0; i < 5; ++i)
+        {
+            ostringstream os;
+            os << "elem" << i;
+            testSample(SampleType::Update, topic->getDataReader(os.str()), os.str(), "value1");
+        }
+        for(int i = 0; i < 5; ++i)
+        {
+            ostringstream os;
+            os << "elem" << i;
+            topic->getDataReader(os.str())->destroy();
+        }
     }
 
     factory->destroy();

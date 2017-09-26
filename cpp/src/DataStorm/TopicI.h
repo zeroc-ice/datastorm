@@ -49,11 +49,12 @@ public:
     void attach(SessionI*);
     void detach(SessionI*);
 
-    void initKeys(const DataStormContract::KeyInfoSeq&, long long int, SessionI*);
+    void initKeysAndFilters(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&, long long int,
+                            SessionI*);
+
     void attachKey(const DataStormContract::KeyInfo&, long long int, SessionI*);
     void detachKey(const DataStormContract::Key&, SessionI*);
 
-    void attachFilters(const DataStormContract::StringSeq&, long long int, SessionI*);
     void attachFilter(const std::string&, long long int, SessionI*);
     void detachFilter(const std::string&, SessionI*);
 
@@ -67,11 +68,12 @@ public:
 
 protected:
 
-    virtual void keysAttached(const DataStormContract::KeyInfoSeq&, long long int, SessionI*) = 0;
+    virtual void keysAndFiltersAttached(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&,
+                                        long long int, SessionI*) = 0;
+
     virtual void keyAttached(const DataStormContract::KeyInfo&, long long int, SessionI*) = 0;
     virtual void keyDetached(const DataStormContract::Key&, SessionI*) = 0;
 
-    virtual void filtersAttached(const DataStormContract::StringSeq&, long long int, SessionI*) = 0;
     virtual void filterAttached(const std::string&, long long int, SessionI*) = 0;
     virtual void filterDetached(const std::string&, SessionI*) = 0;
 
@@ -146,11 +148,12 @@ private:
         return std::make_shared<FilteredDataReaderI>(this, filter);
     }
 
-    virtual void keysAttached(const DataStormContract::KeyInfoSeq&, long long int, SessionI*) override;
+    virtual void keysAndFiltersAttached(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&,
+                                        long long int, SessionI*) override;
+
     virtual void keyAttached(const DataStormContract::KeyInfo&, long long int, SessionI*) override;
     virtual void keyDetached(const DataStormContract::Key&, SessionI*) override;
 
-    virtual void filtersAttached(const DataStormContract::StringSeq&, long long int, SessionI*) override;
     virtual void filterAttached(const std::string&, long long int, SessionI*) override;
     virtual void filterDetached(const std::string&, SessionI*) override;
 
@@ -183,11 +186,12 @@ private:
         return std::make_shared<FilteredDataWriterI>(this, filter);
     }
 
-    virtual void keysAttached(const DataStormContract::KeyInfoSeq&, long long int, SessionI*) override;
+    virtual void keysAndFiltersAttached(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&,
+                                        long long int, SessionI*) override;
+
     virtual void keyAttached(const DataStormContract::KeyInfo&, long long int, SessionI*) override;
     virtual void keyDetached(const DataStormContract::Key&, SessionI*) override;
 
-    virtual void filtersAttached(const DataStormContract::StringSeq&, long long int, SessionI*) override;
     virtual void filterAttached(const std::string&, long long int, SessionI*) override;
     virtual void filterDetached(const std::string&, SessionI*) override;
 };

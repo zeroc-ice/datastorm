@@ -34,11 +34,15 @@ public:
     virtual void addTopic(std::string, const Ice::Current&);
     virtual void removeTopic(std::string, const Ice::Current&);
 
-    virtual void initKeys(std::string, long long int, DataStormContract::KeyInfoSeq, const Ice::Current&);
+    virtual void initKeysAndFilters(std::string,
+                                    long long int,
+                                    DataStormContract::KeyInfoSeq,
+                                    DataStormContract::StringSeq,
+                                    const Ice::Current&);
+
     virtual void attachKey(std::string, long long int, DataStormContract::KeyInfo, const Ice::Current&);
     virtual void detachKey(std::string, DataStormContract::Key, const Ice::Current&);
 
-    virtual void initFilters(std::string, long long int, DataStormContract::StringSeq, const Ice::Current&);
     virtual void attachFilter(std::string, long long int, std::string, const Ice::Current&);
     virtual void detachFilter(std::string, std::string, const Ice::Current&);
 

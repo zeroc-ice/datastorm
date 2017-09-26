@@ -27,13 +27,6 @@ DataReaderI::DataReaderI(TopicReaderI* topic) : DataElementI(topic), _parent(top
 }
 
 int
-DataReaderI::getDisableCount() const
-{
-    lock_guard<mutex> lock(_parent->_mutex);
-    return _disableCount;
-}
-
-int
 DataReaderI::getInstanceCount() const
 {
     lock_guard<mutex> lock(_parent->_mutex);
@@ -275,18 +268,6 @@ FilteredDataReaderI::hasWriters()
      return _subscriber->hasFilteredListeners(_filter);
 }
 
-void
-FilteredDataReaderI::addKey(const std::shared_ptr<Key>&) const
-{
-    // TODO: XXX
-}
-
-void
-FilteredDataReaderI::removeKey(const std::shared_ptr<Key>&) const
-{
-    // TODO: XXX
-}
-
 FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic, const std::string& filter) :
     DataWriterI(topic),
     _filter(filter),
@@ -323,18 +304,6 @@ bool
 FilteredDataWriterI::hasReaders() const
 {
     return _publisher->hasFilteredListeners(_filter);
-}
-
-void
-FilteredDataWriterI::addKey(const std::shared_ptr<Key>&) const
-{
-    // TODO: XXX
-}
-
-void
-FilteredDataWriterI::removeKey(const std::shared_ptr<Key>&) const
-{
-    // TODO: XXX
 }
 
 void

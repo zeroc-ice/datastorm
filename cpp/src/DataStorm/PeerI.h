@@ -183,7 +183,6 @@ public:
                 }
                 p->second.addSession(session);
             }
-            assert(_sessions.find(session) == _sessions.end());
             _sessions[session] += 1;
         }
 
@@ -301,7 +300,6 @@ public:
                 }
                 p->second.addSession(session);
             }
-            assert(_sessions.find(session) == _sessions.end());
             _sessions[session] += 1;
         }
 

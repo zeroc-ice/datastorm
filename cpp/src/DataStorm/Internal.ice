@@ -46,11 +46,11 @@ interface Session
     void addTopic(string topic);
     void removeTopic(string topic);
 
-    void initKeys(string topic, long lastId, KeyInfoSeq keys);
+    void initKeysAndFilters(string topic, long lastId, KeyInfoSeq keys, StringSeq filters);
+
     void attachKey(string topic, long lastId, KeyInfo key);
     void detachKey(string topic, Key key);
 
-    void initFilters(string topic, long lastId, StringSeq filters);
     void attachFilter(string topic, long lastId, string filter);
     void detachFilter(string topic, string filter);
 

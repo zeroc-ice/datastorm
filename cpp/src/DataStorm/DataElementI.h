@@ -53,10 +53,6 @@ public:
 
 class FilteredDataElement : virtual public DataElement
 {
-public:
-
-    virtual void addKey(const std::shared_ptr<Key>&) const = 0;
-    virtual void removeKey(const std::shared_ptr<Key>&) const = 0;
 };
 
 class DataReaderI : public DataElementI, public DataReader
@@ -65,7 +61,6 @@ public:
 
     DataReaderI(TopicReaderI*);
 
-    virtual int getDisableCount() const override;
     virtual int getInstanceCount() const override;
 
     virtual std::vector<std::shared_ptr<Sample>> getAll() const override;
@@ -83,7 +78,6 @@ protected:
 
     std::deque<std::shared_ptr<Sample>> _all;
     std::deque<std::shared_ptr<Sample>> _unread;
-    int _disableCount;
     int _instanceCount;
 };
 
@@ -163,9 +157,6 @@ public:
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
-    virtual void addKey(const std::shared_ptr<Key>&) const override;
-    virtual void removeKey(const std::shared_ptr<Key>&) const override;
-
 private:
 
     const std::string _filter;
@@ -183,9 +174,6 @@ public:
 
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
-
-    virtual void addKey(const std::shared_ptr<Key>&) const override;
-    virtual void removeKey(const std::shared_ptr<Key>&) const override;
 
 private:
 

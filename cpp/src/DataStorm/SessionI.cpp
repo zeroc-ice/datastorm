@@ -93,18 +93,22 @@ SessionI::removeTopic(string name, const Ice::Current&)
 }
 
 void
-SessionI::initKeys(string topic, long long int lastId, DataStormContract::KeyInfoSeq keys, const Ice::Current&)
+SessionI::initKeysAndFilters(string topic,
+                             long long int lastId,
+                             DataStormContract::KeyInfoSeq keys,
+                             DataStormContract::StringSeq filters,
+                             const Ice::Current&)
 {
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "initializing topic `" << topic << "' keys for session `" << _peer << "'";
+        out << "initializing topic `" << topic << "' keys and filters for session `" << _peer << "'";
     }
 
     auto t = getTopic(topic);
     if(t)
     {
-        t->initKeys(keys, lastId, this);
+        t->initKeysAndFilters(keys, filters, lastId, this);
     }
 }
 
@@ -137,22 +141,6 @@ SessionI::detachKey(string topic, DataStormContract::Key key, const Ice::Current
     if(t)
     {
         t->detachKey(key, this);
-    }
-}
-
-void
-SessionI::initFilters(string topic, long long int lastId, DataStormContract::StringSeq filters, const Ice::Current&)
-{
-    if(_traceLevels->session > 1)
-    {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "attaching topic `" << topic << "' filters `" << filters << "' for session `" << _peer << "'";
-    }
-
-    auto t = getTopic(topic);
-    if(t)
-    {
-        t->attachFilters(filters, lastId, this);
     }
 }
 

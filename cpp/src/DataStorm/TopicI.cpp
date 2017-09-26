@@ -60,29 +60,32 @@ TopicI::attach(SessionI* session)
     //
     // Initialize keys.
     //
+    DataStormContract::KeyInfoSeq keys;
     if(!_keyElements.empty())
     {
-        DataStormContract::KeyInfoSeq keys;
         keys.reserve(_keyElements.size());
         for(const auto& element : _keyElements)
         {
             keys.push_back(element.second->getKeyInfo());
         }
-        prx->initKeysAsync(_name, session->getLastId(_name), keys);
     }
 
     //
     // Initialize filters.
     //
+    vector<string> filters;
     if(!_filteredElements.empty())
     {
-        vector<string> filters;
         filters.reserve(_filteredElements.size());
         for(const auto& element : _filteredElements)
         {
             filters.push_back(element.first);
         }
-        prx->initFiltersAsync(_name, session->getLastId(_name), filters);
+    }
+
+    if(!keys.empty() || !filters.empty())
+    {
+        prx->initKeysAndFiltersAsync(_name, session->getLastId(_name), keys, filters);
     }
 }
 
@@ -99,10 +102,11 @@ TopicI::detach(SessionI* session)
 }
 
 void
-TopicI::initKeys(const DataStormContract::KeyInfoSeq& keys, long long int lastId, SessionI* session)
+TopicI::initKeysAndFilters(const DataStormContract::KeyInfoSeq& keys, const DataStormContract::StringSeq& filters,
+                           long long int lastId, SessionI* session)
 {
     lock_guard<mutex> lock(_mutex);
-    keysAttached(keys, lastId, session);
+    keysAndFiltersAttached(keys, filters, lastId, session);
 }
 
 void
@@ -117,13 +121,6 @@ TopicI::detachKey(const DataStormContract::Key& key, SessionI* session)
 {
     lock_guard<mutex> lock(_mutex);
     keyDetached(key, session);
-}
-
-void
-TopicI::attachFilters(const DataStormContract::StringSeq& filters, long long int lastId, SessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    filtersAttached(filters, lastId, session);
 }
 
 void
@@ -206,7 +203,10 @@ TopicReaderI::remove(const shared_ptr<Key>& key, const shared_ptr<KeyDataReaderI
 }
 
 void
-TopicReaderI::keysAttached(const DataStormContract::KeyInfoSeq& keys, long long int, SessionI* session)
+TopicReaderI::keysAndFiltersAttached(const DataStormContract::KeyInfoSeq& keys,
+                                     const DataStormContract::StringSeq& filters,
+                                     long long int,
+                                     SessionI* session)
 {
     vector<DataStormContract::Key> k;
     for(const auto& info : keys)
@@ -224,11 +224,9 @@ TopicReaderI::keysAttached(const DataStormContract::KeyInfoSeq& keys, long long 
             }
         }
     }
-
-    if(!k.empty())
+    for(auto filter : filters)
     {
-        // TODO
-        //_impl->getForwarder()->attachFilterKeys(k);
+        _impl->addFilteredListener(filter, session);
     }
 }
 
@@ -246,7 +244,6 @@ TopicReaderI::keyAttached(const DataStormContract::KeyInfo& info, long long int,
             }
         }
     }
-    //_impl->getForwarder()->attachFilterKey(key);
 }
 
 void
@@ -260,16 +257,6 @@ TopicReaderI::keyDetached(const DataStormContract::Key& k, SessionI* session)
         {
             _elements[key].erase(dynamic_pointer_cast<DataReaderI>(element.second));
         }
-    }
-    //_impl->getForwarder()->detachFilterKey(key);
-}
-
-void
-TopicReaderI::filtersAttached(const DataStormContract::StringSeq& filters, long long int, SessionI* session)
-{
-    for(auto filter : filters)
-    {
-        _impl->addFilteredListener(filter, session);
     }
 }
 
@@ -404,7 +391,10 @@ TopicWriterI::remove(const shared_ptr<Key>& key, const shared_ptr<KeyDataWriterI
 }
 
 void
-TopicWriterI::keysAttached(const DataStormContract::KeyInfoSeq& keys, long long int lastId, SessionI* session)
+TopicWriterI::keysAndFiltersAttached(const DataStormContract::KeyInfoSeq& keys,
+                                     const DataStormContract::StringSeq& filters,
+                                     long long int lastId,
+                                     SessionI* session)
 {
     DataStormContract::DataSamplesSeq samples;
     auto prx = Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(session->getSession());
@@ -418,6 +408,17 @@ TopicWriterI::keysAttached(const DataStormContract::KeyInfoSeq& keys, long long 
             if(q != _keyElements.end())
             {
                 dynamic_pointer_cast<KeyDataWriterI>(q->second)->init(lastId, samples);
+            }
+        }
+    }
+    for(auto filter : filters)
+    {
+        _impl->addFilteredListener(filter, session);
+        for(const auto& e : _keyElements)
+        {
+            if(e.first->match(filter))
+            {
+                dynamic_pointer_cast<KeyDataWriterI>(e.second)->init(lastId, samples);
             }
         }
     }
@@ -456,35 +457,6 @@ void
 TopicWriterI::keyDetached(const DataStormContract::Key& key, SessionI* session)
 {
     _impl->removeKeyListener(_keyFactory->unmarshal(key), session);
-}
-
-void
-TopicWriterI::filtersAttached(const DataStormContract::StringSeq& filters, long long int lastId, SessionI* session)
-{
-    for(auto filter : filters)
-    {
-        _impl->addFilteredListener(filter, session);
-    }
-
-    auto prx = Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(session->getSession());
-    if(prx)
-    {
-        DataStormContract::DataSamplesSeq samples;
-        for(const auto& e : _keyElements)
-        {
-            for(auto filter : filters)
-            {
-                if(e.first->match(filter))
-                {
-                    dynamic_pointer_cast<KeyDataWriterI>(e.second)->init(lastId, samples);
-                }
-            }
-        }
-        if(!samples.empty())
-        {
-            prx->iAsync(_name, samples);
-        }
-    }
 }
 
 void

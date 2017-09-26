@@ -142,7 +142,6 @@ main(int argc, char* argv[])
         writer->update(make_shared<Test::Base>("value2"));
         writer->remove();
 
-
         writer = topic->getFilteredDataWriter("elemb[0-9]");
         writer->waitForReaders(1);
         writer->update(make_shared<Test::Base>("value1"));
@@ -156,6 +155,11 @@ main(int argc, char* argv[])
         writer = topic->getFilteredDataWriter("elemd[0-9]");
         writer->waitForReaders(1);
         writer->add(make_shared<Test::Base>("value1"));
+        writer->destroy();
+
+        writer = topic->getFilteredDataWriter("elem[0-9]");
+        writer->waitForReaders(5);
+        writer->update(make_shared<Test::Base>("value1"));
         writer->destroy();
     }
     cout << "ok" << endl;

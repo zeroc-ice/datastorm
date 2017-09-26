@@ -657,6 +657,12 @@ PublisherI::createSessionAsync(shared_ptr<DataStormContract::SubscriberPrx> t,
         response(nullptr);
         return; // Shutting down.
     }
+    if(!c.con->getAdapter())
+    {
+        // Setup the bi-dir connection before sending the reply, the peer calls initTopics as
+        // it got the reply.
+        c.con->setAdapter(_instance->getObjectAdapter());
+    }
     response(Ice::uncheckedCast<DataStormContract::PublisherSessionPrx>(session->getProxy())); // Must be called before connected
     session->connected(s, c.con, _instance->getTopicFactory()->getTopicWriters());
 }
@@ -744,6 +750,12 @@ SubscriberI::createSessionAsync(shared_ptr<DataStormContract::PublisherPrx> t,
     {
         response(nullptr);
         return; // Shutting down.
+    }
+    if(!c.con->getAdapter())
+    {
+        // Setup the bi-dir connection before sending the reply, the peer calls initTopics as
+        // it got the reply.
+        c.con->setAdapter(_instance->getObjectAdapter());
     }
     response(Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(session->getProxy())); // Must be called before connected
     session->connected(s, c.con, _instance->getTopicFactory()->getTopicReaders());
