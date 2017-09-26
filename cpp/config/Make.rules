@@ -1,0 +1,47 @@
+# **********************************************************************
+#
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+#
+# **********************************************************************
+
+# ----------------------------------------------------------------------
+# Don't change anything below this line!
+# ----------------------------------------------------------------------
+
+#
+# Set slice2cpp path and make sure it's built
+#
+slice2cpp_targetext     = cpp
+slice2cpp_path          = $(ice_bindir)/slice2cpp
+
+# Always use the C++11 mapping
+cppflags                += -std=c++11 -DICE_CPP11_MAPPING
+
+#
+# $(call make-cpp-src-project,$1=project)
+#
+define make-cpp-src-project
+$1_slicecompiler        := slice2cpp
+$(make-project)
+srcs:: $1
+endef
+
+#
+# $(call make-cpp-test-project,$1=project)
+#
+define make-cpp-test-project
+$1_slicecompiler        := slice2cpp
+$1_sliceflags           += -I$(ice_slicedir) -I$1
+$1_cppflags             += -I$1/generated -Itest/include -I$1 $(datastorm_cpp_cppflags)
+$(make-project)
+tests:: $1
+endef
+
+#
+# $(create-cpp-test-project $1=test)
+#
+define create-cpp-test-project
+$1_srcext               := cpp
+$1_dependencies         := $$(or $$($1_dependencies),DataStorm Ice++11)
+$(create-test-project)
+endef
