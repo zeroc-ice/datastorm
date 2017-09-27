@@ -13,6 +13,13 @@
 
 #include <Internal.h>
 
+namespace DataStorm
+{
+
+class TopicFactory;
+
+}
+
 namespace DataStormInternal
 {
 
@@ -26,7 +33,7 @@ public:
 
     Instance(std::shared_ptr<Ice::Communicator>);
 
-    void init(std::shared_ptr<TopicFactoryI>);
+    void init(std::weak_ptr<DataStorm::TopicFactory>, std::shared_ptr<TopicFactoryI>);
 
     std::shared_ptr<SessionManager>
     getSessionManager() const
@@ -65,9 +72,15 @@ public:
     }
 
     std::shared_ptr<TopicFactoryI>
+    getTopicFactoryI() const
+    {
+        return _topicFactoryI;
+    }
+
+    std::shared_ptr<DataStorm::TopicFactory>
     getTopicFactory() const
     {
-        return _topicFactory;
+        return _topicFactory.lock();
     }
 
     std::shared_ptr<TraceLevels>
@@ -78,7 +91,8 @@ public:
 
 private:
 
-    std::shared_ptr<TopicFactoryI> _topicFactory;
+    std::weak_ptr<DataStorm::TopicFactory> _topicFactory;
+    std::shared_ptr<TopicFactoryI> _topicFactoryI;
     std::shared_ptr<SessionManager> _sessionManager;
     std::shared_ptr<Ice::Communicator> _communicator;
     std::shared_ptr<Ice::ObjectAdapter> _adapter;

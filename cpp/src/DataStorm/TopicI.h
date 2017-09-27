@@ -32,7 +32,7 @@ public:
 
     TopicI(std::weak_ptr<TopicFactoryI>, std::shared_ptr<KeyFactory>, const std::string&);
 
-    virtual Ice::CommunicatorPtr getCommunicator() const override;
+    virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const override;
     virtual void destroy() override;
 
     virtual std::string
@@ -201,7 +201,8 @@ class TopicFactoryI : public TopicFactory, public std::enable_shared_from_this<T
 public:
 
     TopicFactoryI(std::shared_ptr<Ice::Communicator> = nullptr);
-    void init();
+
+    virtual void init(std::weak_ptr<DataStorm::TopicFactory>) override;
 
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&, std::shared_ptr<KeyFactory>) override;
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&, std::shared_ptr<KeyFactory>) override;

@@ -33,15 +33,15 @@ public:
 
     DataElementI(TopicI*);
 
-    virtual std::shared_ptr<Ice::Communicator> getCommunicator() const
-    {
-        return _communicator;
-    }
+    virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const override;
 
 protected:
 
     std::shared_ptr<TraceLevels> _traceLevels;
-    std::shared_ptr<Ice::Communicator> _communicator;
+
+private:
+
+    TopicI* _parent;
 };
 
 class KeyDataElement : virtual public DataElement
@@ -87,8 +87,8 @@ public:
 
     DataWriterI(TopicWriterI*);
 
-    virtual void add(Value) override;
-    virtual void update(Value) override;
+    virtual void add(std::vector<unsigned char>) override;
+    virtual void update(std::vector<unsigned char>) override;
     virtual void remove() override;
 
 protected:

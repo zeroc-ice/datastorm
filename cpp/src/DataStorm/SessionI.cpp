@@ -332,13 +332,13 @@ SubscriberSessionI::SubscriberSessionI(SubscriberI* parent, shared_ptr<DataStorm
 shared_ptr<TopicI>
 SubscriberSessionI::getTopic(const string& topic) const
 {
-    return _instance->getTopicFactory()->getTopicReader(topic);
+    return _instance->getTopicFactoryI()->getTopicReader(topic);
 }
 
 void
 SubscriberSessionI::i(string topic, DataStormContract::DataSamplesSeq samples, const Ice::Current&)
 {
-    auto topicReader = _instance->getTopicFactory()->getTopicReader(topic);
+    auto topicReader = _instance->getTopicFactoryI()->getTopicReader(topic);
     if(topicReader)
     {
         if(_traceLevels->session > 1)
@@ -358,7 +358,7 @@ void
 SubscriberSessionI::s(string topic, DataStormContract::Key key, shared_ptr<DataStormContract::DataSample> s,
                       const Ice::Current&)
 {
-    auto topicReader = _instance->getTopicFactory()->getTopicReader(topic);
+    auto topicReader = _instance->getTopicFactoryI()->getTopicReader(topic);
     if(topicReader)
     {
         if(_traceLevels->session > 1)
@@ -373,7 +373,7 @@ SubscriberSessionI::s(string topic, DataStormContract::Key key, shared_ptr<DataS
 void
 SubscriberSessionI::f(string topic, string filter, shared_ptr<DataStormContract::DataSample> s, const Ice::Current&)
 {
-    auto topicReader = _instance->getTopicFactory()->getTopicReader(topic);
+    auto topicReader = _instance->getTopicFactoryI()->getTopicReader(topic);
     if(topicReader)
     {
         if(_traceLevels->session > 1)
@@ -428,5 +428,5 @@ PublisherSessionI::PublisherSessionI(PublisherI* parent, shared_ptr<DataStormCon
 shared_ptr<TopicI>
 PublisherSessionI::getTopic(const string& topic) const
 {
-    return _instance->getTopicFactory()->getTopicWriter(topic);
+    return _instance->getTopicFactoryI()->getTopicWriter(topic);
 }

@@ -27,16 +27,16 @@ TopicI::TopicI(weak_ptr<TopicFactoryI> factory, shared_ptr<KeyFactory> keyFactor
 {
 }
 
+shared_ptr<DataStorm::TopicFactory>
+TopicI::getTopicFactory() const
+{
+    return _instance->getTopicFactory();
+}
+
 void
 TopicI::destroy()
 {
     _impl->destroy();
-}
-
-shared_ptr<Ice::Communicator>
-TopicI::getCommunicator() const
-{
-    return _instance->getCommunicator();
 }
 
 void
@@ -495,9 +495,9 @@ TopicFactoryI::TopicFactoryI(shared_ptr<Ice::Communicator> communicator)
 }
 
 void
-TopicFactoryI::init()
+TopicFactoryI::init(weak_ptr<DataStorm::TopicFactory> factory)
 {
-    _instance->init(shared_from_this());
+    _instance->init(factory, shared_from_this());
 }
 
 shared_ptr<TopicReader>
@@ -701,7 +701,5 @@ TopicFactoryI::getCommunicator() const
 shared_ptr<TopicFactory>
 DataStormInternal::createTopicFactory(shared_ptr<Ice::Communicator> communicator)
 {
-    auto factory = make_shared<TopicFactoryI>(communicator);
-    factory->init();
-    return factory;
+    return make_shared<TopicFactoryI>(communicator);
 }

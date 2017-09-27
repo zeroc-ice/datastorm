@@ -18,8 +18,14 @@ using namespace DataStormInternal;
 
 DataElementI::DataElementI(TopicI* parent) :
     _traceLevels(parent->getInstance()->getTraceLevels()),
-    _communicator(parent->getCommunicator())
+    _parent(parent)
 {
+}
+
+shared_ptr<DataStorm::TopicFactory>
+DataElementI::getTopicFactory() const
+{
+    return _parent->getTopicFactory();
 }
 
 DataReaderI::DataReaderI(TopicReaderI* topic) : DataElementI(topic), _parent(topic), _subscriber(topic->getSubscriber())
@@ -82,6 +88,7 @@ DataReaderI::getNextUnread()
 void
 DataReaderI::queue(shared_ptr<Sample> sample)
 {
+    // No need for locking, the parent is locked when this is called.
     if(sample->type == DataStorm::SampleType::Add)
     {
         ++_instanceCount;
@@ -95,13 +102,13 @@ DataWriterI::DataWriterI(TopicWriterI* topic) : DataElementI(topic), _parent(top
 }
 
 void
-DataWriterI::add(Value value)
+DataWriterI::add(std::vector<unsigned char> value)
 {
     publish(make_shared<DataStormContract::DataSample>(0, 0, DataStormContract::SampleType::Add, value));
 }
 
 void
-DataWriterI::update(Value value)
+DataWriterI::update(std::vector<unsigned char> value)
 {
     publish(make_shared<DataStormContract::DataSample>(0, 0, DataStormContract::SampleType::Update, value));
 }
