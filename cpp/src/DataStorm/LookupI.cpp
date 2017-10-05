@@ -15,7 +15,7 @@
 using namespace std;
 using namespace DataStormInternal;
 
-TopicLookupI::TopicLookupI(shared_ptr<TopicFactoryI> factory) : _factory(factory)
+TopicLookupI::TopicLookupI(const shared_ptr<TopicFactoryI>& factory) : _factory(factory)
 {
 }
 

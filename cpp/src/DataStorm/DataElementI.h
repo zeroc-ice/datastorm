@@ -10,6 +10,7 @@
 #pragma once
 
 #include <DataStorm/DataStorm.h>
+#include <DataStorm/ForwarderManager.h>
 
 #include <Internal.h>
 
@@ -18,44 +19,101 @@
 namespace DataStormInternal
 {
 
-class TopicSubscriber;
-class TopicPublisher;
-
+class SessionI;
 class TopicI;
 class TopicReaderI;
 class TopicWriterI;
 
 class TraceLevels;
 
-class DataElementI : virtual public DataElement
+class DataElementI : virtual public DataElement, private Forwarder
 {
+    struct Listener
+    {
+        long long int topic;
+        long long int id;
+        SessionI* session;
+
+        bool operator<(const Listener& other) const
+        {
+            if(topic < other.topic)
+            {
+                return true;
+            }
+            else if(other.topic < topic)
+            {
+                return false;
+            }
+            if(id < other.id)
+            {
+                return true;
+            }
+            else if(other.id < id)
+            {
+                return false;
+            }
+            return session < other.session;
+        }
+    };
+
 public:
 
     DataElementI(TopicI*);
+    virtual ~DataElementI();
+
+    virtual void destroy() override;
+
+    bool attachKey(long long int, long long int, const std::shared_ptr<Key>&, SessionI*,
+                   const std::shared_ptr<DataStormContract::SessionPrx>&);
+    void detachKey(long long int, long long int, SessionI*, bool = true);
+
+    bool attachFilter(long long int, long long int, const std::shared_ptr<Filter>&, SessionI*,
+                      const std::shared_ptr<DataStormContract::SessionPrx>&);
+    void detachFilter(long long int, long long int, SessionI*, bool = true);
+
+    virtual void queue(const std::shared_ptr<Sample>&);
+
+    void waitForListeners(int count) const;
+    bool hasListeners() const;
 
     virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const override;
 
 protected:
 
+    void notifyListenerWaiters(std::unique_lock<std::mutex>&) const;
+    void disconnect();
+    virtual void destroyImpl() = 0;
+
     std::shared_ptr<TraceLevels> _traceLevels;
+    const std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
 
 private:
 
+    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
+
     TopicI* _parent;
+    std::map<Listener, std::shared_ptr<DataStormContract::SessionPrx>> _keys;
+    std::map<Listener, std::shared_ptr<DataStormContract::SessionPrx>> _filters;
+    mutable size_t _waiters;
+    mutable size_t _notified;
 };
 
-class KeyDataElement : virtual public DataElement
+class KeyDataElementI : virtual public DataElementI
 {
 public:
 
     virtual DataStormContract::KeyInfo getKeyInfo() const = 0;
+    virtual DataStormContract::KeyInfoAndSamples getKeyInfoAndSamples(long long int) const = 0;
 };
 
-class FilteredDataElement : virtual public DataElement
+class FilteredDataElementI : virtual public DataElementI
 {
+public:
+
+    virtual DataStormContract::FilterInfo getFilterInfo() const = 0;
 };
 
-class DataReaderI : public DataElementI, public DataReader
+class DataReaderI : virtual public DataElementI, public DataReader
 {
 public:
 
@@ -69,118 +127,114 @@ public:
     virtual bool hasUnread() const override;
     virtual std::shared_ptr<Sample> getNextUnread() override;
 
-    void queue(std::shared_ptr<Sample>);
+    virtual void queue(const std::shared_ptr<Sample>&) override;
 
 protected:
 
     TopicReaderI* _parent;
-    std::shared_ptr<TopicSubscriber> _subscriber;
 
     std::deque<std::shared_ptr<Sample>> _all;
     std::deque<std::shared_ptr<Sample>> _unread;
     int _instanceCount;
 };
 
-class DataWriterI : public DataElementI, public DataWriter
+class DataWriterI : virtual public DataElementI, public DataWriter
 {
 public:
 
     DataWriterI(TopicWriterI*);
 
-    virtual void add(std::vector<unsigned char>) override;
-    virtual void update(std::vector<unsigned char>) override;
+    virtual void add(const std::vector<unsigned char>&) override;
+    virtual void update(const std::vector<unsigned char>&) override;
     virtual void remove() override;
 
 protected:
 
-    void publish(std::shared_ptr<DataStormContract::DataSample>);
+    void publish(const std::shared_ptr<DataStormContract::DataSample>&);
 
     virtual void send(const std::shared_ptr<DataStormContract::DataSample>&) const = 0;
 
     TopicWriterI* _parent;
-    std::shared_ptr<TopicPublisher> _publisher;
-
+    std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
     std::deque<std::shared_ptr<DataStormContract::DataSample>> _all;
 };
 
-class KeyDataReaderI : public DataReaderI, public KeyDataElement, public std::enable_shared_from_this<KeyDataReaderI>
+class KeyDataReaderI : public DataReaderI, public KeyDataElementI
 {
 public:
 
     KeyDataReaderI(TopicReaderI*, const std::shared_ptr<Key>&);
 
-    virtual void destroy() override;
+    virtual void destroyImpl() override;
 
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
     virtual DataStormContract::KeyInfo getKeyInfo() const override;
+    virtual DataStormContract::KeyInfoAndSamples getKeyInfoAndSamples(long long int) const override;
 
 private:
 
-    std::shared_ptr<Key> _key;
+    const std::shared_ptr<Key> _key;
 };
 
-class KeyDataWriterI : public DataWriterI, public KeyDataElement, public std::enable_shared_from_this<KeyDataWriterI>
+class KeyDataWriterI : public DataWriterI, public KeyDataElementI
 {
 public:
 
     KeyDataWriterI(TopicWriterI*, const std::shared_ptr<Key>&);
 
-    virtual void destroy() override;
+    virtual void destroyImpl() override;
 
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
 
     virtual DataStormContract::KeyInfo getKeyInfo() const override;
-
-    void init(long long int, DataStormContract::DataSamplesSeq&);
+    virtual DataStormContract::KeyInfoAndSamples getKeyInfoAndSamples(long long int) const override;
 
 private:
 
     virtual void send(const std::shared_ptr<DataStormContract::DataSample>&) const override;
 
-    std::shared_ptr<Key> _key;
-    std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
+    const std::shared_ptr<Key> _key;
 };
 
-class FilteredDataReaderI : public DataReaderI,
-                            public FilteredDataElement,
-                            public std::enable_shared_from_this<FilteredDataReaderI>
+class FilteredDataReaderI : public DataReaderI, public FilteredDataElementI
 {
 public:
 
-    FilteredDataReaderI(TopicReaderI*, const std::string&);
+    FilteredDataReaderI(TopicReaderI*, const std::shared_ptr<Filter>&);
 
-    virtual void destroy() override;
+    virtual void destroyImpl() override;
 
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
+    virtual DataStormContract::FilterInfo getFilterInfo() const override;
+
 private:
 
-    const std::string _filter;
+    const std::shared_ptr<Filter> _filter;
 };
 
-class FilteredDataWriterI : public DataWriterI,
-                            public FilteredDataElement,
-                            public std::enable_shared_from_this<FilteredDataWriterI>
+class FilteredDataWriterI : public DataWriterI, public FilteredDataElementI
 {
 public:
 
-    FilteredDataWriterI(TopicWriterI*, const std::string&);
+    FilteredDataWriterI(TopicWriterI*, const std::shared_ptr<Filter>&);
 
-    virtual void destroy() override;
+    virtual void destroyImpl() override;
 
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
+
+    virtual DataStormContract::FilterInfo getFilterInfo() const override;
 
 private:
 
     virtual void send(const std::shared_ptr<DataStormContract::DataSample>&) const override;
 
-    const std::string _filter;
-    std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
+    const std::shared_ptr<Filter> _filter;
 };
 
 }

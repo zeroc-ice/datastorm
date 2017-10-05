@@ -179,7 +179,8 @@ main(int argc, char* argv[])
         {
             reader->waitForUnread(1);
             auto sample = reader->getNextUnread();
-            test(sample.getKey() == key);
+            //test(sample.getKey() == key); No key set for filtered writer
+            test(sample.getKey().empty());
             test(sample.getType() == type);
             if(type != SampleType::Remove)
             {

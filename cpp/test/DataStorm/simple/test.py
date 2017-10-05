@@ -8,9 +8,9 @@
 # **********************************************************************
 
 traceProps = {
-    "DataStorm.Trace.Topic" : 2,
-    "DataStorm.Trace.Session" : 2,
-    "DataStorm.Trace.Data" : 2
+    "DataStorm.Trace.Topic" : 0,
+    "DataStorm.Trace.Session" : 0,
+    "DataStorm.Trace.Data" : 1
 }
 
 TestSuite(__file__, [ ClientServerTestCase(traceProps=traceProps) ])

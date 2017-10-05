@@ -17,14 +17,27 @@
 using namespace std;
 using namespace DataStormInternal;
 
-TopicI::TopicI(weak_ptr<TopicFactoryI> factory, shared_ptr<KeyFactory> keyFactory, const string& name) :
+TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
+               const shared_ptr<KeyFactory>& keyFactory,
+               const shared_ptr<FilterFactory>& filterFactory,
+               const string& name,
+               long long int id) :
     _factory(factory),
     _keyFactory(keyFactory),
+    _filterFactory(filterFactory),
     _name(name),
     _instance(factory.lock()->getInstance()),
     _traceLevels(_instance->getTraceLevels()),
-    _id(0)
+    _id(id),
+    _forwarder(Ice::uncheckedCast<DataStormContract::SessionPrx>(_instance->getForwarderManager()->add(this))),
+    _nextSampleId(0)
 {
+}
+
+TopicI::~TopicI()
+{
+    disconnect();
+    _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
 }
 
 shared_ptr<DataStorm::TopicFactory>
@@ -34,32 +47,32 @@ TopicI::getTopicFactory() const
 }
 
 void
-TopicI::destroy()
+TopicI::disconnect()
 {
-    _impl->destroy();
+    map<Listener, shared_ptr<DataStormContract::SessionPrx>> sessions;
+    {
+        lock_guard<mutex> lock(_mutex);
+        _sessions.swap(sessions);
+    }
+    for(auto s : sessions)
+    {
+        s.first.session->disconnect(s.first.id);
+    }
 }
 
 void
-TopicI::attach(SessionI* session)
+TopicI::destroy()
 {
-    lock_guard<mutex> lock(_mutex);
-    if(_traceLevels->topic > 0)
     {
-        Trace out(_traceLevels, _traceLevels->topicCat);
-        out << "attached session `" << session << "' to topic `" << this << "'";
+        lock_guard<mutex> lock(_mutex);
+        _forwarder->detachTopic(_id); // Must be called before disconnect()
     }
+    disconnect();
+}
 
-    _impl->addSession(session);
-
-    auto prx = session->getSession();
-    if(!prx)
-    {
-        return;
-    }
-
-    //
-    // Initialize keys.
-    //
+DataStormContract::KeyInfoSeq
+TopicI::getKeyInfoSeq() const
+{
     DataStormContract::KeyInfoSeq keys;
     if(!_keyElements.empty())
     {
@@ -69,109 +82,214 @@ TopicI::attach(SessionI* session)
             keys.push_back(element.second->getKeyInfo());
         }
     }
+    return keys;
+}
 
-    //
-    // Initialize filters.
-    //
-    vector<string> filters;
+DataStormContract::FilterInfoSeq
+TopicI::getFilterInfoSeq() const
+{
+    DataStormContract::FilterInfoSeq filters;
     if(!_filteredElements.empty())
     {
         filters.reserve(_filteredElements.size());
         for(const auto& element : _filteredElements)
         {
-            filters.push_back(element.first);
+            filters.push_back(element.second->getFilterInfo());
+        }
+    }
+    return filters;
+}
+
+DataStormContract::TopicInfoAndContent
+TopicI::getTopicInfoAndContent(long long int lastId) const
+{
+    return { _id, _name, lastId, getKeyInfoSeq(), getFilterInfoSeq() };
+}
+
+void
+TopicI::attach(long long id, SessionI* session, const shared_ptr<DataStormContract::SessionPrx>& prx)
+{
+    if(_sessions.emplace(Listener { id, session }, prx).second)
+    {
+        session->subscribe(id, this);
+    }
+}
+
+void
+TopicI::detach(long long id, SessionI* session, bool unsubscribe)
+{
+    assert(_sessions.find({ id, session }) != _sessions.end());
+    _sessions.erase({ id, session });
+    session->unsubscribe(id, unsubscribe);
+}
+
+DataStormContract::KeyInfoAndSamplesSeq
+TopicI::attachKeysAndFilters(long long int id,
+                             const DataStormContract::KeyInfoSeq& keys,
+                             const DataStormContract::FilterInfoSeq& filters,
+                             long long int lastId,
+                             SessionI* session,
+                             const shared_ptr<DataStormContract::SessionPrx>& prx)
+{
+    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
+    DataStormContract::FilterInfoSeq ackFilters;
+    for(const auto& info : keys)
+    {
+        attachKeyImpl(id, info, {}, lastId, session, prx, ackKeys, ackFilters);
+    }
+    for(const auto& info : filters)
+    {
+        attachFilterImpl(id, info, lastId, session, prx, ackKeys);
+    }
+    return ackKeys;
+}
+
+DataStormContract::DataSamplesSeq
+TopicI::attachKeysAndFilters(long long int id,
+                             const DataStormContract::KeyInfoAndSamplesSeq& keys,
+                             const DataStormContract::FilterInfoSeq& filters,
+                             long long int lastId,
+                             SessionI* session,
+                             const shared_ptr<DataStormContract::SessionPrx>& prx)
+{
+    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
+    DataStormContract::FilterInfoSeq ackFilters;
+    for(const auto& info : keys)
+    {
+        attachKeyImpl(id, info.info, info.samples, lastId, session, prx, ackKeys, ackFilters);
+    }
+    for(const auto& info : filters)
+    {
+        attachFilterImpl(id, info, lastId, session, prx, ackKeys);
+    }
+    DataStormContract::DataSamplesSeq samples;
+    for(const auto& k : ackKeys)
+    {
+        if(!k.samples.empty())
+        {
+            samples.emplace_back(DataStormContract::DataSamples { k.info.id, move(k.samples) });
+        }
+    }
+    return samples;
+}
+
+pair<DataStormContract::KeyInfoAndSamplesSeq, DataStormContract::FilterInfoSeq>
+TopicI::attachKey(long long int id,
+                  const DataStormContract::KeyInfo& info,
+                  long long int lastId,
+                  SessionI* session,
+                  const shared_ptr<DataStormContract::SessionPrx>& prx)
+{
+    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
+    DataStormContract::FilterInfoSeq ackFilters;
+    attachKeyImpl(id, info, {}, lastId, session, prx, ackKeys, ackFilters);
+    return { ackKeys, ackFilters };
+}
+
+DataStormContract::KeyInfoAndSamplesSeq
+TopicI::attachFilter(long long int id,
+                     const DataStormContract::FilterInfo& info,
+                     long long int lastId,
+                     SessionI* session,
+                     const shared_ptr<DataStormContract::SessionPrx>& prx)
+{
+    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
+    attachFilterImpl(id, info, lastId, session, prx, ackKeys);
+    return ackKeys;
+}
+
+void
+TopicI::attachKeyImpl(long long int id,
+                      const DataStormContract::KeyInfo& info,
+                      const DataStormContract::DataSampleSeq& samples,
+                      long long int lastId,
+                      SessionI* session,
+                      const shared_ptr<DataStormContract::SessionPrx>& prx,
+                      DataStormContract::KeyInfoAndSamplesSeq& ackKeys,
+                      DataStormContract::FilterInfoSeq& ackFilters)
+{
+    auto key = _keyFactory->unmarshal(_instance->getTopicFactory(), info.key);
+    auto p = _keyElements.find(key);
+    if(p != _keyElements.end())
+    {
+        if(p->second->attachKey(id, info.id, key, session, prx))
+        {
+            if(!samples.empty())
+            {
+                for(const auto& sample : samples)
+                {
+                    p->second->queue(make_shared<SampleI>(_instance->getTopicFactory(), key, sample));
+                }
+            }
+            ackKeys.push_back(p->second->getKeyInfoAndSamples(lastId));
         }
     }
 
-    if(!keys.empty() || !filters.empty())
+    for(const auto& element : _filteredElements)
     {
-        prx->initKeysAndFiltersAsync(_name, session->getLastId(_name), keys, filters);
+        if(element.first->match(key))
+        {
+            if(element.second->attachKey(id, info.id, key, session, prx))
+            {
+                ackFilters.push_back(element.second->getFilterInfo());
+            }
+        }
     }
 }
 
 void
-TopicI::detach(SessionI* session)
+TopicI::attachFilterImpl(long long int id,
+                         const DataStormContract::FilterInfo& info,
+                         long long int lastId,
+                         SessionI* session,
+                         const shared_ptr<DataStormContract::SessionPrx>& prx,
+                         DataStormContract::KeyInfoAndSamplesSeq& ack)
 {
-    lock_guard<mutex> lock(_mutex);
-    if(_traceLevels->topic > 0)
+    auto filter = _filterFactory->unmarshal(_instance->getTopicFactory(), info.filter);
+
+    for(const auto& element : _keyElements)
     {
-        Trace out(_traceLevels, _traceLevels->topicCat);
-        out << "detached session `" << session << "' from topic `" << this << "'";
+        if(filter->match(element.first))
+        {
+            if(element.second->attachFilter(id, info.id, filter, session, prx))
+            {
+                ack.push_back(element.second->getKeyInfoAndSamples(lastId));
+            }
+        }
     }
-    _impl->removeSession(session);
 }
 
 void
-TopicI::initKeysAndFilters(const DataStormContract::KeyInfoSeq& keys, const DataStormContract::StringSeq& filters,
-                           long long int lastId, SessionI* session)
+TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 {
-    lock_guard<mutex> lock(_mutex);
-    keysAndFiltersAttached(keys, filters, lastId, session);
+    // Forwarder proxy must be called with the mutex locked!
+    for(auto session : _sessions)
+    {
+        session.second->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+    }
 }
 
-void
-TopicI::attachKey(const DataStormContract::KeyInfo& key, long long int lastId, SessionI* session)
+TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
+                           const shared_ptr<KeyFactory>& keyFactory,
+                           const shared_ptr<FilterFactory>& filterFactory,
+                           const string& name,
+                           long long int id) :
+    TopicI(factory, keyFactory, filterFactory, name, id)
 {
-    lock_guard<mutex> lock(_mutex);
-    keyAttached(key, lastId, session);
-}
-
-void
-TopicI::detachKey(const DataStormContract::Key& key, SessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    keyDetached(key, session);
-}
-
-void
-TopicI::attachFilter(const string& filter, long long int lastId, SessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    filterAttached(filter, lastId, session);
-}
-
-void
-TopicI::detachFilter(const string& filter, SessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    filterDetached(filter, session);
-}
-
-shared_ptr<TopicSubscriber>
-TopicI::getSubscriber() const
-{
-    return dynamic_pointer_cast<TopicSubscriber>(_impl);
-}
-
-shared_ptr<TopicPublisher>
-TopicI::getPublisher() const
-{
-    return dynamic_pointer_cast<TopicPublisher>(_impl);
-}
-
-TopicReaderI::TopicReaderI(shared_ptr<TopicFactoryI> factory, shared_ptr<KeyFactory> keyFactory, const string& name,
-                           SubscriberI* subscriber) :
-    TopicI(factory, keyFactory, name)
-{
-    _impl = subscriber->createTopicSubscriber(this);
 }
 
 shared_ptr<DataReader>
-TopicReaderI::getFilteredDataReader(const string& filter)
+TopicReaderI::getFilteredDataReader(const shared_ptr<Filter>& filter)
 {
     lock_guard<mutex> lock(_mutex);
-    auto reader = getFiltered<FilteredDataReaderI>(filter);
-    _impl->forEachPeerKey([&](const shared_ptr<Key>& key) { _elements[key].insert(reader); }, filter);
-    return reader;
+    return getFiltered<FilteredDataReaderI>(filter);
 }
 
 shared_ptr<DataReader>
 TopicReaderI::getDataReader(const shared_ptr<Key>& key)
 {
     lock_guard<mutex> lock(_mutex);
-    auto reader = get<KeyDataReaderI>(key);
-    _elements[key].insert(reader);
-    return reader;
+    return get<KeyDataReaderI>(key);
 }
 
 void
@@ -179,7 +297,7 @@ TopicReaderI::destroy()
 {
     TopicI::destroy();
 
-    auto factory = _factory.lock();
+    auto factory = _factory.lock();;
     if(factory)
     {
         factory->removeTopicReader(_name);
@@ -187,171 +305,44 @@ TopicReaderI::destroy()
 }
 
 void
-TopicReaderI::removeFiltered(const string& filter, const shared_ptr<FilteredDataReaderI>& reader)
+TopicReaderI::removeFiltered(const shared_ptr<Filter>& filter)
 {
-    lock_guard<mutex> lock(_mutex);
     _filteredElements.erase(filter);
-    _impl->forEachPeerKey([&](const shared_ptr<Key>& key) { _elements[key].erase(reader); }, filter);
 }
 
 void
-TopicReaderI::remove(const shared_ptr<Key>& key, const shared_ptr<KeyDataReaderI>& reader)
+TopicReaderI::remove(const shared_ptr<Key>& key)
 {
-    lock_guard<mutex> lock(_mutex);
     _keyElements.erase(key);
-    _elements[key].erase(reader);
 }
 
-void
-TopicReaderI::keysAndFiltersAttached(const DataStormContract::KeyInfoSeq& keys,
-                                     const DataStormContract::StringSeq& filters,
-                                     long long int,
-                                     SessionI* session)
+shared_ptr<KeyDataElementI>
+TopicReaderI::makeElement(const shared_ptr<Key>& key)
 {
-    vector<DataStormContract::Key> k;
-    for(const auto& info : keys)
-    {
-        shared_ptr<Key> key = _keyFactory->unmarshal(info.key);
-        if(_impl->addKeyListener(key, session))
-        {
-            for(const auto& element : _filteredElements)
-            {
-                if(key->match(element.first))
-                {
-                    _elements[key].insert(dynamic_pointer_cast<DataReaderI>(element.second));
-                    k.push_back(info.key);
-                }
-            }
-        }
-    }
-    for(auto filter : filters)
-    {
-        _impl->addFilteredListener(filter, session);
-    }
+    auto element = make_shared<KeyDataReaderI>(this, key);
+    _forwarder->announceKey(_id, element->getKeyInfo());
+    return element;
 }
 
-void
-TopicReaderI::keyAttached(const DataStormContract::KeyInfo& info, long long int, SessionI* session)
+shared_ptr<FilteredDataElementI>
+TopicReaderI::makeFilteredElement(const shared_ptr<Filter>& filter)
 {
-    shared_ptr<Key> key = _keyFactory->unmarshal(info.key);
-    if(_impl->addKeyListener(key, session))
-    {
-        for(const auto& element : _filteredElements)
-        {
-            if(key->match(element.first))
-            {
-                _elements[key].insert(dynamic_pointer_cast<DataReaderI>(element.second));
-            }
-        }
-    }
+    auto element = make_shared<FilteredDataReaderI>(this, filter);
+    _forwarder->announceFilter(_id, element->getFilterInfo());
+    return element;
 }
 
-void
-TopicReaderI::keyDetached(const DataStormContract::Key& k, SessionI* session)
+TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
+                           const shared_ptr<KeyFactory>& keyFactory,
+                           const shared_ptr<FilterFactory>& filterFactory,
+                           const string& name,
+                           long long int id) :
+    TopicI(factory, keyFactory, filterFactory, name, id)
 {
-    shared_ptr<Key> key = _keyFactory->unmarshal(k);
-    _impl->removeKeyListener(key, session);
-    for(const auto& element : _filteredElements)
-    {
-        if(key->match(element.first))
-        {
-            _elements[key].erase(dynamic_pointer_cast<DataReaderI>(element.second));
-        }
-    }
-}
-
-void
-TopicReaderI::filterAttached(const string& filter, long long int, SessionI* session)
-{
-    _impl->addFilteredListener(filter, session);
-}
-
-void
-TopicReaderI::filterDetached(const string& filter, SessionI* session)
-{
-    _impl->removeFilteredListener(filter, session);
-}
-
-void
-TopicReaderI::queue(const DataStormContract::Key& k, const DataStormContract::DataSampleSeq& samples,
-                    SubscriberSessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    shared_ptr<Key> key = _keyFactory->unmarshal(k);
-    auto p = _elements.find(key);
-    if(p == _elements.end())
-    {
-        return;
-    }
-
-    for(const auto& s : samples)
-    {
-        if(session->setLastId(_name, s->id))
-        {
-            auto sample = make_shared<SampleI>(key, s);
-            for(auto& reader : p->second)
-            {
-                reader->queue(sample);
-            }
-        }
-    }
-    _cond.notify_all();
-}
-
-void
-TopicReaderI::queue(const DataStormContract::Key& k, const shared_ptr<DataStormContract::DataSample>& s,
-                    SubscriberSessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    if(session->setLastId(_name, s->id))
-    {
-        shared_ptr<Key> key = _keyFactory->unmarshal(k);
-        auto p = _elements.find(key);
-        if(p == _elements.end())
-        {
-            return;
-        }
-
-        auto sample = make_shared<SampleI>(key, s);
-        for(const auto& reader : p->second)
-        {
-            reader->queue(sample);
-        }
-        _cond.notify_all();
-    }
-}
-
-void
-TopicReaderI::queue(const string& filter, const shared_ptr<DataStormContract::DataSample>& s,
-                    SubscriberSessionI* session)
-{
-    lock_guard<mutex> lock(_mutex);
-    if(session->setLastId(_name, s->id))
-    {
-        for(const auto& element : _elements)
-        {
-            if(element.first->match(filter))
-            {
-                auto sample = make_shared<SampleI>(element.first, s);
-                for(const auto& reader : element.second)
-                {
-                    reader->queue(sample);
-                }
-            }
-        }
-        _cond.notify_all();
-    }
-}
-
-TopicWriterI::TopicWriterI(shared_ptr<TopicFactoryI> factory, shared_ptr<KeyFactory> keyFactory, const string& name,
-                           PublisherI* publisher) :
-    TopicI(factory, keyFactory, name)
-{
-    _impl = publisher->createTopicPublisher(this);
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::getFilteredDataWriter(const string& filter)
+TopicWriterI::getFilteredDataWriter(const shared_ptr<Filter>& filter)
 {
     lock_guard<mutex> lock(_mutex);
     return getFiltered<FilteredDataWriterI>(filter);
@@ -377,131 +368,49 @@ TopicWriterI::destroy()
 }
 
 void
-TopicWriterI::removeFiltered(const string& filter, const shared_ptr<FilteredDataWriterI>&)
+TopicWriterI::removeFiltered(const shared_ptr<Filter>& filter)
 {
-    lock_guard<mutex> lock(_mutex);
     _filteredElements.erase(filter);
 }
 
 void
-TopicWriterI::remove(const shared_ptr<Key>& key, const shared_ptr<KeyDataWriterI>&)
+TopicWriterI::remove(const shared_ptr<Key>& key)
 {
-    lock_guard<mutex> lock(_mutex);
     _keyElements.erase(key);
 }
 
-void
-TopicWriterI::keysAndFiltersAttached(const DataStormContract::KeyInfoSeq& keys,
-                                     const DataStormContract::StringSeq& filters,
-                                     long long int lastId,
-                                     SessionI* session)
+shared_ptr<KeyDataElementI>
+TopicWriterI::makeElement(const shared_ptr<Key>& key)
 {
-    DataStormContract::DataSamplesSeq samples;
-    auto prx = Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(session->getSession());
-    for(const auto& info : keys)
-    {
-        auto key = _keyFactory->unmarshal(info.key);
-        _impl->addKeyListener(key, session);
-        if(prx)
-        {
-            auto q = _keyElements.find(key);
-            if(q != _keyElements.end())
-            {
-                dynamic_pointer_cast<KeyDataWriterI>(q->second)->init(lastId, samples);
-            }
-        }
-    }
-    for(auto filter : filters)
-    {
-        _impl->addFilteredListener(filter, session);
-        for(const auto& e : _keyElements)
-        {
-            if(e.first->match(filter))
-            {
-                dynamic_pointer_cast<KeyDataWriterI>(e.second)->init(lastId, samples);
-            }
-        }
-    }
-    if(!samples.empty())
-    {
-        prx->iAsync(_name, samples);
-    }
+    auto element = make_shared<KeyDataWriterI>(this, key);
+    _forwarder->announceKey(_id, element->getKeyInfo());
+    return element;
 }
 
-void
-TopicWriterI::keyAttached(const DataStormContract::KeyInfo& info, long long int lastId, SessionI* session)
+shared_ptr<FilteredDataElementI>
+TopicWriterI::makeFilteredElement(const shared_ptr<Filter>& filter)
 {
-    auto key = _keyFactory->unmarshal(info.key);
-    _impl->addKeyListener(key, session);
-
-    DataStormContract::DataSamplesSeq samples;
-    auto prx = Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(session->getSession());
-    if(prx)
-    {
-        //
-        // Send samples to the reader
-        //
-        auto p = _keyElements.find(key);
-        if(p != _keyElements.end())
-        {
-            dynamic_pointer_cast<KeyDataWriterI>(p->second)->init(lastId, samples);
-        }
-    }
-    if(!samples.empty())
-    {
-        prx->iAsync(_name, samples);
-    }
+    auto element = make_shared<FilteredDataWriterI>(this, filter);
+    _forwarder->announceFilter(_id, element->getFilterInfo());
+    return element;
 }
 
-void
-TopicWriterI::keyDetached(const DataStormContract::Key& key, SessionI* session)
-{
-    _impl->removeKeyListener(_keyFactory->unmarshal(key), session);
-}
-
-void
-TopicWriterI::filterAttached(const string& filter, long long int lastId, SessionI* session)
-{
-    _impl->addFilteredListener(filter, session);
-
-    auto prx = Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(session->getSession());
-    if(prx)
-    {
-        DataStormContract::DataSamplesSeq samples;
-        for(const auto& e : _keyElements)
-        {
-            if(e.first->match(filter))
-            {
-                dynamic_pointer_cast<KeyDataWriterI>(e.second)->init(lastId, samples);
-            }
-        }
-        if(!samples.empty())
-        {
-            prx->iAsync(_name, samples);
-        }
-    }
-}
-
-void
-TopicWriterI::filterDetached(const string& filter, SessionI* session)
-{
-    _impl->removeFilteredListener(filter, session);
-}
-
-TopicFactoryI::TopicFactoryI(shared_ptr<Ice::Communicator> communicator)
+TopicFactoryI::TopicFactoryI(const shared_ptr<Ice::Communicator>& communicator)
 {
     _instance = make_shared<Instance>(communicator);
     _traceLevels = _instance->getTraceLevels();
 }
 
 void
-TopicFactoryI::init(weak_ptr<DataStorm::TopicFactory> factory)
+TopicFactoryI::init(const weak_ptr<DataStorm::TopicFactory>& factory)
 {
     _instance->init(factory, shared_from_this());
 }
 
 shared_ptr<TopicReader>
-TopicFactoryI::createTopicReader(const string& name, shared_ptr<KeyFactory> keyFactory)
+TopicFactoryI::createTopicReader(const string& name,
+                                 const shared_ptr<KeyFactory>& keyFactory,
+                                 const shared_ptr<FilterFactory>& filterFactory)
 {
     shared_ptr<TopicReaderI> reader;
     {
@@ -517,7 +426,7 @@ TopicFactoryI::createTopicReader(const string& name, shared_ptr<KeyFactory> keyF
             _subscriber = make_shared<SubscriberI>(_instance);
             _subscriber->init();
         }
-        reader = make_shared<TopicReaderI>(shared_from_this(), keyFactory, name, _subscriber.get());
+        reader = make_shared<TopicReaderI>(shared_from_this(), keyFactory, filterFactory, name, _nextReaderId++);
         _readers.insert(make_pair(name, reader));
         if(_traceLevels->topic > 0)
         {
@@ -525,13 +434,15 @@ TopicFactoryI::createTopicReader(const string& name, shared_ptr<KeyFactory> keyF
             out << "added topic reader `" << name << "'";
         }
     }
-    _subscriber->getForwarder()->addTopicAsync(name);
-    _subscriber->checkSessions(reader);
+    _subscriber->getForwarder()->announceTopics({ { reader->getId(), name } });
+    _instance->getTopicLookup()->announceTopicSubscriberAsync(reader->getName(), _subscriber->getProxy());
     return reader;
 }
 
 shared_ptr<TopicWriter>
-TopicFactoryI::createTopicWriter(const string& name, shared_ptr<KeyFactory> keyFactory)
+TopicFactoryI::createTopicWriter(const string& name,
+                                 const shared_ptr<KeyFactory>& keyFactory,
+                                 const shared_ptr<FilterFactory>& filterFactory)
 {
     shared_ptr<TopicWriterI> writer;
     {
@@ -547,7 +458,7 @@ TopicFactoryI::createTopicWriter(const string& name, shared_ptr<KeyFactory> keyF
             _publisher = make_shared<PublisherI>(_instance);
             _publisher->init();
         }
-        writer = make_shared<TopicWriterI>(shared_from_this(), keyFactory, name, _publisher.get());
+        writer = make_shared<TopicWriterI>(shared_from_this(), keyFactory, filterFactory, name, _nextWriterId++);
         _writers.insert(make_pair(name, writer));
         if(_traceLevels->topic > 0)
         {
@@ -555,8 +466,8 @@ TopicFactoryI::createTopicWriter(const string& name, shared_ptr<KeyFactory> keyF
             out << "added topic writer `" << name << "'";
         }
     }
-    _publisher->getForwarder()->addTopicAsync(name);
-    _publisher->checkSessions(writer);
+    _publisher->getForwarder()->announceTopics({ { writer->getId(), name } });
+    _instance->getTopicLookup()->announceTopicPublisherAsync(writer->getName(), _publisher->getProxy());
     return writer;
 }
 
@@ -581,31 +492,25 @@ TopicFactoryI::destroy()
 void
 TopicFactoryI::removeTopicReader(const string& name)
 {
+    lock_guard<mutex> lock(_mutex);
+    if(_traceLevels->topic > 0)
     {
-        lock_guard<mutex> lock(_mutex);
-        if(_traceLevels->topic > 0)
-        {
-            Trace out(_traceLevels, _traceLevels->topicCat);
-            out << "removed topic reader `" << name << "'";
-        }
-        _readers.erase(name);
+        Trace out(_traceLevels, _traceLevels->topicCat);
+        out << "removed topic reader `" << name << "'";
     }
-    _subscriber->getForwarder()->removeTopicAsync(name);
+    _readers.erase(name);
 }
 
 void
 TopicFactoryI::removeTopicWriter(const string& name)
 {
+    lock_guard<mutex> lock(_mutex);
+    if(_traceLevels->topic > 0)
     {
-        lock_guard<mutex> lock(_mutex);
-        if(_traceLevels->topic > 0)
-        {
-            Trace out(_traceLevels, _traceLevels->topicCat);
-            out << "removed topic writer `" << name << "'";
-        }
-        _writers.erase(name);
+        Trace out(_traceLevels, _traceLevels->topicCat);
+        out << "removed topic writer `" << name << "'";
     }
-    _publisher->getForwarder()->removeTopicAsync(name);
+    _writers.erase(name);
 }
 
 shared_ptr<TopicReaderI>
@@ -633,7 +538,7 @@ TopicFactoryI::getTopicWriter(const string& name) const
 }
 
 void
-TopicFactoryI::createSession(const string& topic, shared_ptr<DataStormContract::PublisherPrx> publisher)
+TopicFactoryI::createSession(const string& topic, const shared_ptr<DataStormContract::PublisherPrx>& publisher)
 {
     auto reader = getTopicReader(topic);
     if(reader)
@@ -650,7 +555,7 @@ TopicFactoryI::createSession(const string& topic, shared_ptr<DataStormContract::
 }
 
 void
-TopicFactoryI::createSession(const string& topic, shared_ptr<DataStormContract::SubscriberPrx> subscriber)
+TopicFactoryI::createSession(const string& topic, const shared_ptr<DataStormContract::SubscriberPrx>& subscriber)
 {
     auto writer = getTopicWriter(topic);
     if(writer)
@@ -666,28 +571,28 @@ TopicFactoryI::createSession(const string& topic, shared_ptr<DataStormContract::
     }
 }
 
-vector<string>
+DataStormContract::TopicInfoSeq
 TopicFactoryI::getTopicReaders() const
 {
     lock_guard<mutex> lock(_mutex);
-    vector<string> readers;
+    DataStormContract::TopicInfoSeq readers;
     readers.reserve(_readers.size());
     for(const auto& p : _readers)
     {
-        readers.push_back(p.first);
+        readers.push_back({ p.second->getId(), p.first });
     }
     return readers;
 }
 
-vector<string>
+DataStormContract::TopicInfoSeq
 TopicFactoryI::getTopicWriters() const
 {
     lock_guard<mutex> lock(_mutex);
-    vector<string> writers;
+    DataStormContract::TopicInfoSeq writers;
     writers.reserve(_writers.size());
     for(const auto& p : _writers)
     {
-        writers.push_back(p.first);
+        writers.push_back({ p.second->getId(), p.first});
     }
     return writers;
 }
@@ -699,7 +604,7 @@ TopicFactoryI::getCommunicator() const
 }
 
 shared_ptr<TopicFactory>
-DataStormInternal::createTopicFactory(shared_ptr<Ice::Communicator> communicator)
+DataStormInternal::createTopicFactory(const shared_ptr<Ice::Communicator>& communicator)
 {
     return make_shared<TopicFactoryI>(communicator);
 }

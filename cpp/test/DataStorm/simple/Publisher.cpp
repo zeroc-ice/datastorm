@@ -141,25 +141,31 @@ main(int argc, char* argv[])
         writer->add(make_shared<Test::Base>("value1"));
         writer->update(make_shared<Test::Base>("value2"));
         writer->remove();
+        writer->waitForNoReaders();
+        writer->destroy();
 
         writer = topic->getFilteredDataWriter("elemb[0-9]");
         writer->waitForReaders(1);
         writer->update(make_shared<Test::Base>("value1"));
+        writer->waitForNoReaders();
         writer->destroy();
 
         writer = topic->getFilteredDataWriter("elemc[0-9]");
         writer->waitForReaders(1);
         writer->remove();
+        writer->waitForNoReaders();
         writer->destroy();
 
         writer = topic->getFilteredDataWriter("elemd[0-9]");
         writer->waitForReaders(1);
         writer->add(make_shared<Test::Base>("value1"));
+        writer->waitForNoReaders();
         writer->destroy();
 
         writer = topic->getFilteredDataWriter("elem[0-9]");
         writer->waitForReaders(5);
         writer->update(make_shared<Test::Base>("value1"));
+        writer->waitForNoReaders();
         writer->destroy();
     }
     cout << "ok" << endl;

@@ -11,6 +11,7 @@
 
 #include <DataStorm/DataStorm.h>
 #include <DataStorm/DataElementI.h>
+#include <DataStorm/ForwarderManager.h>
 
 namespace DataStormInternal
 {
@@ -18,19 +19,42 @@ namespace DataStormInternal
 class Instance;
 class SessionI;
 class SubscriberSessionI;
-class TopicPeer;
-class TopicSubscriber;
-class TopicPublisher;
 class PublisherI;
 class SubscriberI;
 
 class TopicFactoryI;
 
-class TopicI : virtual public Topic
+class TopicI : virtual public Topic, private Forwarder
 {
+
+    struct Listener
+    {
+        long long int id;
+        SessionI* session;
+
+        bool operator<(const Listener& other) const
+        {
+            if(id < other.id)
+            {
+                return true;
+            }
+            else if(other.id < id)
+            {
+                return false;
+            }
+            return session < other.session;
+        }
+    };
+
 public:
 
-    TopicI(std::weak_ptr<TopicFactoryI>, std::shared_ptr<KeyFactory>, const std::string&);
+    TopicI(const std::weak_ptr<TopicFactoryI>&,
+           const std::shared_ptr<KeyFactory>&,
+           const std::shared_ptr<FilterFactory>&,
+           const std::string&,
+           long long int);
+
+    virtual ~TopicI();
 
     virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const override;
     virtual void destroy() override;
@@ -46,36 +70,75 @@ public:
         return _instance;
     }
 
-    void attach(SessionI*);
-    void detach(SessionI*);
+    DataStormContract::KeyInfoSeq getKeyInfoSeq() const;
+    DataStormContract::FilterInfoSeq getFilterInfoSeq() const;
+    DataStormContract::TopicInfoAndContent getTopicInfoAndContent(long long int) const;
 
-    void initKeysAndFilters(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&, long long int,
-                            SessionI*);
+    void attach(long long int, SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&);
+    void detach(long long int, SessionI*, bool = true);
 
-    void attachKey(const DataStormContract::KeyInfo&, long long int, SessionI*);
-    void detachKey(const DataStormContract::Key&, SessionI*);
+    DataStormContract::KeyInfoAndSamplesSeq
+    attachKeysAndFilters(long long int,
+                         const DataStormContract::KeyInfoSeq&,
+                         const DataStormContract::FilterInfoSeq&,
+                         long long int,
+                         SessionI*,
+                         const std::shared_ptr<DataStormContract::SessionPrx>&);
 
-    void attachFilter(const std::string&, long long int, SessionI*);
-    void detachFilter(const std::string&, SessionI*);
+    DataStormContract::DataSamplesSeq
+    attachKeysAndFilters(long long int,
+                         const DataStormContract::KeyInfoAndSamplesSeq&,
+                         const DataStormContract::FilterInfoSeq&,
+                         long long int,
+                         SessionI*,
+                         const std::shared_ptr<DataStormContract::SessionPrx>&);
 
-    std::shared_ptr<TopicSubscriber> getSubscriber() const;
-    std::shared_ptr<TopicPublisher> getPublisher() const;
+    std::pair<DataStormContract::KeyInfoAndSamplesSeq, DataStormContract::FilterInfoSeq>
+    attachKey(long long int,
+              const DataStormContract::KeyInfo&,
+              long long int,
+              SessionI*,
+              const std::shared_ptr<DataStormContract::SessionPrx>&);
 
-    std::shared_ptr<TopicPeer> getPeer() const
+    DataStormContract::KeyInfoAndSamplesSeq
+    attachFilter(long long int,
+                 const DataStormContract::FilterInfo&,
+                 long long int,
+                 SessionI*,
+                 const std::shared_ptr<DataStormContract::SessionPrx>&);
+
+    long long int getId() const
     {
-        return _impl;
+        return _id;
+    }
+
+    std::mutex&
+    getMutex()
+    {
+        return _mutex;
     }
 
 protected:
 
-    virtual void keysAndFiltersAttached(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&,
-                                        long long int, SessionI*) = 0;
+    void disconnect();
 
-    virtual void keyAttached(const DataStormContract::KeyInfo&, long long int, SessionI*) = 0;
-    virtual void keyDetached(const DataStormContract::Key&, SessionI*) = 0;
+    void attachKeyImpl(long long int,
+                       const DataStormContract::KeyInfo&,
+                       const DataStormContract::DataSampleSeq&,
+                       long long int,
+                       SessionI*,
+                       const std::shared_ptr<DataStormContract::SessionPrx>&,
+                       DataStormContract::KeyInfoAndSamplesSeq&,
+                       DataStormContract::FilterInfoSeq&);
 
-    virtual void filterAttached(const std::string&, long long int, SessionI*) = 0;
-    virtual void filterDetached(const std::string&, SessionI*) = 0;
+    void attachFilterImpl(long long int,
+                          const DataStormContract::FilterInfo&,
+                          long long int,
+                          SessionI*,
+                          const std::shared_ptr<DataStormContract::SessionPrx>&,
+                          DataStormContract::KeyInfoAndSamplesSeq&);
+
+    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
     template<typename T> std::shared_ptr<T>
     get(const std::shared_ptr<Key>& key)
@@ -89,7 +152,7 @@ protected:
     }
 
     template<typename T> std::shared_ptr<T>
-    getFiltered(const std::string& filter)
+    getFiltered(const std::shared_ptr<Filter>& filter)
     {
         auto p = _filteredElements.find(filter);
         if(p == _filteredElements.end())
@@ -99,113 +162,91 @@ protected:
         return std::dynamic_pointer_cast<T>(p->second);
     }
 
-    virtual std::shared_ptr<KeyDataElement> makeElement(const std::shared_ptr<Key>&) = 0;
-    virtual std::shared_ptr<FilteredDataElement> makeFilteredElement(const std::string&) = 0;
+    virtual std::shared_ptr<KeyDataElementI> makeElement(const std::shared_ptr<Key>&) = 0;
+    virtual std::shared_ptr<FilteredDataElementI> makeFilteredElement(const std::shared_ptr<Filter>&) = 0;
 
     friend class DataElementI;
     friend class DataReaderI;
     friend class DataWriterI;
 
+    const std::weak_ptr<TopicFactoryI> _factory;
+    const std::shared_ptr<KeyFactory> _keyFactory;
+    const std::shared_ptr<FilterFactory> _filterFactory;
+    const std::string _name;
+    const std::shared_ptr<Instance> _instance;
+    const std::shared_ptr<TraceLevels> _traceLevels;
+    const long long int _id;
+    const std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
+
     std::mutex _mutex;
     std::condition_variable _cond;
-    std::weak_ptr<TopicFactoryI> _factory;
-    std::shared_ptr<KeyFactory> _keyFactory;
-    std::string _name;
-    std::shared_ptr<Instance> _instance;
-    std::shared_ptr<TraceLevels> _traceLevels;
-    std::shared_ptr<TopicPeer> _impl;
-    std::map<std::shared_ptr<Key>, std::shared_ptr<KeyDataElement>> _keyElements;
-    std::map<std::string, std::shared_ptr<FilteredDataElement>> _filteredElements;
-    long long int _id;
+    std::map<std::shared_ptr<Key>, std::shared_ptr<KeyDataElementI>> _keyElements;
+    std::map<std::shared_ptr<Filter>, std::shared_ptr<FilteredDataElementI>> _filteredElements;
+    std::map<Listener, std::shared_ptr<DataStormContract::SessionPrx>> _sessions;
+    long long int _nextSampleId;
 };
 
 class TopicReaderI : public TopicReader, public TopicI
 {
 public:
 
-    TopicReaderI(std::shared_ptr<TopicFactoryI>, std::shared_ptr<KeyFactory>, const std::string&, SubscriberI*);
+    TopicReaderI(const std::shared_ptr<TopicFactoryI>&,
+                 const std::shared_ptr<KeyFactory>&,
+                 const std::shared_ptr<FilterFactory>&,
+                 const std::string&,
+                 long long int);
 
-    virtual std::shared_ptr<DataReader> getFilteredDataReader(const std::string&) override;
+    virtual std::shared_ptr<DataReader> getFilteredDataReader(const std::shared_ptr<Filter>&) override;
     virtual std::shared_ptr<DataReader> getDataReader(const std::shared_ptr<Key>&) override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::string&, const std::shared_ptr<FilteredDataReaderI>&);
-    void remove(const std::shared_ptr<Key>&, const std::shared_ptr<KeyDataReaderI>&);
-
-    void queue(const DataStormContract::Key&, const DataStormContract::DataSampleSeq&, SubscriberSessionI*);
-    void queue(const DataStormContract::Key&, const DataStormContract::DataSamplePtr&, SubscriberSessionI*);
-    void queue(const std::string&, const DataStormContract::DataSamplePtr&, SubscriberSessionI*);
+    void removeFiltered(const std::shared_ptr<Filter>&);
+    void remove(const std::shared_ptr<Key>&);
 
 private:
 
-    virtual std::shared_ptr<KeyDataElement> makeElement(const std::shared_ptr<Key>& key) override
-    {
-        return std::make_shared<KeyDataReaderI>(this, key);
-    }
-
-    virtual std::shared_ptr<FilteredDataElement> makeFilteredElement(const std::string& filter) override
-    {
-        return std::make_shared<FilteredDataReaderI>(this, filter);
-    }
-
-    virtual void keysAndFiltersAttached(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&,
-                                        long long int, SessionI*) override;
-
-    virtual void keyAttached(const DataStormContract::KeyInfo&, long long int, SessionI*) override;
-    virtual void keyDetached(const DataStormContract::Key&, SessionI*) override;
-
-    virtual void filterAttached(const std::string&, long long int, SessionI*) override;
-    virtual void filterDetached(const std::string&, SessionI*) override;
-
-    std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<DataReaderI>>> _elements;
-    std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<DataReaderI>>> _filters;
+    virtual std::shared_ptr<KeyDataElementI> makeElement(const std::shared_ptr<Key>&) override;
+    virtual std::shared_ptr<FilteredDataElementI> makeFilteredElement(const std::shared_ptr<Filter>&) override;
 };
 
 class TopicWriterI : public TopicWriter, public TopicI
 {
 public:
 
-    TopicWriterI(std::shared_ptr<TopicFactoryI>, std::shared_ptr<KeyFactory>, const std::string&, PublisherI*);
+    TopicWriterI(const std::shared_ptr<TopicFactoryI>&,
+                 const std::shared_ptr<KeyFactory>&,
+                 const std::shared_ptr<FilterFactory>&,
+                 const std::string&,
+                 long long int);
 
-    virtual std::shared_ptr<DataWriter> getFilteredDataWriter(const std::string&) override;
+    virtual std::shared_ptr<DataWriter> getFilteredDataWriter(const std::shared_ptr<Filter>&) override;
     virtual std::shared_ptr<DataWriter> getDataWriter(const std::shared_ptr<Key>&) override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::string&, const std::shared_ptr<FilteredDataWriterI>&);
-    void remove(const std::shared_ptr<Key>&, const std::shared_ptr<KeyDataWriterI>&);
+    void removeFiltered(const std::shared_ptr<Filter>&);
+    void remove(const std::shared_ptr<Key>&);
 
 private:
 
-    virtual std::shared_ptr<KeyDataElement> makeElement(const std::shared_ptr<Key>& key) override
-    {
-        return std::make_shared<KeyDataWriterI>(this, key);
-    }
-
-    virtual std::shared_ptr<FilteredDataElement> makeFilteredElement(const std::string& filter) override
-    {
-        return std::make_shared<FilteredDataWriterI>(this, filter);
-    }
-
-    virtual void keysAndFiltersAttached(const DataStormContract::KeyInfoSeq&, const DataStormContract::StringSeq&,
-                                        long long int, SessionI*) override;
-
-    virtual void keyAttached(const DataStormContract::KeyInfo&, long long int, SessionI*) override;
-    virtual void keyDetached(const DataStormContract::Key&, SessionI*) override;
-
-    virtual void filterAttached(const std::string&, long long int, SessionI*) override;
-    virtual void filterDetached(const std::string&, SessionI*) override;
+    virtual std::shared_ptr<KeyDataElementI> makeElement(const std::shared_ptr<Key>&) override;
+    virtual std::shared_ptr<FilteredDataElementI> makeFilteredElement(const std::shared_ptr<Filter>&) override;
 };
 
 class TopicFactoryI : public TopicFactory, public std::enable_shared_from_this<TopicFactoryI>
 {
 public:
 
-    TopicFactoryI(std::shared_ptr<Ice::Communicator> = nullptr);
+    TopicFactoryI(const std::shared_ptr<Ice::Communicator>& = nullptr);
 
-    virtual void init(std::weak_ptr<DataStorm::TopicFactory>) override;
+    virtual void init(const std::weak_ptr<DataStorm::TopicFactory>&) override;
 
-    virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&, std::shared_ptr<KeyFactory>) override;
-    virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&, std::shared_ptr<KeyFactory>) override;
+    virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
+                                                           const std::shared_ptr<KeyFactory>&,
+                                                           const std::shared_ptr<FilterFactory>&) override;
+
+    virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
+                                                           const std::shared_ptr<KeyFactory>&,
+                                                           const std::shared_ptr<FilterFactory>&) override;
 
     virtual void waitForShutdown() override;
     virtual void shutdown() override;
@@ -219,16 +260,16 @@ public:
     std::shared_ptr<TopicReaderI> getTopicReader(const std::string&) const;
     std::shared_ptr<TopicWriterI> getTopicWriter(const std::string&) const;
 
-    void createSession(const std::string&, std::shared_ptr<DataStormContract::PublisherPrx>);
-    void createSession(const std::string&, std::shared_ptr<DataStormContract::SubscriberPrx>);
+    void createSession(const std::string&, const std::shared_ptr<DataStormContract::PublisherPrx>&);
+    void createSession(const std::string&, const std::shared_ptr<DataStormContract::SubscriberPrx>&);
 
     std::shared_ptr<Instance> getInstance() const
     {
         return _instance;
     }
 
-    std::vector<std::string> getTopicReaders() const;
-    std::vector<std::string> getTopicWriters() const;
+    DataStormContract::TopicInfoSeq getTopicReaders() const;
+    DataStormContract::TopicInfoSeq getTopicWriters() const;
 
 private:
 
@@ -239,6 +280,8 @@ private:
     std::map<std::string, std::shared_ptr<TopicWriterI>> _writers;
     std::shared_ptr<SubscriberI> _subscriber;
     std::shared_ptr<PublisherI> _publisher;
+    long long int _nextReaderId;
+    long long int _nextWriterId;
 };
 
 }

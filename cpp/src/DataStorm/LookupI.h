@@ -21,7 +21,7 @@ class TopicLookupI : public DataStormContract::TopicLookup
 {
 public:
 
-    TopicLookupI(std::shared_ptr<TopicFactoryI>);
+    TopicLookupI(const std::shared_ptr<TopicFactoryI>&);
 
     virtual void announceTopicPublisher(std::string, std::shared_ptr<DataStormContract::PublisherPrx>,
                                         const Ice::Current&);

@@ -19,14 +19,9 @@
 namespace Ice
 {
 
+template<typename T>
 inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const std::shared_ptr<DataStormInternal::Key>& p)
-{
-    return os << (p ? p->toString() : "");
-}
-
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::StringSeq& p)
+operator<<(LoggerOutputBase& os, const std::vector<T>& p)
 {
     if(!p.empty())
     {
@@ -42,10 +37,29 @@ operator<<(LoggerOutputBase& os, const DataStormContract::StringSeq& p)
     return os;
 }
 
+template<typename K, typename V>
 inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const Ice::Identity& id)
+operator<<(LoggerOutputBase& os, const std::map<K, V>& p)
 {
-    return os << (id.category.empty() ? "" : id.category + "/") << id.name;
+    if(!p.empty())
+    {
+        for(auto q = p.begin(); q != p.end(); ++q)
+        {
+            if(q != p.begin())
+            {
+                os << ", ";
+            }
+            os << q->first << "=" << q->second;
+        }
+    }
+    return os;
+}
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::Element, T>::value>::type* = nullptr>
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const std::shared_ptr<T>& p)
+{
+    return os << (p ? p->toString() : "");
 }
 
 template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::Topic, T>::value>::type* = nullptr>
@@ -73,6 +87,42 @@ operator<<(LoggerOutputBase& os, T* session)
     {
         return os << "<null>";
     }
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const Ice::Identity& id)
+{
+    return os << (id.category.empty() ? "" : id.category + "/") << id.name;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::TopicInfo& info)
+{
+    return os << info.name << ':' << info.id;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::TopicInfoAndContent& info)
+{
+    return os << info.name << ':' << info.id;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::KeyInfo& info)
+{
+    return os << info.id;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::FilterInfo& info)
+{
+    return os << info.id;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::KeyInfoAndSamples& info)
+{
+    return os << info.info;
 }
 
 }

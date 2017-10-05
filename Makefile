@@ -27,6 +27,9 @@ $(eval $(call make-global-rule,clean,$(languages)))
 $(eval $(call make-global-rule,distclean,$(languages)))
 $(eval $(call make-global-rule,install,$(languages)))
 
+doc::
+	doxygen config/doxygen.cfg
+
 #
 # Install documentation and slice files (don't install IceDiscovery and IceLocatorDiscovery slice files)
 #
