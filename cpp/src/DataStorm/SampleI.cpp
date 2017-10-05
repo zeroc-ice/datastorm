@@ -14,13 +14,13 @@
 using namespace std;
 using namespace DataStormInternal;
 
-SampleI::SampleI(const shared_ptr<DataStorm::TopicFactory>& factory,
+SampleI::SampleI(const shared_ptr<Ice::Communicator>& communicator,
                  const shared_ptr<Key>& key,
-                 const DataStormContract::DataSamplePtr& sample)
+                 const shared_ptr<DataStormContract::DataSample>& sample)
 {
     this->type = static_cast<DataStorm::SampleType>(sample->type);
     this->key = key;
     this->value = sample->value;
     this->timestamp = IceUtil::Time::milliSeconds(sample->timestamp);
-    this->factory = factory;
+    this->communicator = communicator;
 }

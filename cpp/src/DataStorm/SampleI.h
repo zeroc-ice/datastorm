@@ -20,7 +20,7 @@ class SampleI : public Sample
 {
 public:
 
-    SampleI(const std::shared_ptr<DataStorm::TopicFactory>&,
+    SampleI(const std::shared_ptr<Ice::Communicator>&,
             const std::shared_ptr<Key>&,
             const DataStormContract::DataSamplePtr&);
 };

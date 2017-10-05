@@ -56,16 +56,12 @@ public:
 
     virtual ~TopicI();
 
-    virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const override;
+    virtual std::string getName() const override;
+    virtual std::shared_ptr<KeyFactory> getKeyFactory() const override;
+    virtual std::shared_ptr<FilterFactory> getFilterFactory() const override;
     virtual void destroy() override;
 
-    virtual std::string
-    getName() const override
-    {
-        return _name;
-    }
-
-    std::shared_ptr<Instance> getInstance() const
+    const std::shared_ptr<Instance>& getInstance() const
     {
         return _instance;
     }
@@ -236,21 +232,19 @@ class TopicFactoryI : public TopicFactory, public std::enable_shared_from_this<T
 {
 public:
 
-    TopicFactoryI(const std::shared_ptr<Ice::Communicator>& = nullptr);
+    TopicFactoryI(const std::shared_ptr<Ice::Communicator>&);
 
-    virtual void init(const std::weak_ptr<DataStorm::TopicFactory>&) override;
+    virtual void init() override;
 
-    virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
-                                                           const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&) override;
+    virtual std::shared_ptr<TopicReader> getTopicReader(const std::string&,
+                                                        std::function<std::shared_ptr<KeyFactory>()>,
+                                                        std::function<std::shared_ptr<FilterFactory>()>) override;
 
-    virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
-                                                           const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&) override;
+    virtual std::shared_ptr<TopicWriter> getTopicWriter(const std::string&,
+                                                        std::function<std::shared_ptr<KeyFactory>()>,
+                                                        std::function<std::shared_ptr<FilterFactory>()>) override;
 
-    virtual void waitForShutdown() override;
-    virtual void shutdown() override;
-    virtual void destroy() override;
+    virtual void destroy(bool) override;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 

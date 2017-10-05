@@ -550,7 +550,7 @@ SubscriberSessionI::SubscriberSessionI(SubscriberI* parent, const shared_ptr<Pee
 shared_ptr<TopicI>
 SubscriberSessionI::getTopic(const string& topic) const
 {
-    return _instance->getTopicFactoryI()->getTopicReader(topic);
+    return _instance->getTopicFactory()->getTopicReader(topic);
 }
 
 void
@@ -573,7 +573,7 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
                 {
                     if(setLastId(id, s->id))
                     {
-                        auto impl = make_shared<SampleI>(topic.get()->getTopicFactory(), k->get(), s);
+                        auto impl = make_shared<SampleI>(topic.get()->getInstance()->getCommunicator(), k->get(), s);
                         for(auto subscriber : k->getSubscribers())
                         {
                             subscriber->queue(impl);
@@ -599,7 +599,7 @@ SubscriberSessionI::s(long long int id, long long int key, shared_ptr<DataSample
         auto k = topic.getKey(key);
         if(k && setLastId(id, s->id))
         {
-            auto impl = make_shared<SampleI>(topic.get()->getTopicFactory(), k->get(), s);
+            auto impl = make_shared<SampleI>(topic.get()->getInstance()->getCommunicator(), k->get(), s);
             for(auto subscriber : k->getSubscribers())
             {
                 subscriber->queue(impl);
@@ -622,7 +622,7 @@ SubscriberSessionI::f(long long int id, long long int filter, shared_ptr<DataSam
         auto f = topic.getFilter(filter);
         if(f && setLastId(id, s->id))
         {
-            auto impl = make_shared<SampleI>(topic.get()->getTopicFactory(), nullptr, s);
+            auto impl = make_shared<SampleI>(topic.get()->getInstance()->getCommunicator(), nullptr, s);
             for(auto subscriber : f->getSubscribers())
             {
                 subscriber->queue(impl);
@@ -674,5 +674,5 @@ PublisherSessionI::PublisherSessionI(PublisherI* parent, const shared_ptr<PeerPr
 shared_ptr<TopicI>
 PublisherSessionI::getTopic(const string& topic) const
 {
-    return _instance->getTopicFactoryI()->getTopicWriter(topic);
+    return _instance->getTopicFactory()->getTopicWriter(topic);
 }

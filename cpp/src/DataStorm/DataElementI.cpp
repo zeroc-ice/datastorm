@@ -138,10 +138,10 @@ DataElementI::hasListeners() const
     return !_keys.empty() || !_filters.empty();
 }
 
-shared_ptr<DataStorm::TopicFactory>
-DataElementI::getTopicFactory() const
+shared_ptr<Ice::Communicator>
+DataElementI::getCommunicator() const
 {
-    return _parent->getTopicFactory();
+    return _parent->getInstance()->getCommunicator();
 }
 
 void
@@ -332,7 +332,7 @@ KeyDataReaderI::hasWriters()
 DataStormContract::KeyInfo
 KeyDataReaderI::getKeyInfo() const
 {
-    return { _key->getId(), _key->marshal(_parent->getTopicFactory()), 0 };
+    return { _key->getId(), _key->marshal(_parent->getInstance()->getCommunicator()), 0 };
 }
 
 DataStormContract::KeyInfoAndSamples
@@ -380,7 +380,7 @@ KeyDataWriterI::hasReaders() const
 DataStormContract::KeyInfo
 KeyDataWriterI::getKeyInfo() const
 {
-    return { _key->getId(), _key->marshal(_parent->getTopicFactory()), 0 };
+    return { _key->getId(), _key->marshal(_parent->getInstance()->getCommunicator()), 0 };
 }
 
 DataStormContract::KeyInfoAndSamples
@@ -446,7 +446,7 @@ FilteredDataReaderI::hasWriters()
 DataStormContract::FilterInfo
 FilteredDataReaderI::getFilterInfo() const
 {
-    return { _filter->getId(), _filter->marshal(_parent->getTopicFactory()) };
+    return { _filter->getId(), _filter->marshal(_parent->getInstance()->getCommunicator()) };
 }
 
 FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic, const shared_ptr<Filter>& filter) :
@@ -488,7 +488,7 @@ FilteredDataWriterI::hasReaders() const
 DataStormContract::FilterInfo
 FilteredDataWriterI::getFilterInfo() const
 {
-    return { _filter->getId(), _filter->marshal(_parent->getTopicFactory()) };
+    return { _filter->getId(), _filter->marshal(_parent->getInstance()->getCommunicator()) };
 }
 
 void

@@ -34,7 +34,7 @@ public:
 
     Instance(const std::shared_ptr<Ice::Communicator>&);
 
-    void init(const std::weak_ptr<DataStorm::TopicFactory>&, const std::shared_ptr<TopicFactoryI>&);
+    void init(const std::shared_ptr<TopicFactoryI>&);
 
     std::shared_ptr<SessionManager>
     getSessionManager() const
@@ -73,15 +73,9 @@ public:
     }
 
     std::shared_ptr<TopicFactoryI>
-    getTopicFactoryI() const
-    {
-        return _topicFactoryI;
-    }
-
-    std::shared_ptr<DataStorm::TopicFactory>
     getTopicFactory() const
     {
-        return _topicFactory.lock();
+        return _topicFactory;
     }
 
     std::shared_ptr<TraceLevels>
@@ -92,8 +86,7 @@ public:
 
 private:
 
-    std::weak_ptr<DataStorm::TopicFactory> _topicFactory;
-    std::shared_ptr<TopicFactoryI> _topicFactoryI;
+    std::shared_ptr<TopicFactoryI> _topicFactory;
     std::shared_ptr<SessionManager> _sessionManager;
     std::shared_ptr<ForwarderManager> _forwarderManager;
     std::shared_ptr<Ice::Communicator> _communicator;

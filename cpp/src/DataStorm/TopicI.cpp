@@ -40,12 +40,6 @@ TopicI::~TopicI()
     _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
 }
 
-shared_ptr<DataStorm::TopicFactory>
-TopicI::getTopicFactory() const
-{
-    return _instance->getTopicFactory();
-}
-
 void
 TopicI::disconnect()
 {
@@ -58,6 +52,24 @@ TopicI::disconnect()
     {
         s.first.session->disconnect(s.first.id);
     }
+}
+
+string
+TopicI::getName() const
+{
+    return _name;
+}
+
+shared_ptr<KeyFactory>
+TopicI::getKeyFactory() const
+{
+    return _keyFactory;
+}
+
+shared_ptr<FilterFactory>
+TopicI::getFilterFactory() const
+{
+    return _filterFactory;
 }
 
 void
@@ -208,7 +220,7 @@ TopicI::attachKeyImpl(long long int id,
                       DataStormContract::KeyInfoAndSamplesSeq& ackKeys,
                       DataStormContract::FilterInfoSeq& ackFilters)
 {
-    auto key = _keyFactory->unmarshal(_instance->getTopicFactory(), info.key);
+    auto key = _keyFactory->unmarshal(_instance->getCommunicator(), info.key);
     auto p = _keyElements.find(key);
     if(p != _keyElements.end())
     {
@@ -218,7 +230,7 @@ TopicI::attachKeyImpl(long long int id,
             {
                 for(const auto& sample : samples)
                 {
-                    p->second->queue(make_shared<SampleI>(_instance->getTopicFactory(), key, sample));
+                    p->second->queue(make_shared<SampleI>(_instance->getCommunicator(), key, sample));
                 }
             }
             ackKeys.push_back(p->second->getKeyInfoAndSamples(lastId));
@@ -245,7 +257,7 @@ TopicI::attachFilterImpl(long long int id,
                          const shared_ptr<DataStormContract::SessionPrx>& prx,
                          DataStormContract::KeyInfoAndSamplesSeq& ack)
 {
-    auto filter = _filterFactory->unmarshal(_instance->getTopicFactory(), info.filter);
+    auto filter = _filterFactory->unmarshal(_instance->getCommunicator(), info.filter);
 
     for(const auto& element : _keyElements)
     {
@@ -402,15 +414,15 @@ TopicFactoryI::TopicFactoryI(const shared_ptr<Ice::Communicator>& communicator)
 }
 
 void
-TopicFactoryI::init(const weak_ptr<DataStorm::TopicFactory>& factory)
+TopicFactoryI::init()
 {
-    _instance->init(factory, shared_from_this());
+    _instance->init(shared_from_this());
 }
 
 shared_ptr<TopicReader>
-TopicFactoryI::createTopicReader(const string& name,
-                                 const shared_ptr<KeyFactory>& keyFactory,
-                                 const shared_ptr<FilterFactory>& filterFactory)
+TopicFactoryI::getTopicReader(const string& name,
+                              function<shared_ptr<KeyFactory>()> createKeyFactory,
+                              function<shared_ptr<FilterFactory>()> createFilterFactory)
 {
     shared_ptr<TopicReaderI> reader;
     {
@@ -426,7 +438,11 @@ TopicFactoryI::createTopicReader(const string& name,
             _subscriber = make_shared<SubscriberI>(_instance);
             _subscriber->init();
         }
-        reader = make_shared<TopicReaderI>(shared_from_this(), keyFactory, filterFactory, name, _nextReaderId++);
+        reader = make_shared<TopicReaderI>(shared_from_this(),
+                                           createKeyFactory(),
+                                           createFilterFactory(),
+                                           name,
+                                           _nextReaderId++);
         _readers.insert(make_pair(name, reader));
         if(_traceLevels->topic > 0)
         {
@@ -440,9 +456,9 @@ TopicFactoryI::createTopicReader(const string& name,
 }
 
 shared_ptr<TopicWriter>
-TopicFactoryI::createTopicWriter(const string& name,
-                                 const shared_ptr<KeyFactory>& keyFactory,
-                                 const shared_ptr<FilterFactory>& filterFactory)
+TopicFactoryI::getTopicWriter(const string& name,
+                              function<shared_ptr<KeyFactory>()> createKeyFactory,
+                              function<shared_ptr<FilterFactory>()> createFilterFactory)
 {
     shared_ptr<TopicWriterI> writer;
     {
@@ -458,7 +474,11 @@ TopicFactoryI::createTopicWriter(const string& name,
             _publisher = make_shared<PublisherI>(_instance);
             _publisher->init();
         }
-        writer = make_shared<TopicWriterI>(shared_from_this(), keyFactory, filterFactory, name, _nextWriterId++);
+        writer = make_shared<TopicWriterI>(shared_from_this(),
+                                           createKeyFactory(),
+                                           createFilterFactory(),
+                                           name,
+                                           _nextWriterId++);
         _writers.insert(make_pair(name, writer));
         if(_traceLevels->topic > 0)
         {
@@ -472,21 +492,12 @@ TopicFactoryI::createTopicWriter(const string& name,
 }
 
 void
-TopicFactoryI::waitForShutdown()
+TopicFactoryI::destroy(bool ownsCommunicator)
 {
-    _instance->getCommunicator()->waitForShutdown();
-}
-
-void
-TopicFactoryI::shutdown()
-{
-    _instance->getCommunicator()->shutdown();
-}
-
-void
-TopicFactoryI::destroy()
-{
-    _instance->getCommunicator()->destroy();
+    if(ownsCommunicator)
+    {
+        _instance->getCommunicator()->destroy();
+    }
 }
 
 void

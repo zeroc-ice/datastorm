@@ -76,7 +76,7 @@ public:
     void waitForListeners(int count) const;
     bool hasListeners() const;
 
-    virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const override;
+    virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 
 protected:
 

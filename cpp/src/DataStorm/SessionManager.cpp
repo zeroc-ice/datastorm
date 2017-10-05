@@ -25,9 +25,9 @@ SessionManager::add(SessionI* session, shared_ptr<Ice::Connection> connection)
     if(sessions.empty())
     {
         connection->setCloseCallback([=](const shared_ptr<Ice::Connection>& con)
-            {
-                remove(con);
-            });
+        {
+            remove(con);
+        });
     }
     sessions.insert(session);
 }

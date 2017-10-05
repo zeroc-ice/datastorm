@@ -8,8 +8,8 @@
 # **********************************************************************
 
 traceProps = {
-    "DataStorm.Trace.Topic" : 0,
-    "DataStorm.Trace.Session" : 0,
+    "DataStorm.Trace.Topic" : 1,
+    "DataStorm.Trace.Session" : 2,
     "DataStorm.Trace.Data" : 1
 }
 

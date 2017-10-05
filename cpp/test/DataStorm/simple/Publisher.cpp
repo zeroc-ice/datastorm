@@ -15,161 +15,170 @@
 using namespace std;
 using namespace DataStorm;
 
+namespace DataStorm
+{
+
+template<> struct DataTraits<Test::StructValue>
+{
+    using KeyType = int;
+    using ValueType = Test::StructValue;
+    using FilterType = std::string;
+};
+
+}
+
 int
 main(int argc, char* argv[])
 {
-    auto factory = DataStorm::createTopicFactory(argc, argv);
+    Node node(argc, argv);
 
     cout << "testing string... " << flush;
     {
-        auto topic = factory->createTopicWriter<string, string>("string");
-        auto writer = topic->getDataWriter("elem1");
+        TopicWriter<string> topic(node, "string");
+        KeyDataWriter<string> writer(topic, "elem1");
 
-        writer->waitForReaders(1);
-        test(writer->hasReaders());
+        writer.waitForReaders(1);
+        test(writer.hasReaders());
 
-        writer->add("value1");
-        writer->update("value2");
-        writer->remove();
+        writer.add("value1");
+        writer.update("value2");
+        writer.remove();
 
-        writer->waitForNoReaders();
-        writer->destroy();
+        writer.waitForNoReaders();
     }
     cout << "ok" << endl;
 
     cout << "testing struct... " << flush;
     {
-        auto topic = factory->createTopicWriter<int, Test::StructValue>("struct");
-        auto writer = topic->getDataWriter(10);
+        TopicWriter<Test::StructValue> topic(node, "struct");
+        KeyDataWriter<Test::StructValue> writer(topic, 10);
 
-        writer->waitForReaders(1);
-        test(writer->hasReaders());
+        writer.waitForReaders(1);
+        test(writer.hasReaders());
 
-        writer->add({"firstName", "lastName", 10});
-        writer->update({"firstName", "lastName", 11});
-        writer->remove();
+        writer.add({"firstName", "lastName", 10});
+        writer.update({"firstName", "lastName", 11});
+        writer.remove();
 
-        writer->waitForNoReaders();
-        writer->destroy();
+        writer.waitForNoReaders();
     }
     cout << "ok" << endl;
 
     cout << "testing class... " << flush;
     {
-        auto topic = factory->createTopicWriter<string, Test::BasePtr>("baseclass");
-        auto writer = topic->getDataWriter("elem1");
+        TopicWriter<shared_ptr<Test::Base>> topic(node, "baseclass");
+        KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem1");
 
-        writer->waitForReaders(1);
-        test(writer->hasReaders());
+        writer.waitForReaders(1);
+        test(writer.hasReaders());
 
-        writer->add(make_shared<Test::Base>("value1"));
-        writer->update(make_shared<Test::Base>("value2"));
-        writer->remove();
+        writer.add(make_shared<Test::Base>("value1"));
+        writer.update(make_shared<Test::Base>("value2"));
+        writer.remove();
 
-        writer->waitForNoReaders();
-        writer->destroy();
+        writer.waitForNoReaders();
     }
     cout << "ok" << endl;
 
     cout << "testing topic updates... " << flush;
     {
-        auto topic = factory->createTopicWriter<string, Test::BasePtr>("baseclass2");
+        TopicWriter<shared_ptr<Test::Base>> topic(node, "baseclass2");
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem1");
+            writer.waitForReaders(1);
+            test(writer.hasReaders());
 
-        auto writer = topic->getDataWriter("elem1");
-        writer->waitForReaders(1);
-        test(writer->hasReaders());
-
-        writer->add(make_shared<Test::Base>("value1"));
-        writer->update(make_shared<Test::Base>("value2"));
-        writer->remove();
-
-        writer = topic->getDataWriter("elem2");
-        writer->waitForReaders(1);
-        writer->update(make_shared<Test::Base>("value1"));
-
-        writer = topic->getDataWriter("elem3");
-        writer->waitForReaders(1);
-        writer->remove();
-
-        writer = topic->getDataWriter("elem4");
-        writer->waitForReaders(1);
-        writer->add(make_shared<Test::Base>("value1"));
-
-        writer->waitForNoReaders();
+            writer.add(make_shared<Test::Base>("value1"));
+            writer.update(make_shared<Test::Base>("value2"));
+            writer.remove();
+        }
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem2");
+            writer.waitForReaders(1);
+            writer.update(make_shared<Test::Base>("value1"));
+        }
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem3");
+            writer.waitForReaders(1);
+            writer.remove();
+        }
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem4");
+            writer.waitForReaders(1);
+            writer.add(make_shared<Test::Base>("value1"));
+            writer.waitForNoReaders();
+        }
     }
     cout << "ok" << endl;
 
     cout << "testing filtered reader... " << flush;
     {
-        auto topic = factory->createTopicWriter<string, Test::BasePtr>("baseclass3");
-
-        auto writer = topic->getDataWriter("elem1");
-        writer->waitForReaders(1);
-        test(writer->hasReaders());
-
-        writer->add(make_shared<Test::Base>("value1"));
-        writer->update(make_shared<Test::Base>("value2"));
-        writer->remove();
-        writer->destroy();
-
-        writer = topic->getDataWriter("elem2");
-        writer->waitForReaders(1);
-        writer->update(make_shared<Test::Base>("value1"));
-        writer->destroy();
-
-        writer = topic->getDataWriter("elem3");
-        writer->waitForReaders(1);
-        writer->remove();
-        writer->destroy();
-
-        writer = topic->getDataWriter("elem4");
-        writer->waitForReaders(1);
-        writer->add(make_shared<Test::Base>("value1"));
-
-        writer->waitForNoReaders();
-        writer->destroy();
+        TopicWriter<shared_ptr<Test::Base>> topic(node, "baseclass3");
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem1");
+            writer.waitForReaders(1);
+            test(writer.hasReaders());
+            writer.add(make_shared<Test::Base>("value1"));
+            writer.update(make_shared<Test::Base>("value2"));
+            writer.remove();
+        }
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem2");
+            writer.waitForReaders(1);
+            writer.update(make_shared<Test::Base>("value1"));
+        }
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem3");
+            writer.waitForReaders(1);
+            writer.remove();
+        }
+        {
+            KeyDataWriter<shared_ptr<Test::Base>> writer(topic, "elem4");
+            writer.waitForReaders(1);
+            writer.add(make_shared<Test::Base>("value1"));
+            writer.waitForNoReaders();
+        }
     }
     cout << "ok" << endl;
 
     cout << "testing filtered writer... " << flush;
     {
-        auto topic = factory->createTopicWriter<string, Test::BasePtr>("baseclass4");
-
-        auto writer = topic->getFilteredDataWriter("elema[0-9]");
-        writer->waitForReaders(1);
-        test(writer->hasReaders());
-        writer->add(make_shared<Test::Base>("value1"));
-        writer->update(make_shared<Test::Base>("value2"));
-        writer->remove();
-        writer->waitForNoReaders();
-        writer->destroy();
-
-        writer = topic->getFilteredDataWriter("elemb[0-9]");
-        writer->waitForReaders(1);
-        writer->update(make_shared<Test::Base>("value1"));
-        writer->waitForNoReaders();
-        writer->destroy();
-
-        writer = topic->getFilteredDataWriter("elemc[0-9]");
-        writer->waitForReaders(1);
-        writer->remove();
-        writer->waitForNoReaders();
-        writer->destroy();
-
-        writer = topic->getFilteredDataWriter("elemd[0-9]");
-        writer->waitForReaders(1);
-        writer->add(make_shared<Test::Base>("value1"));
-        writer->waitForNoReaders();
-        writer->destroy();
-
-        writer = topic->getFilteredDataWriter("elem[0-9]");
-        writer->waitForReaders(5);
-        writer->update(make_shared<Test::Base>("value1"));
-        writer->waitForNoReaders();
-        writer->destroy();
+        TopicWriter<shared_ptr<Test::Base>> topic(node, "baseclass4");
+        {
+            FilteredDataWriter<shared_ptr<Test::Base>> writer(topic, "elema[0-9]");
+            writer.waitForReaders(1);
+            test(writer.hasReaders());
+            writer.add(make_shared<Test::Base>("value1"));
+            writer.update(make_shared<Test::Base>("value2"));
+            writer.remove();
+            writer.waitForNoReaders();
+        }
+        {
+            FilteredDataWriter<shared_ptr<Test::Base>> writer(topic, "elemb[0-9]");
+            writer.waitForReaders(1);
+            writer.update(make_shared<Test::Base>("value1"));
+            writer.waitForNoReaders();
+        }
+        {
+            FilteredDataWriter<shared_ptr<Test::Base>> writer(topic, "elemc[0-9]");
+            writer.waitForReaders(1);
+            writer.remove();
+            writer.waitForNoReaders();
+        }
+        {
+            FilteredDataWriter<shared_ptr<Test::Base>> writer(topic, "elemd[0-9]");
+            writer.waitForReaders(1);
+            writer.add(make_shared<Test::Base>("value1"));
+            writer.waitForNoReaders();
+        }
+        // {
+        //     FilteredDataWriter<shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
+        //     writer.waitForReaders(5);
+        //     writer.update(make_shared<Test::Base>("value1"));
+        //     writer.waitForNoReaders();
+        // }
     }
     cout << "ok" << endl;
 
-    factory->destroy();
     return 0;
 }

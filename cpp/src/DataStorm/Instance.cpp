@@ -45,12 +45,11 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
 }
 
 void
-Instance::init(const std::weak_ptr<DataStorm::TopicFactory>& factory, const shared_ptr<TopicFactoryI>& factoryI)
+Instance::init(const shared_ptr<TopicFactoryI>& factory)
 {
     _topicFactory = factory;
-    auto lookup = _multicastAdapter->add(make_shared<TopicLookupI>(factoryI), {"DataStorm", "Lookup"});
+    auto lookup = _multicastAdapter->add(make_shared<TopicLookupI>(factory), {"DataStorm", "Lookup"});
     _lookup = Ice::uncheckedCast<DataStormContract::TopicLookupPrx>(lookup->ice_collocationOptimized(false));
-    _topicFactoryI = factoryI;
     _adapter->activate();
     _collocatedAdapter->activate();
     _multicastAdapter->activate();

@@ -16,6 +16,9 @@
 #include <Ice/InputStream.h>
 #include <Ice/OutputStream.h>
 
+#include <DataStorm/SampleType.h>
+#include <DataStorm/Filter.h>
+
 #include <regex>
 
 #ifndef DATASTORM_API
@@ -56,7 +59,28 @@ template<typename F, typename T> class FilterFactoryT;
 namespace DataStorm
 {
 
-class TopicFactory;
+class Node;
+template<typename T> class DataReader;
+template<typename T> class TopicReader;
+template<typename T> class DataWriter;
+template<typename T> class TopicWriter;
+template<typename T> class Sample;
+
+/**
+ * The data traits provides information on the key, value and filter types used by data
+ * readers or writers.
+ */
+template<typename V> struct DataTraits
+{
+    /** The Key type. Key must be defined to the type of the key for the data element. */
+    using KeyType = std::string;
+
+    /** The ValueType type. ValueType must be defined to the type of the value for the data element. */
+    using ValueType = V;
+
+    /** The Filter type. */
+    using FilterType = std::string;
+};
 
 /**
  * The Encoder template provides methods to encode and decode user types.
@@ -79,7 +103,7 @@ template<typename T> struct Encoder
      * @param value The value to marshal
      * @return The resulting byte sequence
      */
-    static std::vector<unsigned char> marshal(const std::shared_ptr<TopicFactory>&, const T&);
+    static std::vector<unsigned char> marshal(const std::shared_ptr<Ice::Communicator>&, const T&);
 
     /**
      * Unmarshals a value. This method unmarshals the given byte sequence and returns the
@@ -92,7 +116,7 @@ template<typename T> struct Encoder
      * @param value The byte sequence to unmarshal
      * @return The resulting value
      */
-    static T unmarshal(const std::shared_ptr<TopicFactory>&, const std::vector<unsigned char>&);
+    static T unmarshal(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&);
 
     /**
      * Transforms the given value to a string. Specialization can define this to provide
@@ -107,93 +131,90 @@ template<typename T> struct Encoder
 };
 
 /**
- * The sample type.
- *
- * The sample type matches the operation used by the DataWriter to update
- * the data element. It also provides information on what to expect from
- * the sample. A sample with the Add or Udpate type always provide a value
- * while a sample with the Remove type doesn't.
- *
- */
-enum class SampleType
+ * The filter template provide methods to filter key and samples. The template should
+ * be specified for each filter type. Two default implementations are provided, one
+ * for filtering keys based on a std::regex regular expression and the other to filter
+ * keys and samples based on a key and value regular expression and a sample types.
+ **/
+template<typename T> struct Filter
 {
-    /** The data element has been added. */
-    Add,
-
-    /** The data element has been updated. */
-    Update,
-
-    /** The data element has been removed. */
-    Remove
-};
-
-template<typename T> class DataReader;
-template<typename T> class TopicReader;
-template<typename T> class DataWriter;
-template<typename T> class TopicWriter;
-template<typename T> class Sample;
-
-/**
- * The data element traits provides information on the key and value types of a data element.
- */
-template<typename T> struct DataElementTraits
-{
-    /** The Key type. Key must be defined to the type of the key for the data element. */
-    using Key = std::string;
-
-    /** The Value type. Value must be defined to the type of the value for the data element. */
-    using Value = T;
-
-    /** The Filter type. */
-    using Filter = std::string;
-
     /**
      * Returns wether or not the key matches the given filter. Specialization
-     * can define this method to provide a custom filter implementation. The
-     * default implementation uses `std::regex_match` to match the stringified
-     * key against the given filter.
+     * can define this method to provide a custom key filter implementation.
      *
      * @param filter The filter.
      * @param key The key to match against the filter.
      * @return True is the key matches the filter, false otherwise.
      */
-    static bool match(const std::string& filter, const Key& key)
+    template<typename Key> static bool
+    match(const T& filter, const Key& key)
     {
-        return std::regex_match(DataStorm::Encoder<Key>::toString(key), std::regex(filter));
+        return true;
     }
 
     /**
      * Returns wether or not the sample matches the given filter. Specialization
-     * can define this method to provide a custom filter implementation. The
-     * default implementation always returns false.
+     * can define this method to provide a custom sample filter implementation.
      *
      * @param filter The filter value.
      * @param sample The sample to match against the filter.
      * @return True is the sample matches the filter, false otherwise.
      */
-    static bool match(const std::string& filter, const Sample<T>& sample)
+    template<typename V> static bool
+    match(const T& filter, const Sample<V>& sample)
     {
-        return false;
+        return true;
     }
 };
 
-/**
- * Data element traits specialization for `std::pair<K, V>`.
- */
-template<typename K, typename V> struct DataElementTraits<std::pair<K, V>>
+template<> struct Filter<std::string>
 {
-    using Key = K;
-    using Value = V;
-    using Filter = std::string;
-
-    static bool match(const std::string& filter, const Key& key)
+    template<typename Key> static bool
+    match(const std::string& filter, const Key& key)
     {
         return std::regex_match(DataStorm::Encoder<Key>::toString(key), std::regex(filter));
     }
 
-    static bool match(const std::string& filter, const Sample<std::pair<K, V>>& sample)
+    template<typename V> static bool
+    match(const std::string&, const Sample<V>&)
     {
-        return false;
+        return true;
+    }
+};
+
+template<> struct Filter<RegexFilter>
+{
+    template<typename Key> static bool
+    match(const RegexFilter& filter, const Key& key)
+    {
+        if(!filter.key.empty())
+        {
+            return std::regex_match(DataStorm::Encoder<Key>::toString(key), std::regex(filter.key));
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    template<typename V> static bool
+    match(const RegexFilter& filter, const Sample<V>& sample)
+    {
+        if(!filter.types.empty())
+        {
+            if(std::find(filter.types.begin(), filter.types.end(), sample.getType()) == filter.types.end())
+            {
+                return false;
+            }
+        }
+        if(!filter.value.empty())
+        {
+            return std::regex_match(DataStorm::Encoder<V>::toString(sample.getValue()), std::regex(filter.value));
+        }
+        else
+        {
+            return true;
+        }
     }
 };
 
@@ -206,10 +227,10 @@ template<typename K, typename V> struct DataElementTraits<std::pair<K, V>>
  */
 template<typename T> class Sample
 {
-    using Key = typename DataElementTraits<T>::Key;
-    using Value = typename DataElementTraits<T>::Value;
-
 public:
+
+    using KeyType = typename DataTraits<T>::KeyType;
+    using ValueType = typename DataTraits<T>::ValueType;
 
     /**
      * The type of the sample.
@@ -223,7 +244,7 @@ public:
      *
      * @return The sample key.
      */
-    Key getKey() const;
+    KeyType getKey() const;
 
     /**
      * The value of the sample.
@@ -233,7 +254,7 @@ public:
      *
      * @return The sample value.
      */
-    Value getValue() const;
+    ValueType getValue() const;
 
     /**
      * The timestamp of the sample.
@@ -257,42 +278,19 @@ private:
 };
 
 /**
- * The DataElement base class.
- *
- * A DataElement is obtained from a Topic. It's the base class for
- * DataWriter and DataReader which are respecitively used to write
- * or a read a data element.
- *
- */
-template<typename T> class DataElement
-{
-public:
-
-    /**
-     * Destroy the data element.
-     *
-     * Destroying a data element indicates that the application is
-     * no longer interested in updating or receiving updates for
-     * the data element.
-     */
-    void destroy();
-
-protected:
-
-    /** @private */
-    DataElement(const std::shared_ptr<DataStormInternal::DataElement>&);
-
-private:
-
-    const std::shared_ptr<DataStormInternal::DataElement> _impl;
-};
-
-/**
  * The DataReader class is used to retrieve samples for a data element.
  */
-template<typename T> class DataReader : public DataElement<T>
+template<typename T> class DataReader
 {
 public:
+
+    using ValueType = typename DataTraits<T>::ValueType;
+
+    /**
+     * Destruct the data reader. The destruction of the data reader disconnects to the
+     * the reader from the writers.
+     */
+    ~DataReader();
 
     /**
      * Indicates whether or not data writers are online.
@@ -352,22 +350,66 @@ public:
      */
     Sample<T> getNextUnread();
 
-private:
+protected:
 
-    DataReader(const std::shared_ptr<DataStormInternal::DataReader>&);
-    friend class TopicReader<T>;
+    /** @private */
+    DataReader(const std::shared_ptr<DataStormInternal::DataReader>& impl) : _impl(impl)
+    {
+    }
+
+private:
 
     const std::shared_ptr<DataStormInternal::DataReader> _impl;
 };
 
 /**
+ * The key data reader to read the data element associated with a given key.
+ */
+template<typename T> class KeyDataReader : public DataReader<T>
+{
+public:
+
+    /**
+     * Construct a new data reader for the given key. The construction of the data reader
+     * connects the reader to writers with a matching key.
+     *
+     * @param topic The topic reader.
+     * @param key The key of the data element to read.
+     */
+    KeyDataReader(TopicReader<T>&, typename DataTraits<T>::KeyType);
+};
+
+/**
+ * The filtered data reader to read data elements whose key match a given filter.
+ */
+template<typename T> class FilteredDataReader : public DataReader<T>
+{
+public:
+
+    /**
+     * Construct a new data reader for the given filter. The construction of the data reader
+     * connects the reader to writers whose key matches the filter.
+     *
+     * @param topic The topic reader.
+     * @param filter The filter.
+     */
+    FilteredDataReader(TopicReader<T>&, typename DataTraits<T>::FilterType);
+};
+
+/**
  * The DataWriter class is used to write samples for a data element.
  */
-template<typename T> class DataWriter : public DataElement<T>
+template<typename T> class DataWriter
 {
-    using Value = typename DataElementTraits<T>::Value;
-
 public:
+
+    using ValueType = typename DataTraits<T>::ValueType;
+
+    /**
+     * Destruct the data writer. The destruction of the data writer disconnects the
+     * the writer from the readers.
+     */
+    ~DataWriter();
 
     /**
      * Indicates whether or not data readers are online.
@@ -394,7 +436,7 @@ public:
      *
      * @param value The data element value.
      */
-    void add(const Value&);
+    void add(const ValueType&);
 
     /**
      * Update the data element. This generates an {@link Update} data sample with the
@@ -402,214 +444,175 @@ public:
      *
      * @param value The data element value.
      */
-    void update(const Value&);
+    void update(const ValueType&);
 
     /**
      * Remove the data element. This generates a {@link Remove} data sample.
      */
     void remove();
 
-private:
+protected:
 
-    DataWriter(const std::shared_ptr<DataStormInternal::DataWriter>&);
-    friend class TopicWriter<T>;
+    /** @private */
+    DataWriter(const std::shared_ptr<DataStormInternal::DataWriter>& impl) : _impl(impl)
+    {
+    }
+
+private:
 
     const std::shared_ptr<DataStormInternal::DataWriter> _impl;
 };
 
 /**
- * The Topic base class.
- *
- * A topic can be viewed as a dictionnary of DataElement objects. The key for
- * the data elements has the type DataElementTraits<T>::Key and the value has
- * the type DataElementTraits<T>::Value.
+ * The key data writer to write the data element associated with a given key.
  */
-template<typename T> class Topic
+template<typename T> class KeyDataWriter : public DataWriter<T>
 {
-    using Key = typename DataElementTraits<T>::Key;
-    using Filter = typename DataElementTraits<T>::Filter;
-
 public:
 
     /**
-     * Destroy the topic.
+     * Construct a new data writer for the given key. The construction of the data writer
+     * connects the writer to writers with a matching key.
      *
-     * Destroying a topic indicates that the application is no longer interested in
-     * updating or receiving updates for the topic.
+     * @param topic The topic writer.
+     * @param key The key of the data element to write.
      */
-    void destroy();
-
-protected:
-
-    /** @private */
-    Topic(const std::shared_ptr<DataStormInternal::Topic>&,
-          const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>>&,
-          const std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>>&);
-
-    std::shared_ptr<DataStormInternal::KeyFactoryT<Key>> _keyFactory;
-    std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>> _filterFactory;
-
-private:
-
-    const std::shared_ptr<DataStormInternal::Topic> _impl;
+    KeyDataWriter(TopicWriter<T>&, typename DataTraits<T>::KeyType);
 };
 
 /**
- * The TopicReader class is used to obtain DataReader objects.
+ * The filtered data writer to write data elements whose key match a given filter.
  */
-template<typename T> class TopicReader : public Topic<T>
+template<typename T> class FilteredDataWriter : public DataWriter<T>
 {
 public:
 
-    using Key = typename DataElementTraits<T>::Key;
-    using Filter = typename DataElementTraits<T>::Filter;
+    /**
+     * Construct a new data writer for the given filter. The construction of the data writer
+     * connects the writer to readers whose key matches the filter.
+     *
+     * @param topic The topic writer.
+     * @param filter The filter.
+     */
+    FilteredDataWriter(TopicWriter<T>&, typename DataTraits<T>::FilterType);
+};
+
+/**
+ * The TopicReader class allows to construct DataReader objects.
+ */
+template<typename T> class TopicReader
+{
+public:
+
+    using KeyType = typename DataTraits<T>::KeyType;
+    using FilterType = typename DataTraits<T>::FilterType;
 
     /**
-     * Get a DataReader object to read the topic data element matching
-     * the given key.
+     * Construct a new TopicReader for the topic with the given name. This connects
+     * the reader to topic writers with a matching name.
      *
-     * @param key The key to lookup the data element.
+     * @param node The DataStorm node
+     * @param name The name of the topic
      */
-    std::shared_ptr<DataReader<T>> getDataReader(Key);
+    TopicReader(Node&, const std::string&);
 
     /**
-     * Get a DataReader object to read the topic data elements matching
-     * whose keys match the given filter.
-     *
-     * @param filter The filter used to find data elements with matching keys.
+     * Destruct the new TopicReader. This disconnects the reader from the writers.
      */
-    std::shared_ptr<DataReader<T>> getFilteredDataReader(Filter);
+    ~TopicReader();
 
 private:
 
-    TopicReader(const std::shared_ptr<DataStormInternal::TopicReader>&,
-                const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>>&,
-                const std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>>&);
-
-    friend class TopicFactory;
+    friend class KeyDataReader<T>;
+    friend class FilteredDataReader<T>;
 
     const std::shared_ptr<DataStormInternal::TopicReader> _impl;
+    const std::shared_ptr<DataStormInternal::KeyFactoryT<KeyType>> _keyFactory;
+    const std::shared_ptr<DataStormInternal::FilterFactoryT<FilterType, T>> _filterFactory;
 };
 
 /**
- * The TopicWriter class is used to obtain DataWriter objects.
+ * The TopicWriter class allows to construct DataWriter objects.
  */
-template<typename T> class TopicWriter : public Topic<T>
+template<typename T> class TopicWriter
 {
 public:
 
-    using Key = typename DataElementTraits<T>::Key;
-    using Filter = typename DataElementTraits<T>::Filter;
+    using KeyType = typename DataTraits<T>::KeyType;
+    using FilterType = typename DataTraits<T>::FilterType;
 
     /**
-     * Get a DataReader object to read the topic data element matching
-     * the given key.
+     * Construct a new TopicWriter for the topic with the given name. This connects
+     * the writer to topic readers with a matching name.
      *
-     * @param key The key to lookup the data element.
+     * @param node The DataStorm node
+     * @param name The name of the topic
      */
-    std::shared_ptr<DataWriter<T>> getDataWriter(Key);
+    TopicWriter(Node&, const std::string&);
 
     /**
-     * Get a DataReader object to read the topic data elements matching
-     * whose keys match the given filter.
-     *
-     * @param filter The filter used to find data elements with matching keys.
+     * Destruct the new TopicWriter. This disconnects the writer from the readers.
      */
-    std::shared_ptr<DataWriter<T>> getFilteredDataWriter(Filter);
+    ~TopicWriter();
 
 private:
 
-    TopicWriter(const std::shared_ptr<DataStormInternal::TopicWriter>&,
-                const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>>&,
-                const std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>>&);
-
-    friend class TopicFactory;
+    friend class KeyDataWriter<T>;
+    friend class FilteredDataWriter<T>;
 
     const std::shared_ptr<DataStormInternal::TopicWriter> _impl;
+    const std::shared_ptr<DataStormInternal::KeyFactoryT<KeyType>> _keyFactory;
+    const std::shared_ptr<DataStormInternal::FilterFactoryT<FilterType, T>> _filterFactory;
 };
 
 /**
- * The TopicFactory class allows creating topic readers and writers.
+ * The Node class allows creating topic readers and writers.
  *
- * A TopicFactory instance is the main DataStorm object which allows creating
- * topic readers or writers.
+ * A Node is the main DataStorm object which allows creating topic readers or writers.
  */
-class TopicFactory : public std::enable_shared_from_this<TopicFactory>
+class DATASTORM_API Node
 {
 public:
 
     /**
-     * Creates a new topic reader for the topic with the given name.
+     * Construct a DataStorm node.
      *
-     * @param name The topic name
-     * @return The topic reader
+     * A node is the main DataStorm object. It is required to construct topic readers or writers.
+     * The node uses the given Ice communicator if provided.
+     *
+     * @param communicator The Ice communicator used by the topic factory for its configuration
+     *                     and communications.
      */
-    template<typename T> std::shared_ptr<TopicReader<T>> createTopicReader(const std::string&);
+    Node(const std::shared_ptr<Ice::Communicator>& = nullptr);
 
     /**
-     * Creates a new topic writer for the topic with the given name.
+     * Construct a DataStorm node.
      *
-     * @param name The topic name
-     * @return The topic writer
+     * This constructor parses the command line arguments into Ice properties and
+     * initialize a new Node.
+     *
+     * @param argc The number of command line arguments in the argv array.
+     * @param argv The command line arguments
      */
-    template<typename T> std::shared_ptr<TopicWriter<T>> createTopicWriter(const std::string&);
+    Node(int&, char*[]);
 
     /**
-     * Creates a new topic reader for the topic with the given name and for the specified
-     * key/value types.
-     *
-     * @param name The topic name
-     * @return The topic reader
+     * Destruct the node. The node destruction releases associated resources.
      */
-    template<typename K, typename V> std::shared_ptr<TopicReader<std::pair<K, V>>> createTopicReader(const std::string&);
+    ~Node();
 
     /**
-     * Creates a new topic writer for the topic with the given name and for the specified
-     * key/value types.
-     *
-     * @param name The topic name
-     * @return The topic writer
-     */
-    template<typename K, typename V> std::shared_ptr<TopicWriter<std::pair<K, V>>> createTopicWriter(const std::string&);
-
-    /**
-     * Wait for the shutdown of the topic factory.
-     *
-     * This methods returns when {@link shutdown} is called on the topic factory or
-     * when the associated Ice communicator is shutdown.
-     */
-    void waitForShutdown();
-
-    /**
-     * Shuts down of the topic factory.
-     *
-     * This methods shutdowns the associated Ice communicator.
-     */
-    void shutdown();
-
-    /**
-     * Destroy the topic factory.
-     *
-     * This methods destroys the topic factory and associated Ice communicator.
-     * Calling destroy is necessary to ensure all the resources allocated by the
-     * factory are released.
-     */
-    void destroy();
-
-    /**
-     * Returns the Ice communicator assocated with the topic factory.
+     * Returns the Ice communicator associated with the node.
      */
     std::shared_ptr<Ice::Communicator> getCommunicator() const;
 
 private:
 
-    TopicFactory(const std::shared_ptr<DataStormInternal::TopicFactory>&);
-    void init();
+    template<typename T> friend class TopicReader;
+    template<typename T> friend class TopicWriter;
 
-    friend std::shared_ptr<TopicFactory> createTopicFactory(const std::shared_ptr<Ice::Communicator>&);
-    friend std::shared_ptr<TopicFactory> createTopicFactory(int&, char*[]);
-
-    const std::shared_ptr<DataStormInternal::TopicFactory> _impl;
+    std::shared_ptr<DataStormInternal::TopicFactory> _impl;
+    const bool _ownsCommunicator;
 };
 
 }
@@ -620,6 +623,39 @@ private:
 
 namespace DataStormInternal
 {
+
+template<typename T>
+class is_streamable
+{
+    template<typename SS, typename TT>
+    static auto test(int) -> decltype( std::declval<SS&>() << std::declval<TT>(), std::true_type() );
+
+    template<typename, typename>
+    static auto test(...) -> std::false_type;
+
+public:
+
+    static const bool value = decltype(test<std::ostringstream,T>(0))::value;
+};
+
+template<typename T> struct Stringifier
+{
+    template<typename U=T> static std::string
+    toString(const T& value, std::enable_if_t<is_streamable<U>::value, int> = 0)
+    {
+        std::ostringstream os;
+        os << value;
+        return os.str();
+    }
+
+    template<typename U=T> static std::string
+    toString(const T& value, std::enable_if_t<!is_streamable<U>::value, int> = 0)
+    {
+        std::ostringstream os;
+        os << &value;
+        return os.str();
+    }
+};
 
 template<typename K, typename V> class AbstractFactoryT : public std::enable_shared_from_this<AbstractFactoryT<K, V>>
 {
@@ -704,7 +740,7 @@ class Element
 public:
 
     virtual std::string toString() const = 0;
-    virtual std::vector<unsigned char> marshal(const std::shared_ptr<DataStorm::TopicFactory>&) const = 0;
+    virtual std::vector<unsigned char> marshal(const std::shared_ptr<Ice::Communicator>&) const = 0;
     virtual long long int getId() const = 0;
 };
 
@@ -725,9 +761,9 @@ public:
     }
 
     virtual std::vector<unsigned char>
-    marshal(const std::shared_ptr<DataStorm::TopicFactory>& factory) const override
+    marshal(const std::shared_ptr<Ice::Communicator>& communicator) const override
     {
-        return DataStorm::Encoder<T>::marshal(factory, _value);
+        return DataStorm::Encoder<T>::marshal(communicator, _value);
     }
 
     virtual long long int getId() const override
@@ -755,11 +791,9 @@ class KeyFactory
 {
 public:
 
-    virtual std::shared_ptr<Key> unmarshal(const std::shared_ptr<DataStorm::TopicFactory>&,
+    virtual std::shared_ptr<Key> unmarshal(const std::shared_ptr<Ice::Communicator>&,
                                            const std::vector<unsigned char>&) = 0;
 };
-
-using KeyCompare = Ice::TargetCompare<std::shared_ptr<Key>, std::less>;
 
 template<typename T> class KeyT : public Key, public AbstractElementT<T>
 {
@@ -775,9 +809,18 @@ public:
     using AbstractFactoryT<K, KeyT<K>>::AbstractFactoryT;
 
     virtual std::shared_ptr<Key>
-    unmarshal(const std::shared_ptr<DataStorm::TopicFactory>& factory, const std::vector<unsigned char>& data) override
+    unmarshal(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<K, KeyT<K>>::create(DataStorm::Encoder<K>::unmarshal(factory, data));
+        return AbstractFactoryT<K, KeyT<K>>::create(DataStorm::Encoder<K>::unmarshal(communicator, data));
+    }
+
+    static std::function<std::shared_ptr<KeyFactory>()> factory()
+    {
+        return [] {
+            auto f = std::make_shared<KeyFactoryT<K>>();
+            f->init();
+            return f;
+        };
     }
 };
 
@@ -789,7 +832,7 @@ public:
     std::shared_ptr<Key> key;
     std::vector<unsigned char> value;
     IceUtil::Time timestamp;
-    std::shared_ptr<DataStorm::TopicFactory> factory;
+    std::shared_ptr<Ice::Communicator> communicator;
 };
 
 class Filter : virtual public Element
@@ -804,11 +847,9 @@ class FilterFactory
 {
 public:
 
-    virtual std::shared_ptr<Filter> unmarshal(const std::shared_ptr<DataStorm::TopicFactory>&,
+    virtual std::shared_ptr<Filter> unmarshal(const std::shared_ptr<Ice::Communicator>&,
                                               const std::vector<unsigned char>&) = 0;
 };
-
-using FilterCompare = Ice::TargetCompare<std::shared_ptr<Filter>, std::less>;
 
 template<typename T, typename E> class FilterT : public Filter, public AbstractElementT<T>
 {
@@ -818,13 +859,14 @@ public:
 
     virtual bool match(const std::shared_ptr<Key>& key) const override
     {
-        return DataStorm::DataElementTraits<E>::match(AbstractElementT<T>::_value,
-                          std::static_pointer_cast<KeyT<typename DataStorm::DataElementTraits<E>::Key>>(key)->get());
+        return DataStorm::Filter<typename DataStorm::DataTraits<E>::FilterType>::match(AbstractElementT<T>::_value,
+                                 std::static_pointer_cast<KeyT<typename DataStorm::DataTraits<E>::KeyType>>(key)->get());
     }
 
     virtual bool match(const std::shared_ptr<Sample>& sample) const override
     {
-        return DataStorm::DataElementTraits<E>::match(AbstractElementT<T>::_value, DataStorm::Sample<E>(sample));
+        return DataStorm::Filter<typename DataStorm::DataTraits<E>::FilterType>::match(AbstractElementT<T>::_value,
+                                                                          DataStorm::Sample<E>(sample));
     }
 };
 
@@ -835,9 +877,18 @@ public:
     using AbstractFactoryT<K, FilterT<K, E>>::AbstractFactoryT;
 
     virtual std::shared_ptr<Filter>
-    unmarshal(const std::shared_ptr<DataStorm::TopicFactory>& factory, const std::vector<unsigned char>& data) override
+    unmarshal(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<K, FilterT<K, E>>::create(DataStorm::Encoder<K>::unmarshal(factory, data));
+        return AbstractFactoryT<K, FilterT<K, E>>::create(DataStorm::Encoder<K>::unmarshal(communicator, data));
+    }
+
+    static std::function<std::shared_ptr<FilterFactory>()> factory()
+    {
+        return [] {
+            auto f = std::make_shared<FilterFactoryT<K, E>>();
+            f->init();
+            return f;
+        };
     }
 };
 
@@ -846,7 +897,7 @@ class DataElement
 public:
 
     virtual void destroy() = 0;
-    virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const = 0;
+    virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };
 
 class DataReader : virtual public DataElement
@@ -882,7 +933,8 @@ class Topic
 public:
 
     virtual std::string getName() const = 0;
-    virtual std::shared_ptr<DataStorm::TopicFactory> getTopicFactory() const = 0;
+    virtual std::shared_ptr<KeyFactory> getKeyFactory() const = 0;
+    virtual std::shared_ptr<FilterFactory> getFilterFactory() const = 0;
     virtual void destroy() = 0;
 };
 
@@ -906,19 +958,17 @@ class TopicFactory
 {
 public:
 
-    virtual void init(const std::weak_ptr<DataStorm::TopicFactory>&) = 0;
+    virtual void init() = 0;
 
-    virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
-                                                           const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&) = 0;
+    virtual std::shared_ptr<TopicReader> getTopicReader(const std::string&,
+                                                        std::function<std::shared_ptr<KeyFactory>()>,
+                                                        std::function<std::shared_ptr<FilterFactory>()>) = 0;
 
-    virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
-                                                           const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&) = 0;
+    virtual std::shared_ptr<TopicWriter> getTopicWriter(const std::string&,
+                                                        std::function<std::shared_ptr<KeyFactory>()>,
+                                                        std::function<std::shared_ptr<FilterFactory>()>) = 0;
 
-    virtual void waitForShutdown() = 0;
-    virtual void shutdown() = 0;
-    virtual void destroy() = 0;
+    virtual void destroy(bool) = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };
@@ -938,17 +988,17 @@ namespace DataStorm
 // Encoder template implementation
 //
 template<typename T> std::vector<unsigned char>
-Encoder<T>::marshal(const std::shared_ptr<TopicFactory>& factory, const T& value)
+Encoder<T>::marshal(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
 {
     std::vector<unsigned char> v;
-    Ice::OutputStream stream(factory->getCommunicator());
+    Ice::OutputStream stream(communicator);
     stream.write(value);
     stream.finished(v);
     return v;
 }
 
 template<typename T> T
-Encoder<T>::unmarshal(const std::shared_ptr<TopicFactory>& factory, const std::vector<unsigned char>& value)
+Encoder<T>::unmarshal(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value)
 {
     T v;
     if(value.empty())
@@ -957,48 +1007,15 @@ Encoder<T>::unmarshal(const std::shared_ptr<TopicFactory>& factory, const std::v
     }
     else
     {
-        Ice::InputStream(factory->getCommunicator(), value).read(v);
+        Ice::InputStream(communicator, value).read(v);
     }
     return v;
 }
 
-template<typename T>
-class is_streamable
-{
-    template<typename SS, typename TT>
-    static auto test(int) -> decltype( std::declval<SS&>() << std::declval<TT>(), std::true_type() );
-
-    template<typename, typename>
-    static auto test(...) -> std::false_type;
-
-public:
-
-    static const bool value = decltype(test<std::ostringstream,T>(0))::value;
-};
-
-template<typename T> struct Stringifier
-{
-    template<typename U=T> static std::string
-    toString(const T& value, std::enable_if_t<is_streamable<U>::value, int> = 0)
-    {
-        std::ostringstream os;
-        os << value;
-        return os.str();
-    }
-
-    template<typename U=T> static std::string
-    toString(const T& value, std::enable_if_t<!is_streamable<U>::value, int> = 0)
-    {
-        std::ostringstream os;
-        os << &value;
-        return os.str();
-    }
-};
-
 template<typename T> std::string
 Encoder<T>::toString(const T& value)
 {
-    return Stringifier<T>::toString(value);
+    return DataStormInternal::Stringifier<T>::toString(value);
 }
 
 //
@@ -1010,20 +1027,20 @@ Sample<T>::getType() const
     return _impl->type;
 }
 
-template<typename T> typename Sample<T>::Key
+template<typename T> typename Sample<T>::KeyType
 Sample<T>::getKey() const
 {
     if(_impl->key)
     {
-        return std::static_pointer_cast<DataStormInternal::KeyT<Sample<T>::Key>>(_impl->key)->get();
+        return std::static_pointer_cast<DataStormInternal::KeyT<Sample<T>::KeyType>>(_impl->key)->get();
     }
-    return Sample<T>::Key();
+    return Sample<T>::KeyType();
 }
 
-template<typename T> typename Sample<T>::Value
+template<typename T> typename Sample<T>::ValueType
 Sample<T>::getValue() const
 {
-    return Encoder<typename Sample<T>::Value>::unmarshal(_impl->factory, _impl->value);
+    return Encoder<typename Sample<T>::ValueType>::unmarshal(_impl->communicator, _impl->value);
 }
 
 template<typename T> IceUtil::Time
@@ -1038,28 +1055,12 @@ Sample<T>::Sample(const std::shared_ptr<DataStormInternal::Sample>& impl) : _imp
 }
 
 //
-// DataElement template implementation
-//
-template<typename T>
-DataElement<T>::DataElement(const std::shared_ptr<DataStormInternal::DataElement>& impl) :
-    _impl(impl)
-{
-}
-
-template<typename T> void
-DataElement<T>::destroy()
-{
-    _impl->destroy();
-}
-
-//
 // DataReader template implementation
 //
 template<typename T>
-DataReader<T>::DataReader(const std::shared_ptr<DataStormInternal::DataReader>& impl) :
-    DataElement<T>(impl),
-    _impl(impl)
+DataReader<T>::~DataReader()
 {
+    _impl->destroy();
 }
 
 template<typename T> bool
@@ -1130,14 +1131,25 @@ DataReader<T>::getNextUnread()
     return Sample<T>(_impl->getNextUnread());
 }
 
+template<typename T>
+KeyDataReader<T>::KeyDataReader(TopicReader<T>& topic, typename DataTraits<T>::KeyType key) :
+    DataReader<T>(topic._impl->getDataReader(topic._keyFactory->create(std::move(key))))
+{
+}
+
+template<typename T>
+FilteredDataReader<T>::FilteredDataReader(TopicReader<T>& topic, typename DataTraits<T>::FilterType filter) :
+    DataReader<T>(topic._impl->getFilteredDataReader(topic._filterFactory->create(std::move(filter))))
+{
+}
+
 //
 // DataWriter template implementation
 //
 template<typename T>
-DataWriter<T>::DataWriter(const std::shared_ptr<DataStormInternal::DataWriter>& impl) :
-    DataElement<T>(impl),
-    _impl(impl)
+DataWriter<T>::~DataWriter()
 {
+    _impl->destroy();
 }
 
 template<typename T> bool
@@ -1159,15 +1171,15 @@ DataWriter<T>::waitForNoReaders() const
 }
 
 template<typename T> void
-DataWriter<T>::add(const Value& value)
+DataWriter<T>::add(const ValueType& value)
 {
-    _impl->add(Encoder<Value>::marshal(_impl->getTopicFactory(), value));
+    _impl->add(Encoder<ValueType>::marshal(_impl->getCommunicator(), value));
 }
 
 template<typename T> void
-DataWriter<T>::update(const Value& value)
+DataWriter<T>::update(const ValueType& value)
 {
-    _impl->update(Encoder<Value>::marshal(_impl->getTopicFactory(), value));
+    _impl->update(Encoder<ValueType>::marshal(_impl->getCommunicator(), value));
 }
 
 template<typename T> void
@@ -1176,235 +1188,55 @@ DataWriter<T>::remove()
     _impl->remove();
 }
 
-//
-// Topic template implementation
-//
 template<typename T>
-Topic<T>::Topic(const std::shared_ptr<DataStormInternal::Topic>& impl,
-                const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>>& keyFactory,
-                const std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>>& filterFactory) :
-    _keyFactory(keyFactory),
-    _filterFactory(filterFactory),
-    _impl(impl)
+KeyDataWriter<T>::KeyDataWriter(TopicWriter<T>& topic, typename DataTraits<T>::KeyType key) :
+    DataWriter<T>(topic._impl->getDataWriter(topic._keyFactory->create(std::move(key))))
 {
 }
 
-template<typename T> void
-Topic<T>::destroy()
+template<typename T>
+FilteredDataWriter<T>::FilteredDataWriter(TopicWriter<T>& topic, typename DataTraits<T>::FilterType filter) :
+    DataWriter<T>(topic._impl->getFilteredDataWriter(topic._filterFactory->create(std::move(filter))))
 {
-    _impl->destroy();
 }
 
 //
 // TopicReader template implementation
 //
 template<typename T>
-TopicReader<T>::TopicReader(const std::shared_ptr<DataStormInternal::TopicReader>& impl,
-                            const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>>& keyFactory,
-                            const std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>>& filterFactory) :
-    Topic<T>(impl, keyFactory, filterFactory),
-    _impl(impl)
+TopicReader<T>::TopicReader(Node& node, const std::string& name) :
+    _impl(node._impl->getTopicReader(name,
+                                     DataStormInternal::KeyFactoryT<KeyType>::factory(),
+                                     DataStormInternal::FilterFactoryT<FilterType, T>::factory())),
+    _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<KeyType>>(_impl->getKeyFactory())),
+    _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<FilterType, T>>(_impl->getFilterFactory()))
 {
 }
 
-template<typename T> std::shared_ptr<DataReader<T>>
-TopicReader<T>::getDataReader(Key key)
+template<typename T>
+TopicReader<T>::~TopicReader()
 {
-    return std::shared_ptr<DataReader<T>>(new DataReader<T>(_impl->getDataReader(this->_keyFactory->create(std::move(key)))));
-}
-
-template<typename T> std::shared_ptr<DataReader<T>>
-TopicReader<T>::getFilteredDataReader(Filter filter)
-{
-    return std::shared_ptr<DataReader<T>>(new DataReader<T>(_impl->getFilteredDataReader(this->_filterFactory->create(std::move(filter)))));
+    _impl->destroy();
 }
 
 //
 // TopicWriter template implementation
 //
 template<typename T>
-TopicWriter<T>::TopicWriter(const std::shared_ptr<DataStormInternal::TopicWriter>& impl,
-                            const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>>& keyFactory,
-                            const std::shared_ptr<DataStormInternal::FilterFactoryT<Filter, T>>& filterFactory) :
-    Topic<T>(impl, keyFactory, filterFactory),
-    _impl(impl)
+TopicWriter<T>::TopicWriter(Node& node, const std::string& name) :
+    _impl(node._impl->getTopicWriter(name,
+                                     DataStormInternal::KeyFactoryT<KeyType>::factory(),
+                                     DataStormInternal::FilterFactoryT<FilterType, T>::factory())),
+    _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<KeyType>>(_impl->getKeyFactory())),
+    _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<FilterType, T>>(_impl->getFilterFactory()))
 {
 }
 
-template<typename T> std::shared_ptr<DataWriter<T>>
-TopicWriter<T>::getDataWriter(Key key)
-{
-    return std::shared_ptr<DataWriter<T>>(new DataWriter<T>(_impl->getDataWriter(this->_keyFactory->create(std::move(key)))));
-}
-
-template<typename T> std::shared_ptr<DataWriter<T>>
-TopicWriter<T>::getFilteredDataWriter(Filter filter)
-{
-    return std::shared_ptr<DataWriter<T>>(new DataWriter<T>(_impl->getFilteredDataWriter(this->_filterFactory->create(std::move(filter)))));
-}
-
-//
-// TopicFactory template implementation
-//
-inline TopicFactory::TopicFactory(const std::shared_ptr<DataStormInternal::TopicFactory>& impl) :
-    _impl(impl)
-{
-}
-
-template<typename K, typename V> std::shared_ptr<TopicReader<std::pair<K, V>>>
-TopicFactory::createTopicReader(const std::string& name)
-{
-    return createTopicReader<std::pair<K, V>>(name);
-}
-
-template<typename K, typename V> std::shared_ptr<TopicWriter<std::pair<K, V>>>
-TopicFactory::createTopicWriter(const std::string& name)
-{
-    return createTopicWriter<std::pair<K, V>>(name);
-}
-
-template<typename T> std::shared_ptr<TopicReader<T>>
-TopicFactory::createTopicReader(const std::string& name)
-{
-    using Key = typename DataElementTraits<T>::Key;
-    auto kf = std::make_shared<DataStormInternal::KeyFactoryT<Key>>();
-    kf->init();
-
-    using Filter = typename DataElementTraits<T>::Filter;
-    auto ff = std::make_shared<DataStormInternal::FilterFactoryT<Filter, T>>();
-    ff->init();
-
-    return std::shared_ptr<TopicReader<T>>(new TopicReader<T>(_impl->createTopicReader(name, kf, ff), kf, ff));
-}
-
-template<typename T> std::shared_ptr<TopicWriter<T>>
-TopicFactory::createTopicWriter(const std::string& name)
-{
-    using Key = typename DataElementTraits<T>::Key;
-    auto kf = std::make_shared<DataStormInternal::KeyFactoryT<Key>>();
-    kf->init();
-
-    using Filter = typename DataElementTraits<T>::Filter;
-    auto ff = std::make_shared<DataStormInternal::FilterFactoryT<Filter, T>>();
-    ff->init();
-
-    return std::shared_ptr<TopicWriter<T>>(new TopicWriter<T>(_impl->createTopicWriter(name, kf, ff), kf, ff));
-}
-
-inline void
-TopicFactory::init()
-{
-    _impl->init(shared_from_this());
-}
-
-inline void
-TopicFactory::waitForShutdown()
-{
-    _impl->waitForShutdown();
-}
-
-inline void
-TopicFactory::shutdown()
-{
-    _impl->shutdown();
-}
-
-inline void
-TopicFactory::destroy()
+template<typename T>
+TopicWriter<T>::~TopicWriter()
 {
     _impl->destroy();
 }
 
-inline std::shared_ptr<Ice::Communicator>
-TopicFactory::getCommunicator() const
-{
-    return _impl->getCommunicator();
-}
-
-/**
- * Create a topic factory.
- *
- * This function return a topic factory which eventually uses the given
- * Ice communicator if not null.
- *
- * @param communicator The Ice communicator used by the topic factory for its configuration
- *                     and communications.
- * @return The topic factory.
- */
-inline std::shared_ptr<TopicFactory>
-createTopicFactory(const std::shared_ptr<Ice::Communicator>& communicator = Ice::CommunicatorPtr())
-{
-    auto factory = std::shared_ptr<TopicFactory>(new TopicFactory(DataStormInternal::createTopicFactory(communicator)));
-    factory->init();
-    return factory;
-}
-
-/**
- * Creates a topic factory using configuration from command line arguments.
- *
- * This function parses the command line arguments into Ice properties and
- * initialize a new topic factory.
- *
- * @param argc The number of command line arguments in the argv array.
- * @param argv The command line arguments
- * @return The topic factory.
- */
-inline std::shared_ptr<TopicFactory>
-createTopicFactory(int& argc, char* argv[])
-{
-    auto communicator = Ice::initialize(argc, argv);
-    auto args = Ice::argsToStringSeq(argc, argv);
-    communicator->getProperties()->parseCommandLineOptions("DataStorm", args);
-    Ice::stringSeqToArgs(args, argc, argv);
-    auto factory = std::shared_ptr<TopicFactory>(new TopicFactory(DataStormInternal::createTopicFactory(communicator)));
-    factory->init();
-    return factory;
-}
-
-/**
- * A holder class to facilitate the creation and destruction of the of
- * the topic factory.
- */
-class ICE_API TopicFactoryHolder
-{
-public:
-
-    //
-    // Empty holder
-    //
-    TopicFactoryHolder();
-
-    //
-    // Call initialize to create factory with the provided args (all except default ctor above)
-    //
-    //
-    template<class... T>
-    explicit TopicFactoryHolder(T&&... args) : _factory(std::move(initialize(std::forward<T>(args)...)))
-    {
-    }
-
-    //
-    // Adopt topic factory
-    //
-    explicit TopicFactoryHolder(std::shared_ptr<TopicFactory>);
-    TopicFactoryHolder& operator=(std::shared_ptr<TopicFactory>);
-
-    TopicFactoryHolder(const TopicFactoryHolder&) = delete;
-
-    TopicFactoryHolder(TopicFactoryHolder&&) = default;
-    TopicFactoryHolder& operator=(TopicFactoryHolder&&);
-
-    explicit operator bool() const;
-
-    ~TopicFactoryHolder();
-
-    const std::shared_ptr<TopicFactory>& factory() const;
-    const std::shared_ptr<TopicFactory>& operator->() const;
-    std::shared_ptr<TopicFactory> release();
-
-private:
-
-    std::shared_ptr<TopicFactory>  _factory;
-};
 
 }

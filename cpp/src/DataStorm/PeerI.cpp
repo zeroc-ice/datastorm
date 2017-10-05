@@ -144,12 +144,10 @@ PublisherI::createSessionAsync(shared_ptr<DataStormContract::SubscriberPrx> t,
     }
     response(Ice::uncheckedCast<DataStormContract::PublisherSessionPrx>(session->getProxy())); // Must be called before connected
 
-    // TODO: Check if the session is already connected?
-    // if(session->getSession())
-    // {
-    //      return;
-    // }
-    session->connected(s, c.con, _instance->getTopicFactoryI()->getTopicWriters());
+    if(!session->getSession())
+    {
+        session->connected(s, c.con, _instance->getTopicFactory()->getTopicWriters());
+    }
 
     //
     // Attach to available topics from peer.
@@ -175,7 +173,7 @@ PublisherI::sessionConnected(const shared_ptr<SessionI>& session,
     else
     {
         unique_lock<mutex> lock(_mutex);
-        session->connected(prx, peer->ice_getCachedConnection(), _instance->getTopicFactoryI()->getTopicWriters());
+        session->connected(prx, peer->ice_getCachedConnection(), _instance->getTopicFactory()->getTopicWriters());
     }
 }
 
@@ -247,7 +245,7 @@ SubscriberI::createSessionAsync(shared_ptr<DataStormContract::PublisherPrx> t,
     // {
     //      return;
     // }
-    session->connected(s, c.con, _instance->getTopicFactoryI()->getTopicReaders());
+    session->connected(s, c.con, _instance->getTopicFactory()->getTopicReaders());
 }
 
 void
@@ -269,7 +267,7 @@ SubscriberI::sessionConnected(const shared_ptr<SessionI>& session,
     else
     {
         unique_lock<mutex> lock(_mutex);
-        session->connected(prx, peer->ice_getCachedConnection(), _instance->getTopicFactoryI()->getTopicReaders());
+        session->connected(prx, peer->ice_getCachedConnection(), _instance->getTopicFactory()->getTopicReaders());
     }
 }
 
