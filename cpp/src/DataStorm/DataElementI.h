@@ -210,6 +210,8 @@ public:
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
+    virtual void queue(const std::shared_ptr<Sample>&) override;
+
     virtual DataStormContract::FilterInfo getFilterInfo() const override;
 
 private:

@@ -422,7 +422,7 @@ void
 SessionI::disconnect(long long id)
 {
     lock_guard<mutex> lock(_mutex); // Called by TopicI::destroy
-    if(!_session)
+    if(!_session || _topics.find(id) == _topics.end())
     {
         return;
     }
@@ -463,7 +463,7 @@ void
 SessionI::disconnectFromKey(long long topic, long long int id, DataElementI* element)
 {
     lock_guard<mutex> lock(_mutex); // Called by DataElementI::destroy
-    if(!_session)
+    if(!_session || _topics.find(topic) == _topics.end())
     {
         return;
     }
@@ -504,7 +504,7 @@ void
 SessionI::disconnectFromFilter(long long topic, long long int id, DataElementI* element)
 {
     lock_guard<mutex> lock(_mutex); // Called by DataElementI::destroy
-    if(!_session)
+    if(!_session || _topics.find(topic) == _topics.end())
     {
         return;
     }

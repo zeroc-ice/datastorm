@@ -64,12 +64,14 @@ void
 DataElementI::detachKey(long long int topic, long long int id, SessionI* session, bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
-    _keys.erase({ topic, id, session });
-    if(unsubscribe)
+    if(_keys.erase({ topic, id, session }))
     {
-        session->unsubscribeFromKey(topic, id, this);
+        if(unsubscribe)
+        {
+            session->unsubscribeFromKey(topic, id, this);
+        }
+        notifyListenerWaiters(session->getLock());
     }
-    notifyListenerWaiters(session->getLock());
 }
 
 bool
@@ -95,12 +97,14 @@ void
 DataElementI::detachFilter(long long int topic, long long int id, SessionI* session, bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
-    _filters.erase({ topic, id, session });
-    if(unsubscribe)
+    if(_filters.erase({ topic, id, session }))
     {
-        session->unsubscribeFromFilter(topic, id, this);
+        if(unsubscribe)
+        {
+            session->unsubscribeFromFilter(topic, id, this);
+        }
+        notifyListenerWaiters(session->getLock());
     }
-    notifyListenerWaiters(session->getLock());
 }
 
 void
@@ -332,7 +336,7 @@ KeyDataReaderI::hasWriters()
 DataStormContract::KeyInfo
 KeyDataReaderI::getKeyInfo() const
 {
-    return { _key->getId(), _key->marshal(_parent->getInstance()->getCommunicator()), 0 };
+    return { _key->getId(), _key->encode(_parent->getInstance()->getCommunicator()), 0 };
 }
 
 DataStormContract::KeyInfoAndSamples
@@ -380,7 +384,7 @@ KeyDataWriterI::hasReaders() const
 DataStormContract::KeyInfo
 KeyDataWriterI::getKeyInfo() const
 {
-    return { _key->getId(), _key->marshal(_parent->getInstance()->getCommunicator()), 0 };
+    return { _key->getId(), _key->encode(_parent->getInstance()->getCommunicator()), 0 };
 }
 
 DataStormContract::KeyInfoAndSamples
@@ -443,10 +447,19 @@ FilteredDataReaderI::hasWriters()
      return hasListeners();
 }
 
+void
+FilteredDataReaderI::queue(const shared_ptr<Sample>& sample)
+{
+    if(_filter->match(sample))
+    {
+        DataReaderI::queue(sample);
+    }
+}
+
 DataStormContract::FilterInfo
 FilteredDataReaderI::getFilterInfo() const
 {
-    return { _filter->getId(), _filter->marshal(_parent->getInstance()->getCommunicator()) };
+    return { _filter->getId(), _filter->encode(_parent->getInstance()->getCommunicator()) };
 }
 
 FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic, const shared_ptr<Filter>& filter) :
@@ -488,7 +501,7 @@ FilteredDataWriterI::hasReaders() const
 DataStormContract::FilterInfo
 FilteredDataWriterI::getFilterInfo() const
 {
-    return { _filter->getId(), _filter->marshal(_parent->getInstance()->getCommunicator()) };
+    return { _filter->getId(), _filter->encode(_parent->getInstance()->getCommunicator()) };
 }
 
 void

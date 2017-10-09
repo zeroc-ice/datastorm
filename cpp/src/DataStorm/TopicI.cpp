@@ -130,9 +130,10 @@ TopicI::attach(long long id, SessionI* session, const shared_ptr<DataStormContra
 void
 TopicI::detach(long long id, SessionI* session, bool unsubscribe)
 {
-    assert(_sessions.find({ id, session }) != _sessions.end());
-    _sessions.erase({ id, session });
-    session->unsubscribe(id, unsubscribe);
+    if(_sessions.erase({ id, session })) // Session might already be detached if topic was destroyed.
+    {
+        session->unsubscribe(id, unsubscribe);
+    }
 }
 
 DataStormContract::KeyInfoAndSamplesSeq
@@ -220,7 +221,7 @@ TopicI::attachKeyImpl(long long int id,
                       DataStormContract::KeyInfoAndSamplesSeq& ackKeys,
                       DataStormContract::FilterInfoSeq& ackFilters)
 {
-    auto key = _keyFactory->unmarshal(_instance->getCommunicator(), info.key);
+    auto key = _keyFactory->decode(_instance->getCommunicator(), info.key);
     auto p = _keyElements.find(key);
     if(p != _keyElements.end())
     {
@@ -257,7 +258,7 @@ TopicI::attachFilterImpl(long long int id,
                          const shared_ptr<DataStormContract::SessionPrx>& prx,
                          DataStormContract::KeyInfoAndSamplesSeq& ack)
 {
-    auto filter = _filterFactory->unmarshal(_instance->getCommunicator(), info.filter);
+    auto filter = _filterFactory->decode(_instance->getCommunicator(), info.filter);
 
     for(const auto& element : _keyElements)
     {

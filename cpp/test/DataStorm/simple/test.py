@@ -9,7 +9,7 @@
 
 traceProps = {
     "DataStorm.Trace.Topic" : 1,
-    "DataStorm.Trace.Session" : 2,
+    "DataStorm.Trace.Session" : 3,
     "DataStorm.Trace.Data" : 1
 }
 
