@@ -11,7 +11,7 @@
 
 #include <Ice/Ice.h>
 
-#include <Internal.h>
+#include <DataStorm/Contract.h>
 
 namespace DataStorm
 {

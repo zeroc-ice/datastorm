@@ -7,7 +7,8 @@
 //
 // **********************************************************************
 
-#include <DataStorm/DataStorm.h>
+#include <DataStorm/Node.h>
+#include <Ice/Initialize.h>
 
 using namespace DataStorm;
 

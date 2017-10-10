@@ -12,7 +12,7 @@
 #include <Ice/Ice.h>
 #include <DataStorm/PeerI.h>
 
-#include <Internal.h>
+#include <DataStorm/Contract.h>
 
 namespace DataStormInternal
 {
@@ -162,14 +162,14 @@ public:
     virtual void attachTopics(DataStormContract::TopicInfoAndContentSeq, const Ice::Current&);
     virtual void detachTopic(long long int, const Ice::Current&);
 
-    virtual void announceKey(long long int, DataStormContract::KeyInfo, const Ice::Current&);
+    virtual void announceKeys(long long int, DataStormContract::KeyInfoSeq, const Ice::Current&);
     virtual void announceFilter(long long int, DataStormContract::FilterInfo, const Ice::Current&);
     virtual void attachKeysAndFilters(long long int,
                                       long long int,
                                       DataStormContract::KeyInfoAndSamplesSeq,
                                       DataStormContract::FilterInfoSeq,
                                       const Ice::Current&);
-    virtual void detachKey(long long int, long long int, const Ice::Current&);
+    virtual void detachKeys(long long int, DataStormContract::LongSeq, const Ice::Current&);
     virtual void detachFilter(long long int, long long int, const Ice::Current&);
 
     virtual void destroy(const Ice::Current&);
@@ -184,6 +184,7 @@ public:
     std::shared_ptr<DataStormContract::SessionPrx> getSessionNoLock() const;
 
     virtual long long int getLastId(long long int) const;
+    virtual bool setLastId(long long int, long long int);
 
     std::shared_ptr<DataStormContract::SessionPrx> getProxy() const
     {
@@ -240,11 +241,11 @@ public:
     SubscriberSessionI(SubscriberI*, const std::shared_ptr<DataStormContract::PeerPrx>&);
 
     virtual void i(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&);
-    virtual void s(long long int, long long int, std::shared_ptr<DataStormContract::DataSample>, const Ice::Current&);
-    virtual void f(long long int, long long int, std::shared_ptr<DataStormContract::DataSample>, const Ice::Current&);
+    virtual void s(long long int, long long int, DataStormContract::DataSample, const Ice::Current&);
+    virtual void f(long long int, long long int, DataStormContract::DataSample, const Ice::Current&);
 
     virtual long long int getLastId(long long int) const;
-    bool setLastId(long long int, long long int);
+    virtual bool setLastId(long long int, long long int);
 
 private:
 

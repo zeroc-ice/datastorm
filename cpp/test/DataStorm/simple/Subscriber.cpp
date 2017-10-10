@@ -172,6 +172,7 @@ main(int argc, char* argv[])
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == key);
+            cerr << static_cast<int>(sample.getType()) << " " << static_cast<int>(type) << endl;
             test(sample.getType() == type);
             if(type != SampleType::Remove)
             {

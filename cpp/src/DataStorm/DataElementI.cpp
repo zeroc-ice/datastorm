@@ -16,10 +16,22 @@
 using namespace std;
 using namespace DataStormInternal;
 
+namespace
+{
+
+DataStormContract::DataSample
+toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator)
+{
+    return { sample->id, sample->timestamp, sample->type, sample->encode(communicator) };
+}
+
+}
+
 DataElementI::DataElementI(TopicI* parent) :
     _traceLevels(parent->getInstance()->getTraceLevels()),
     _forwarder(Ice::uncheckedCast<DataStormContract::SessionPrx>(parent->getInstance()->getForwarderManager()->add(this))),
     _parent(parent),
+    _listenerCount(0),
     _waiters(0),
     _notified(0)
 {
@@ -44,12 +56,19 @@ DataElementI::destroy()
 bool
 DataElementI::attachKey(long long int topic,
                         long long int id,
-                        const shared_ptr<Key>& key, SessionI* session,
+                        const shared_ptr<Key>& key,
+                        SessionI* session,
                         const shared_ptr<DataStormContract::SessionPrx>& prx)
 {
     // No locking necessary, called by the session with the mutex locked
-    if(_keys.emplace(Listener { topic, id, session }, prx).second)
+    auto p = _listeners.find({ session });
+    if(p == _listeners.end())
     {
+        p = _listeners.emplace(ListenerKey { session }, Listener(prx)).first;
+    }
+    if(p->second.keys.add(topic, id, key))
+    {
+        ++_listenerCount;
         session->subscribeToKey(topic, id, key, this);
         notifyListenerWaiters(session->getLock());
         return true;
@@ -64,25 +83,38 @@ void
 DataElementI::detachKey(long long int topic, long long int id, SessionI* session, bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
-    if(_keys.erase({ topic, id, session }))
+    auto p = _listeners.find({ session });
+    if(p != _listeners.end() && p->second.keys.remove(topic, id))
     {
+        --_listenerCount;
         if(unsubscribe)
         {
             session->unsubscribeFromKey(topic, id, this);
         }
         notifyListenerWaiters(session->getLock());
+        if(p->second.empty())
+        {
+            _listeners.erase(p);
+        }
     }
 }
 
 bool
-DataElementI::attachFilter(long long int topic, long long int id,
+DataElementI::attachFilter(long long int topic,
+                           long long int id,
                            const shared_ptr<Filter>& filter,
                            SessionI* session,
                            const shared_ptr<DataStormContract::SessionPrx>& prx)
 {
     // No locking necessary, called by the session with the mutex locked
-    if(_filters.emplace(Listener { topic, id, session }, prx).second)
+    auto p = _listeners.find({ session });
+    if(p == _listeners.end())
     {
+        p = _listeners.emplace(ListenerKey { session }, Listener(prx)).first;
+    }
+    if(p->second.filters.add(topic, id, filter))
+    {
+        ++_listenerCount;
         session->subscribeToFilter(topic, id, filter, this);
         notifyListenerWaiters(session->getLock());
         return true;
@@ -97,13 +129,19 @@ void
 DataElementI::detachFilter(long long int topic, long long int id, SessionI* session, bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
-    if(_filters.erase({ topic, id, session }))
+    auto p = _listeners.find({ session });
+    if(p != _listeners.end() && p->second.filters.remove(topic, id))
     {
+        --_listenerCount;
         if(unsubscribe)
         {
             session->unsubscribeFromFilter(topic, id, this);
         }
         notifyListenerWaiters(session->getLock());
+        if(p->second.empty())
+        {
+            _listeners.erase(p);
+        }
     }
 }
 
@@ -120,12 +158,12 @@ DataElementI::waitForListeners(int count) const
     ++_waiters;
     while(true)
     {
-        if(count < 0 && (_filters.size() + _keys.size() == 0))
+        if(count < 0 && _listenerCount == 0)
         {
             --_waiters;
             return;
         }
-        else if(count >= 0 && (_filters.size() + _keys.size() >= count))
+        else if(count >= 0 && _listenerCount >= count)
         {
             --_waiters;
             return;
@@ -139,7 +177,7 @@ bool
 DataElementI::hasListeners() const
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    return !_keys.empty() || !_filters.empty();
+    return _listenerCount > 0;
 }
 
 shared_ptr<Ice::Communicator>
@@ -162,34 +200,34 @@ DataElementI::notifyListenerWaiters(unique_lock<mutex>& lock) const
 void
 DataElementI::disconnect()
 {
-    map<Listener, shared_ptr<DataStormContract::SessionPrx>> keys;
-    map<Listener, shared_ptr<DataStormContract::SessionPrx>> filters;
+    map<ListenerKey, Listener> listeners;
     {
         unique_lock<mutex> lock(_parent->_mutex);
-        keys.swap(_keys);
-        filters.swap(_filters);
+        listeners.swap(_listeners);
         notifyListenerWaiters(lock);
     }
-    for(const auto& key : keys)
+    for(const auto& listener : listeners)
     {
-        key.first.session->disconnectFromKey(key.first.topic, key.first.id, this);
-    }
-    for(const auto& filter : filters)
-    {
-        filter.first.session->disconnectFromFilter(filter.first.topic, filter.first.id, this);
+        for(const auto& ks : listener.second.keys.subscribers)
+        {
+            listener.first.session->disconnectFromKey(ks.first.first, ks.first.second, this);
+        }
+        for(const auto& fs : listener.second.filters.subscribers)
+        {
+            listener.first.session->disconnectFromFilter(fs.first.first, fs.first.second, this);
+        }
     }
 }
 
 void
 DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 {
-    for(const auto& k : _keys)
+    for(const auto& listener : _listeners)
     {
-        k.second->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
-    }
-    for(const auto& f : _filters)
-    {
-        f.second->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+        if(!_sample || listener.second.matchOne(_sample)) // If there's at least one subscriber interested in the update
+        {
+            listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+        }
     }
 }
 
@@ -207,8 +245,10 @@ DataReaderI::getInstanceCount() const
 }
 
 vector<shared_ptr<Sample>>
-DataReaderI::getAll() const
+DataReaderI::getAll()
 {
+    getAllUnread(); // Read and add unread
+
     lock_guard<mutex> lock(_parent->_mutex);
     return vector<shared_ptr<Sample>>(_all.begin(), _all.end());
 }
@@ -218,6 +258,12 @@ DataReaderI::getAllUnread()
 {
     lock_guard<mutex> lock(_parent->_mutex);
     vector<shared_ptr<Sample>> unread(_unread.begin(), _unread.end());
+    for(const auto& s : unread)
+    {
+        s->decode(getCommunicator());
+        _all.push_back(s);
+    }
+    _all.insert(_all.end(), unread.begin(), unread.end());
     _unread.clear();
     return unread;
 }
@@ -246,19 +292,15 @@ DataReaderI::getNextUnread()
     _parent->_cond.wait(lock, [&]() { return !_unread.empty(); });
     shared_ptr<Sample> sample = _unread.front();
     _unread.pop_front();
+    _all.push_back(sample);
+    sample->decode(getCommunicator());
     return sample;
 }
 
 void
 DataReaderI::queue(const shared_ptr<Sample>& sample)
 {
-    // No need for locking, the parent is locked when this is called.
-    if(sample->type == DataStorm::SampleType::Add)
-    {
-        ++_instanceCount;
-    }
     _unread.push_back(sample);
-    _all.push_back(sample);
     _parent->_cond.notify_all();
 }
 
@@ -270,25 +312,7 @@ DataWriterI::DataWriterI(TopicWriterI* topic) :
 }
 
 void
-DataWriterI::add(const vector<unsigned char>& value)
-{
-    publish(make_shared<DataStormContract::DataSample>(0, 0, DataStormContract::SampleType::Add, value));
-}
-
-void
-DataWriterI::update(const vector<unsigned char>& value)
-{
-    publish(make_shared<DataStormContract::DataSample>(0, 0, DataStormContract::SampleType::Update, value));
-}
-
-void
-DataWriterI::remove()
-{
-    publish(make_shared<DataStormContract::DataSample>(0, 0, DataStormContract::SampleType::Remove, Ice::ByteSeq()));
-}
-
-void
-DataWriterI::publish(const shared_ptr<DataStormContract::DataSample>& sample)
+DataWriterI::publish(const shared_ptr<Sample>& sample)
 {
     lock_guard<mutex> lock(_parent->_mutex);
     sample->id = ++_parent->_nextSampleId;
@@ -297,15 +321,15 @@ DataWriterI::publish(const shared_ptr<DataStormContract::DataSample>& sample)
     send(_all.back());
 }
 
-KeyDataReaderI::KeyDataReaderI(TopicReaderI* parent, const shared_ptr<Key>& key) :
+KeyDataReaderI::KeyDataReaderI(TopicReaderI* parent, const vector<shared_ptr<Key>>& keys) :
     DataElementI(parent),
     DataReaderI(parent),
-    _key(key)
+    _keys(keys)
 {
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << "created key data reader `" << _parent << '/' << _key << "'";
+        out << "created key data reader `" << _parent << '/' << _keys << "'";
     }
 }
 
@@ -315,10 +339,15 @@ KeyDataReaderI::destroyImpl()
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << "destroyed key data reader `" << _parent << '/' << _key << "'";
+        out << "destroyed key data reader `" << _parent << '/' << _keys << "'";
     }
-    _forwarder->detachKey(_parent->getId(), _key->getId());
-    _parent->remove(_key);
+    DataStormContract::LongSeq ids;
+    for(auto k : _keys)
+    {
+        ids.emplace_back(k->getId());
+    }
+    _forwarder->detachKeys(_parent->getId(), ids);
+    _parent->remove(_keys, shared_from_this());
 }
 
 void
@@ -333,27 +362,21 @@ KeyDataReaderI::hasWriters()
     return hasListeners();
 }
 
-DataStormContract::KeyInfo
-KeyDataReaderI::getKeyInfo() const
+DataStormContract::DataSampleSeq
+KeyDataReaderI::getSamples(long long int, const shared_ptr<Filter>&) const
 {
-    return { _key->getId(), _key->encode(_parent->getInstance()->getCommunicator()), 0 };
+    return {};
 }
 
-DataStormContract::KeyInfoAndSamples
-KeyDataReaderI::getKeyInfoAndSamples(long long int) const
-{
-    return { getKeyInfo(), {} };
-}
-
-KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic, const shared_ptr<Key>& key) :
+KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic, const vector<shared_ptr<Key>>& keys) :
     DataElementI(topic),
     DataWriterI(topic),
-    _key(key)
+    _keys(keys)
 {
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << "created key data writer `" << _parent << '/' << _key << "'";
+        out << "created key data writer `" << _parent << '/' << _keys << "'";
     }
 }
 
@@ -363,10 +386,15 @@ KeyDataWriterI::destroyImpl()
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << "destroyed key data writer `" << _parent << '/' << _key << "'";
+        out << "destroyed key data writer `" << _parent << '/' << _keys << "'";
     }
-    _forwarder->detachKey(_parent->getId(), _key->getId());
-    _parent->remove(_key);
+    DataStormContract::LongSeq ids;
+    for(auto k : _keys)
+    {
+        ids.emplace_back(k->getId());
+    }
+    _forwarder->detachKeys(_parent->getId(), ids);
+    _parent->remove(_keys, shared_from_this());
 }
 
 void
@@ -381,14 +409,8 @@ KeyDataWriterI::hasReaders() const
     return hasListeners();
 }
 
-DataStormContract::KeyInfo
-KeyDataWriterI::getKeyInfo() const
-{
-    return { _key->getId(), _key->encode(_parent->getInstance()->getCommunicator()), 0 };
-}
-
-DataStormContract::KeyInfoAndSamples
-KeyDataWriterI::getKeyInfoAndSamples(long long int lastId) const
+DataStormContract::DataSampleSeq
+KeyDataWriterI::getSamples(long long int lastId, const shared_ptr<Filter>& filter) const
 {
     DataStormContract::DataSampleSeq samples;
     if(lastId < 0)
@@ -399,16 +421,26 @@ KeyDataWriterI::getKeyInfoAndSamples(long long int lastId) const
     {
         if(p->id > lastId)
         {
-            samples.push_back(p);
+            if(!filter || filter->match(p, true))
+            {
+                samples.push_back(toSample(p, nullptr)); // The sample should already be encoded
+            }
         }
     }
-    return { getKeyInfo(), samples };
+    return samples;
 }
 
 void
-KeyDataWriterI::send(const shared_ptr<DataStormContract::DataSample>& sample) const
+KeyDataWriterI::send(const shared_ptr<Sample>& sample) const
 {
-    _subscribers->s(_parent->getId(), _key->getId(), sample);
+    _sample = sample;
+    DataStormContract::DataSample s = toSample(sample, getCommunicator());
+    for(auto k : _keys)
+    {
+        _sample->key = k;
+        _subscribers->s(_parent->getId(), k->getId(), s);
+    }
+    _sample = nullptr;
 }
 
 FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic, const shared_ptr<Filter>& filter) :
@@ -432,7 +464,7 @@ FilteredDataReaderI::destroyImpl()
         out << "destroyed filter data reader `" << _parent << '/' << _filter << "'";
     }
     _forwarder->detachFilter(_parent->getId(), _filter->getId());
-    _parent->removeFiltered(_filter);
+    _parent->removeFiltered(_filter, shared_from_this());
 }
 
 void
@@ -450,16 +482,11 @@ FilteredDataReaderI::hasWriters()
 void
 FilteredDataReaderI::queue(const shared_ptr<Sample>& sample)
 {
-    if(_filter->match(sample))
+    sample->decode(getCommunicator());
+    if(_filter->match(sample, false))
     {
         DataReaderI::queue(sample);
     }
-}
-
-DataStormContract::FilterInfo
-FilteredDataReaderI::getFilterInfo() const
-{
-    return { _filter->getId(), _filter->encode(_parent->getInstance()->getCommunicator()) };
 }
 
 FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic, const shared_ptr<Filter>& filter) :
@@ -483,7 +510,7 @@ FilteredDataWriterI::destroyImpl()
         out << "destroyed filter data writer `" << _parent << '/' << _filter << "'";
     }
     _forwarder->detachFilter(_parent->getId(), _filter->getId());
-    _parent->removeFiltered(_filter);
+    _parent->removeFiltered(_filter, shared_from_this());
 }
 
 void
@@ -498,14 +525,10 @@ FilteredDataWriterI::hasReaders() const
     return hasListeners();
 }
 
-DataStormContract::FilterInfo
-FilteredDataWriterI::getFilterInfo() const
-{
-    return { _filter->getId(), _filter->encode(_parent->getInstance()->getCommunicator()) };
-}
-
 void
-FilteredDataWriterI::send(const shared_ptr<DataStormContract::DataSample>& sample) const
+FilteredDataWriterI::send(const shared_ptr<Sample>& sample) const
 {
-    _subscribers->f(_parent->getId(), _filter->getId(), sample);
+    _sample = sample;
+    _subscribers->f(_parent->getId(), _filter->getId(), toSample(sample, getCommunicator()));
+    _sample = nullptr;
 }

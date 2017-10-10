@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include <DataStorm/DataStorm.h>
+#include <DataStorm/InternalI.h>
 #include <DataStorm/DataElementI.h>
 #include <DataStorm/ForwarderManager.h>
+#include <DataStorm/Instance.h>
 
 namespace DataStormInternal
 {
 
-class Instance;
 class SessionI;
 class SubscriberSessionI;
 class PublisherI;
@@ -51,6 +51,7 @@ public:
     TopicI(const std::weak_ptr<TopicFactoryI>&,
            const std::shared_ptr<KeyFactory>&,
            const std::shared_ptr<FilterFactory>&,
+           typename Sample::FactoryType,
            const std::string&,
            long long int);
 
@@ -90,11 +91,11 @@ public:
                          const std::shared_ptr<DataStormContract::SessionPrx>&);
 
     std::pair<DataStormContract::KeyInfoAndSamplesSeq, DataStormContract::FilterInfoSeq>
-    attachKey(long long int,
-              const DataStormContract::KeyInfo&,
-              long long int,
-              SessionI*,
-              const std::shared_ptr<DataStormContract::SessionPrx>&);
+    attachKeys(long long int,
+               const DataStormContract::KeyInfoSeq&,
+               long long int,
+               SessionI*,
+               const std::shared_ptr<DataStormContract::SessionPrx>&);
 
     DataStormContract::KeyInfoAndSamplesSeq
     attachFilter(long long int,
@@ -112,6 +113,12 @@ public:
     getMutex()
     {
         return _mutex;
+    }
+
+    const typename Sample::FactoryType&
+    getSampleFactory() const
+    {
+        return _sampleFactory;
     }
 
 protected:
@@ -137,29 +144,38 @@ protected:
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
     template<typename T> std::shared_ptr<T>
-    get(const std::shared_ptr<Key>& key)
+    add(const std::shared_ptr<T>& element, const std::vector<std::shared_ptr<Key>>& keys)
     {
-        auto p = _keyElements.find(key);
-        if(p == _keyElements.end())
+        DataStormContract::KeyInfoSeq infos;
+        for(const auto& key : keys)
         {
-            p = _keyElements.insert(make_pair(key, makeElement(key))).first;
+            auto p = _keyElements.find(key);
+            if(p == _keyElements.end())
+            {
+                p = _keyElements.emplace(key, std::set<std::shared_ptr<KeyDataElementI>>()).first;
+                infos.push_back({ key->getId(), key->encode(_instance->getCommunicator()) });
+            }
+            p->second.insert(element);
         }
-        return std::dynamic_pointer_cast<T>(p->second);
+        if(!infos.empty())
+        {
+            _forwarder->announceKeys(_id, infos);
+        }
+        return element;
     }
 
     template<typename T> std::shared_ptr<T>
-    getFiltered(const std::shared_ptr<Filter>& filter)
+    addFiltered(const std::shared_ptr<T>& element, const std::shared_ptr<Filter>& filter)
     {
         auto p = _filteredElements.find(filter);
         if(p == _filteredElements.end())
         {
-            p = _filteredElements.insert(make_pair(filter, makeFilteredElement(filter))).first;
+            p = _filteredElements.emplace(filter, std::set<std::shared_ptr<FilteredDataElementI>>()).first;
+            _forwarder->announceFilter(_id, { filter->getId(), filter->encode(_instance->getCommunicator()) });
         }
-        return std::dynamic_pointer_cast<T>(p->second);
+        p->second.insert(element);
+        return element;
     }
-
-    virtual std::shared_ptr<KeyDataElementI> makeElement(const std::shared_ptr<Key>&) = 0;
-    virtual std::shared_ptr<FilteredDataElementI> makeFilteredElement(const std::shared_ptr<Filter>&) = 0;
 
     friend class DataElementI;
     friend class DataReaderI;
@@ -168,6 +184,7 @@ protected:
     const std::weak_ptr<TopicFactoryI> _factory;
     const std::shared_ptr<KeyFactory> _keyFactory;
     const std::shared_ptr<FilterFactory> _filterFactory;
+    const typename Sample::FactoryType _sampleFactory;
     const std::string _name;
     const std::shared_ptr<Instance> _instance;
     const std::shared_ptr<TraceLevels> _traceLevels;
@@ -176,8 +193,8 @@ protected:
 
     std::mutex _mutex;
     std::condition_variable _cond;
-    std::map<std::shared_ptr<Key>, std::shared_ptr<KeyDataElementI>> _keyElements;
-    std::map<std::shared_ptr<Filter>, std::shared_ptr<FilteredDataElementI>> _filteredElements;
+    std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<KeyDataElementI>>> _keyElements;
+    std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<FilteredDataElementI>>> _filteredElements;
     std::map<Listener, std::shared_ptr<DataStormContract::SessionPrx>> _sessions;
     long long int _nextSampleId;
 };
@@ -189,20 +206,16 @@ public:
     TopicReaderI(const std::shared_ptr<TopicFactoryI>&,
                  const std::shared_ptr<KeyFactory>&,
                  const std::shared_ptr<FilterFactory>&,
+                 typename Sample::FactoryType,
                  const std::string&,
                  long long int);
 
-    virtual std::shared_ptr<DataReader> getFilteredDataReader(const std::shared_ptr<Filter>&) override;
-    virtual std::shared_ptr<DataReader> getDataReader(const std::shared_ptr<Key>&) override;
+    virtual std::shared_ptr<DataReader> createFilteredDataReader(const std::shared_ptr<Filter>&) override;
+    virtual std::shared_ptr<DataReader> createDataReader(const std::vector<std::shared_ptr<Key>>&) override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::shared_ptr<Filter>&);
-    void remove(const std::shared_ptr<Key>&);
-
-private:
-
-    virtual std::shared_ptr<KeyDataElementI> makeElement(const std::shared_ptr<Key>&) override;
-    virtual std::shared_ptr<FilteredDataElementI> makeFilteredElement(const std::shared_ptr<Filter>&) override;
+    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);
+    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<KeyDataElementI>&);
 };
 
 class TopicWriterI : public TopicWriter, public TopicI
@@ -212,20 +225,16 @@ public:
     TopicWriterI(const std::shared_ptr<TopicFactoryI>&,
                  const std::shared_ptr<KeyFactory>&,
                  const std::shared_ptr<FilterFactory>&,
+                 typename Sample::FactoryType,
                  const std::string&,
                  long long int);
 
-    virtual std::shared_ptr<DataWriter> getFilteredDataWriter(const std::shared_ptr<Filter>&) override;
-    virtual std::shared_ptr<DataWriter> getDataWriter(const std::shared_ptr<Key>&) override;
+    virtual std::shared_ptr<DataWriter> createFilteredDataWriter(const std::shared_ptr<Filter>&) override;
+    virtual std::shared_ptr<DataWriter> createDataWriter(const std::vector<std::shared_ptr<Key>>&) override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::shared_ptr<Filter>&);
-    void remove(const std::shared_ptr<Key>&);
-
-private:
-
-    virtual std::shared_ptr<KeyDataElementI> makeElement(const std::shared_ptr<Key>&) override;
-    virtual std::shared_ptr<FilteredDataElementI> makeFilteredElement(const std::shared_ptr<Filter>&) override;
+    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);
+    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<KeyDataElementI>&);
 };
 
 class TopicFactoryI : public TopicFactory, public std::enable_shared_from_this<TopicFactoryI>
@@ -238,11 +247,13 @@ public:
 
     virtual std::shared_ptr<TopicReader> getTopicReader(const std::string&,
                                                         std::function<std::shared_ptr<KeyFactory>()>,
-                                                        std::function<std::shared_ptr<FilterFactory>()>) override;
+                                                        std::function<std::shared_ptr<FilterFactory>()>,
+                                                        typename Sample::FactoryType) override;
 
     virtual std::shared_ptr<TopicWriter> getTopicWriter(const std::string&,
                                                         std::function<std::shared_ptr<KeyFactory>()>,
-                                                        std::function<std::shared_ptr<FilterFactory>()>) override;
+                                                        std::function<std::shared_ptr<FilterFactory>()>,
+                                                        typename Sample::FactoryType) override;
 
     virtual void destroy(bool) override;
 

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <Internal.h>
+#include <DataStorm/Contract.h>
 
 namespace DataStormInternal
 {

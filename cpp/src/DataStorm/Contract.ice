@@ -1,26 +1,28 @@
+// **********************************************************************
+//
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+//
+// This copy of Ice is licensed to you under the terms described in the
+// ICE_LICENSE file included in this distribution.
+//
+// **********************************************************************
 
+#pragma once
+
+#include <DataStorm/SampleType.ice>
 
 module DataStormContract
 {
 
-enum SampleType
-{
-    Add,
-    Update,
-    Remove,
-    Event
-};
-
-sequence<SampleType> SampleTypeSeq;
-
 sequence<byte> ByteSeq;
 sequence<ByteSeq> ByteSeqSeq;
+sequence<long> LongSeq;
 
-class DataSample
+struct DataSample
 {
     long id;
     long timestamp;
-    SampleType type;
+    DataStorm::SampleType type;
     ByteSeq value;
 }
 sequence<DataSample> DataSampleSeq;
@@ -45,7 +47,6 @@ struct KeyInfo
 {
     long id;
     ByteSeq key;
-    int priority;
 }
 sequence<KeyInfo> KeyInfoSeq;
 
@@ -79,10 +80,10 @@ interface Session
     void attachTopics(TopicInfoAndContentSeq topics);
     void detachTopic(long topic);
 
-    void announceKey(long topic, KeyInfo key);
+    void announceKeys(long topic, KeyInfoSeq keys);
     void announceFilter(long topic, FilterInfo filter);
     void attachKeysAndFilters(long topic, long lastId, KeyInfoAndSamplesSeq keys, FilterInfoSeq filters);
-    void detachKey(long topic, long key);
+    void detachKeys(long topic, LongSeq keys);
     void detachFilter(long topic, long filter);
 
     void destroy();

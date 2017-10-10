@@ -10,10 +10,10 @@
 #pragma once
 
 #include <Ice/Ice.h>
-#include <DataStorm/DataStorm.h>
+#include <DataStorm/InternalI.h>
 #include <DataStorm/ForwarderManager.h>
 
-#include <Internal.h>
+#include <DataStorm/Contract.h>
 
 #include <set>
 

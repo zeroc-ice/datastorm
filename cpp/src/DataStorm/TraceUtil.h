@@ -13,7 +13,7 @@
 #include <Ice/LoggerF.h>
 #include <Ice/LoggerUtil.h>
 
-#include <DataStorm/DataStorm.h>
+#include <DataStorm/InternalI.h>
 #include <DataStorm/SessionI.h>
 
 namespace Ice

@@ -13,7 +13,6 @@
 #include <DataStorm/Instance.h>
 #include <DataStorm/TopicI.h>
 #include <DataStorm/TraceUtil.h>
-#include <DataStorm/SampleI.h>
 
 using namespace std;
 using namespace DataStormInternal;
@@ -110,7 +109,7 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
 }
 
 void
-SessionI::announceKey(long long int id, KeyInfo key, const Ice::Current&)
+SessionI::announceKeys(long long int id, KeyInfoSeq keys, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -121,13 +120,13 @@ SessionI::announceKey(long long int id, KeyInfo key, const Ice::Current&)
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "announcing key `" << key << '@' << id << "' for peer `" << _peer << "' session";
+        out << "announcing key `" << keys << '@' << id << "' for peer `" << _peer << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
     {
         auto t = topic.get();
-        auto kAndF = t->attachKey(id, key, 0, this, _session);
+        auto kAndF = t->attachKeys(id, keys, 0, this, _session);
         if(!kAndF.first.empty() || !kAndF.second.empty())
         {
             _session->attachKeysAndFiltersAsync(t->getId(), getLastId(t->getId()), kAndF.first, kAndF.second);
@@ -192,7 +191,7 @@ SessionI::attachKeysAndFilters(long long int id,
 }
 
 void
-SessionI::detachKey(long long int id, long long int key, const Ice::Current&)
+SessionI::detachKeys(long long int id, LongSeq keys, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -203,15 +202,18 @@ SessionI::detachKey(long long int id, long long int key, const Ice::Current&)
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "detaching key `" << key << "@" << id << "' for peer `" << _peer << "' session";
+        out << "detaching key `" << keys << "@" << id << "' for peer `" << _peer << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
     {
-        auto k = topic.removeKey(key);
-        for(auto subscriber : k.getSubscribers())
+        for(auto key : keys)
         {
-            subscriber->detachKey(id, key, this);
+            auto k = topic.removeKey(key);
+            for(auto subscriber : k.getSubscribers())
+            {
+                subscriber->detachKey(id, key, this);
+            }
         }
     });
 }
@@ -375,6 +377,12 @@ long long int
 SessionI::getLastId(long long int) const
 {
     return -1;
+}
+
+bool
+SessionI::setLastId(long long int, long long int)
+{
+    return true;
 }
 
 void
@@ -562,6 +570,7 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
         return;
     }
 
+    auto communicator = _instance->getCommunicator();
     for(const auto& samples : samplesSeq)
     {
         runWithTopic(id, [&](auto topic)
@@ -569,11 +578,11 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
             auto k = topic.getKey(samples.key);
             if(k)
             {
-                for(const auto& s : samples.samples)
+                for(auto& s : samples.samples)
                 {
-                    if(setLastId(id, s->id))
+                    if(setLastId(id, s.id))
                     {
-                        auto impl = make_shared<SampleI>(topic.get()->getInstance()->getCommunicator(), k->get(), s);
+                        auto impl = topic.get()->getSampleFactory()(s.type, k->get(), move(s.value), s.timestamp);
                         for(auto subscriber : k->getSubscribers())
                         {
                             subscriber->queue(impl);
@@ -586,7 +595,7 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
 }
 
 void
-SubscriberSessionI::s(long long int id, long long int key, shared_ptr<DataSample> s, const Ice::Current&)
+SubscriberSessionI::s(long long int id, long long int key, DataSample s, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -597,9 +606,9 @@ SubscriberSessionI::s(long long int id, long long int key, shared_ptr<DataSample
     runWithTopic(id, [&](auto topic)
     {
         auto k = topic.getKey(key);
-        if(k && setLastId(id, s->id))
+        if(k && setLastId(id, s.id))
         {
-            auto impl = make_shared<SampleI>(topic.get()->getInstance()->getCommunicator(), k->get(), s);
+            auto impl = topic.get()->getSampleFactory()(s.type, k->get(), move(s.value), s.timestamp);
             for(auto subscriber : k->getSubscribers())
             {
                 subscriber->queue(impl);
@@ -609,7 +618,7 @@ SubscriberSessionI::s(long long int id, long long int key, shared_ptr<DataSample
 }
 
 void
-SubscriberSessionI::f(long long int id, long long int filter, shared_ptr<DataSample> s, const Ice::Current&)
+SubscriberSessionI::f(long long int id, long long int filter, DataSample s, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -620,9 +629,9 @@ SubscriberSessionI::f(long long int id, long long int filter, shared_ptr<DataSam
     runWithTopic(id, [&](auto topic)
     {
         auto f = topic.getFilter(filter);
-        if(f && setLastId(id, s->id))
+        if(f && setLastId(id, s.id))
         {
-            auto impl = make_shared<SampleI>(topic.get()->getInstance()->getCommunicator(), nullptr, s);
+            auto impl = topic.get()->getSampleFactory()(s.type, nullptr, move(s.value), s.timestamp);
             for(auto subscriber : f->getSubscribers())
             {
                 subscriber->queue(impl);
