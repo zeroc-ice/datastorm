@@ -1,22 +1,28 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <DataStorm/Node.h>
 #include <Ice/Initialize.h>
 
+#include <DataStorm/Node.h>
+#include <DataStorm/Instance.h>
+#include <DataStorm/TopicFactoryI.h>
+
+using namespace std;
 using namespace DataStorm;
 
 Node::Node(const std::shared_ptr<Ice::Communicator>& communicator) :
     _ownsCommunicator(communicator == nullptr)
 {
-    _impl = DataStormInternal::createTopicFactory(communicator ? communicator : Ice::initialize());
-    _impl->init();
+    _instance = make_shared<DataStormInternal::Instance>(communicator);
+    _instance->init();
+
+    _factory = _instance->getTopicFactory();
 }
 
 Node::Node(int& argc, char* argv[]) :
@@ -27,17 +33,19 @@ Node::Node(int& argc, char* argv[]) :
     communicator->getProperties()->parseCommandLineOptions("DataStorm", args);
     Ice::stringSeqToArgs(args, argc, argv);
 
-    _impl = DataStormInternal::createTopicFactory(communicator);
-    _impl->init();
+    _instance = make_shared<DataStormInternal::Instance>(communicator);
+    _instance->init();
+
+    _factory = _instance->getTopicFactory();
 }
 
 Node::~Node()
 {
-    _impl->destroy(_ownsCommunicator);
+    _instance->destroy(_ownsCommunicator);
 }
 
 std::shared_ptr<Ice::Communicator>
 Node::getCommunicator() const
 {
-    return _impl->getCommunicator();
+    return _instance->getCommunicator();
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -835,10 +835,10 @@ FilteredDataWriter<Key, Value>::FilteredDataWriter(TopicWriter<Key, Value, Filte
 //
 template<typename Key, typename Value, typename Filter>
 TopicReader<Key, Value, Filter>::TopicReader(Node& node, const std::string& name) :
-    _impl(node._impl->getTopicReader(name,
-                                     DataStormInternal::KeyFactoryT<Key>::factory(),
-                                     DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
-                                     DataStormInternal::SampleT<Key, Value>::factory())),
+    _impl(node._factory->getTopicReader(name,
+                                        DataStormInternal::KeyFactoryT<Key>::factory(),
+                                        DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
+                                        DataStormInternal::SampleT<Key, Value>::factory())),
     _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<Key>>(_impl->getKeyFactory())),
     _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<Key, Value, Filter>>(_impl->getFilterFactory()))
 {
@@ -855,10 +855,10 @@ TopicReader<Key, Value, Filter>::~TopicReader()
 //
 template<typename Key, typename Value, typename Filter>
 TopicWriter<Key, Value, Filter>::TopicWriter(Node& node, const std::string& name) :
-    _impl(node._impl->getTopicWriter(name,
-                                     DataStormInternal::KeyFactoryT<Key>::factory(),
-                                     DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
-                                     DataStormInternal::SampleT<Key, Value>::factory())),
+    _impl(node._factory->getTopicWriter(name,
+                                        DataStormInternal::KeyFactoryT<Key>::factory(),
+                                        DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
+                                        DataStormInternal::SampleT<Key, Value>::factory())),
     _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<Key>>(_impl->getKeyFactory())),
     _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<Key, Value, Filter>>(_impl->getFilterFactory()))
 {

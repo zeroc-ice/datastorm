@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,17 +9,18 @@
 
 #include <DataStorm/SessionI.h>
 #include <DataStorm/SessionManager.h>
-#include <DataStorm/PeerI.h>
+#include <DataStorm/NodeI.h>
 #include <DataStorm/Instance.h>
 #include <DataStorm/TopicI.h>
+#include <DataStorm/TopicFactoryI.h>
 #include <DataStorm/TraceUtil.h>
 
 using namespace std;
 using namespace DataStormInternal;
 using namespace DataStormContract;
 
-SessionI::SessionI(PeerI* parent, const shared_ptr<PeerPrx>& peer) :
-    _instance(parent->getInstance()), _traceLevels(_instance->getTraceLevels()), _parent(parent), _peer(peer)
+SessionI::SessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
+    _instance(parent->getInstance()), _traceLevels(_instance->getTraceLevels()), _parent(parent), _node(node)
 {
 }
 
@@ -42,7 +43,7 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "announcing topics `" << topics << "' for peer `" << _peer << "' session";
+        out << "announcing topics `" << topics << "' for node `" << _node << "' session";
     }
 
     TopicInfoAndContentSeq ack;
@@ -72,7 +73,7 @@ SessionI::attachTopics(TopicInfoAndContentSeq topics, const Ice::Current& curren
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "attaching topics `" << topics << "' for peer `" << _peer << "' session";
+        out << "attaching topics `" << topics << "' for node `" << _node << "' session";
     }
 
     for(const auto& info : topics)
@@ -102,7 +103,7 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "detaching topic `" << id << "' for peer `" << _peer << "' session";
+        out << "detaching topic `" << id << "' for node `" << _node << "' session";
     }
 
     runWithTopic(id, [&](auto topic) { topic.get()->detach(id, this); });
@@ -120,7 +121,7 @@ SessionI::announceKeys(long long int id, KeyInfoSeq keys, const Ice::Current&)
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "announcing key `" << keys << '@' << id << "' for peer `" << _peer << "' session";
+        out << "announcing key `" << keys << '@' << id << "' for node `" << _node << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
@@ -146,7 +147,7 @@ SessionI::announceFilter(long long int id, FilterInfo filter, const Ice::Current
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "announcing filter `" << filter << '@' << id << "' for peer `" << _peer << "' session";
+        out << "announcing filter `" << filter << '@' << id << "' for node `" << _node << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
@@ -176,7 +177,7 @@ SessionI::attachKeysAndFilters(long long int id,
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "attaching keys and filters `" << keys << ';' << filters << "' for peer `" << _peer << "' session";
+        out << "attaching keys and filters `" << keys << ';' << filters << "' for node `" << _node << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
@@ -202,7 +203,7 @@ SessionI::detachKeys(long long int id, LongSeq keys, const Ice::Current&)
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "detaching key `" << keys << "@" << id << "' for peer `" << _peer << "' session";
+        out << "detaching key `" << keys << "@" << id << "' for node `" << _node << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
@@ -210,7 +211,7 @@ SessionI::detachKeys(long long int id, LongSeq keys, const Ice::Current&)
         for(auto key : keys)
         {
             auto k = topic.removeKey(key);
-            for(auto subscriber : k.getSubscribers())
+            for(auto subscriber : k.getNodes())
             {
                 subscriber->detachKey(id, key, this);
             }
@@ -230,13 +231,13 @@ SessionI::detachFilter(long long int id, long long int filter, const Ice::Curren
     if(_traceLevels->session > 2)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "detaching filter `" << filter << "@" << id << "' for peer `" << _peer << "' session";
+        out << "detaching filter `" << filter << "@" << id << "' for node `" << _node << "' session";
     }
 
     runWithTopic(id, [&](auto topic)
     {
         auto f = topic.removeFilter(filter);
-        for(auto subscriber : f.getSubscribers())
+        for(auto subscriber : f.getNodes())
         {
             subscriber->detachFilter(id, filter, this);
         }
@@ -256,7 +257,7 @@ SessionI::destroy(const Ice::Current&)
         if(_traceLevels->session > 0)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << "destroyed session for peer `" << _peer << "'";
+            out << "destroyed session for node `" << _node << "'";
         }
 
         _instance->getSessionManager()->remove(this, _connection);
@@ -279,8 +280,6 @@ SessionI::destroy(const Ice::Current&)
         }
         _topics.clear();
     }
-
-    _parent->removeSession(this);
 }
 
 void
@@ -304,7 +303,7 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "session for peer `" << _peer << "' connected";
+        out << "session for node `" << _node << "' connected";
     }
 
     auto prx = connection->createProxy(session->ice_getIdentity())->ice_oneway();
@@ -335,7 +334,7 @@ SessionI::disconnected(exception_ptr ex)
             catch(const std::exception& e)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << "session for peer `" << _peer << "' disconnected:\n" << e.what();
+                out << "session for node `" << _node << "' disconnected:\n" << e.what();
             }
         }
 
@@ -354,7 +353,7 @@ SessionI::disconnected(exception_ptr ex)
     //
     // TODO: Improve retry logic.
     //
-    if(!_parent->createSession(_peer))
+    if(!reconnect())
     {
         _proxy->destroy();
     }
@@ -391,9 +390,9 @@ SessionI::subscribe(long long id, TopicI* topic)
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "session for peer `" << _peer << "' subscribed to topic `" << topic->getName() << "'";
+        out << "session for node `" << _node << "' subscribed to topic `" << topic->getName() << "'";
     }
-    _topics.emplace(id, TopicSubscribers(topic));
+    _topics.emplace(id, TopicNodes(topic));
 }
 
 void
@@ -403,14 +402,14 @@ SessionI::unsubscribe(long long id, bool remove)
     auto& topic = _topics.at(id);
     for(auto k : topic.getKeys())
     {
-        for(auto e : k.second.getSubscribers())
+        for(auto e : k.second.getNodes())
         {
             e->detachKey(id, k.first, this, false);
         }
     }
     for(auto f : topic.getFilters())
     {
-        for(auto e : f.second.getSubscribers())
+        for(auto e : f.second.getNodes())
         {
             e->detachKey(id, f.first, this, false);
         }
@@ -418,7 +417,7 @@ SessionI::unsubscribe(long long id, bool remove)
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "session for peer `" << _peer << "' unsubscribed from topic `" << topic.get()->getName() << "'";
+        out << "session for node `" << _node << "' unsubscribed from topic `" << topic.get()->getName() << "'";
     }
     if(remove)
     {
@@ -445,7 +444,7 @@ SessionI::subscribeToKey(long long topic, long long int id, const shared_ptr<Key
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "session for peer `" << _peer << "' subscribed to key `" << t.get() << "/" << key << "'";
+        out << "session for node `" << _node << "' subscribed to key `" << t.get() << "/" << key << "'";
     }
     t.getKey(id, key)->add(element);
 }
@@ -461,7 +460,7 @@ SessionI::unsubscribeFromKey(long long topic, long long int id, DataElementI* el
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << "session for peer `" << _peer << "' unsubscribed from key `" << t.get() << "/" << k->get() << "'";
+            out << "session for node `" << _node << "' unsubscribed from key `" << t.get() << "/" << k->get() << "'";
         }
         k->remove(element);
     }
@@ -486,7 +485,7 @@ SessionI::subscribeToFilter(long long topic, long long int id, const shared_ptr<
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "session for peer `" << _peer << "' subscribed to filter `" << t.get() << '/' << filter << "'";
+        out << "session for node `" << _node << "' subscribed to filter `" << t.get() << '/' << filter << "'";
     }
     t.getFilter(id, filter)->add(element);
 }
@@ -502,7 +501,7 @@ SessionI::unsubscribeFromFilter(long long topic, long long int id, DataElementI*
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << "session for peer `" << _peer << "' unsubscribed from filter `" << t.get() << '/' << f->get() << "'";
+            out << "session for node `" << _node << "' unsubscribed from filter `" << t.get() << '/' << f->get() << "'";
         }
         f->remove(element);
     }
@@ -533,7 +532,7 @@ SessionI::runWithTopic(const std::string& name, function<void (const shared_ptr<
 }
 
 void
-SessionI::runWithTopic(long long int id, function<void (TopicSubscribers&)> fn)
+SessionI::runWithTopic(long long int id, function<void (TopicNodes&)> fn)
 {
     auto t = _topics.find(id);
     if(t != _topics.end())
@@ -545,14 +544,21 @@ SessionI::runWithTopic(long long int id, function<void (TopicSubscribers&)> fn)
     }
 }
 
-SubscriberSessionI::SubscriberSessionI(SubscriberI* parent, const shared_ptr<PeerPrx>& peer) :
-    SessionI(parent, peer)
+SubscriberSessionI::SubscriberSessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
+    SessionI(parent, node)
 {
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "created session for publisher `" << peer << "'";
+        out << "created session for publisher `" << node << "'";
     }
+}
+
+void
+SubscriberSessionI::destroy(const Ice::Current& current)
+{
+    SessionI::destroy(current);
+    _parent->removeSubscriberSession(this);
 }
 
 shared_ptr<TopicI>
@@ -583,7 +589,7 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
                     if(setLastId(id, s.id))
                     {
                         auto impl = topic.get()->getSampleFactory()(s.type, k->get(), move(s.value), s.timestamp);
-                        for(auto subscriber : k->getSubscribers())
+                        for(auto subscriber : k->getNodes())
                         {
                             subscriber->queue(impl);
                         }
@@ -609,7 +615,7 @@ SubscriberSessionI::s(long long int id, long long int key, DataSample s, const I
         if(k && setLastId(id, s.id))
         {
             auto impl = topic.get()->getSampleFactory()(s.type, k->get(), move(s.value), s.timestamp);
-            for(auto subscriber : k->getSubscribers())
+            for(auto subscriber : k->getNodes())
             {
                 subscriber->queue(impl);
             }
@@ -632,7 +638,7 @@ SubscriberSessionI::f(long long int id, long long int filter, DataSample s, cons
         if(f && setLastId(id, s.id))
         {
             auto impl = topic.get()->getSampleFactory()(s.type, nullptr, move(s.value), s.timestamp);
-            for(auto subscriber : f->getSubscribers())
+            for(auto subscriber : f->getNodes())
             {
                 subscriber->queue(impl);
             }
@@ -670,18 +676,37 @@ SubscriberSessionI::setLastId(long long int topic, long long int lastId)
     return true;
 }
 
-PublisherSessionI::PublisherSessionI(PublisherI* parent, const shared_ptr<PeerPrx>& peer) :
-    SessionI(parent, peer)
+bool
+SubscriberSessionI::reconnect() const
+{
+    return _parent->createPublisherSession(_node);
+}
+
+PublisherSessionI::PublisherSessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
+    SessionI(parent, node)
 {
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << "created session for subscriber `" << peer << "'";
+        out << "created session for subscriber `" << node << "'";
     }
+}
+
+void
+PublisherSessionI::destroy(const Ice::Current& current)
+{
+    SessionI::destroy(current);
+    _parent->removePublisherSession(this);
 }
 
 shared_ptr<TopicI>
 PublisherSessionI::getTopic(const string& topic) const
 {
     return _instance->getTopicFactory()->getTopicWriter(topic);
+}
+
+bool
+PublisherSessionI::reconnect() const
+{
+    return _parent->createSubscriberSession(_node);
 }

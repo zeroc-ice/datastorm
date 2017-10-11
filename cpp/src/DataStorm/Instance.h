@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -27,14 +27,15 @@ class TopicFactoryI;
 class SessionManager;
 class TraceLevels;
 class ForwarderManager;
+class NodeI;
 
-class Instance
+class Instance : public std::enable_shared_from_this<Instance>
 {
 public:
 
     Instance(const std::shared_ptr<Ice::Communicator>&);
 
-    void init(const std::shared_ptr<TopicFactoryI>&);
+    void init();
 
     std::shared_ptr<SessionManager>
     getSessionManager() const
@@ -84,11 +85,20 @@ public:
         return _traceLevels;
     }
 
+    std::shared_ptr<NodeI>
+    getNode() const
+    {
+        return _node;
+    }
+
+    void destroy(bool);
+
 private:
 
     std::shared_ptr<TopicFactoryI> _topicFactory;
     std::shared_ptr<SessionManager> _sessionManager;
     std::shared_ptr<ForwarderManager> _forwarderManager;
+    std::shared_ptr<NodeI> _node;
     std::shared_ptr<Ice::Communicator> _communicator;
     std::shared_ptr<Ice::ObjectAdapter> _adapter;
     std::shared_ptr<Ice::ObjectAdapter> _collocatedAdapter;

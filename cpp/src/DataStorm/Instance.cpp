@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,6 +11,8 @@
 #include <DataStorm/SessionManager.h>
 #include <DataStorm/LookupI.h>
 #include <DataStorm/TraceUtil.h>
+#include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/NodeI.h>
 
 #include <IceUtil/UUID.h>
 
@@ -19,13 +21,11 @@ using namespace DataStormInternal;
 
 Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator)
 {
-    if(!_communicator)
-    {
-        _communicator = Ice::initialize();
-    }
-
     shared_ptr<Ice::Properties> properties = _communicator->getProperties();
-    properties->setProperty("DataStorm.Endpoints", "tcp");
+    if(properties->getProperty("DataStorm.Endpoints").empty())
+    {
+        properties->setProperty("DataStorm.Endpoints", "tcp");
+    }
     properties->setProperty("DataStorm.ThreadPool.SizeMax", "1");
     properties->setProperty("DataStormCollocated.AdapterId", IceUtil::generateUUID());
     properties->setProperty("DataStormMulticast.Endpoints", "udp -h 239.255.0.1 -p 12345");
@@ -45,12 +45,26 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
 }
 
 void
-Instance::init(const shared_ptr<TopicFactoryI>& factory)
+Instance::init()
 {
-    _topicFactory = factory;
-    auto lookup = _multicastAdapter->add(make_shared<TopicLookupI>(factory), {"DataStorm", "Lookup"});
+    _node = make_shared<NodeI>(shared_from_this());
+    _node->init();
+
+    _topicFactory = make_shared<TopicFactoryI>(shared_from_this());
+
+    auto lookup = _multicastAdapter->add(make_shared<TopicLookupI>(_topicFactory), {"DataStorm", "Lookup"});
     _lookup = Ice::uncheckedCast<DataStormContract::TopicLookupPrx>(lookup->ice_collocationOptimized(false));
+
     _adapter->activate();
     _collocatedAdapter->activate();
     _multicastAdapter->activate();
+}
+
+void
+Instance::destroy(bool ownsCommunicator)
+{
+    if(ownsCommunicator)
+    {
+        _communicator->destroy();
+    }
 }

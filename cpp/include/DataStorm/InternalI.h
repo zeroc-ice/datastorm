@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,6 +20,8 @@
 //
 namespace DataStormInternal
 {
+
+class Instance;
 
 class Element
 {
@@ -150,8 +152,6 @@ class TopicFactory
 {
 public:
 
-    virtual void init() = 0;
-
     virtual std::shared_ptr<TopicReader> getTopicReader(const std::string&,
                                                         std::function<std::shared_ptr<KeyFactory>()>,
                                                         std::function<std::shared_ptr<FilterFactory>()>,
@@ -162,10 +162,7 @@ public:
                                                         std::function<std::shared_ptr<FilterFactory>()>,
                                                         typename Sample::FactoryType) = 0;
 
-    virtual void destroy(bool) = 0;
-
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };
-std::shared_ptr<TopicFactory> createTopicFactory(const std::shared_ptr<Ice::Communicator>&);
 
 };

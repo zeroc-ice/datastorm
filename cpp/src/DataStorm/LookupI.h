@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,10 +23,8 @@ public:
 
     TopicLookupI(const std::shared_ptr<TopicFactoryI>&);
 
-    virtual void announceTopicPublisher(std::string, std::shared_ptr<DataStormContract::PublisherPrx>,
-                                        const Ice::Current&);
-    virtual void announceTopicSubscriber(std::string, std::shared_ptr<DataStormContract::SubscriberPrx>,
-                                         const Ice::Current&);
+    virtual void announceTopicReader(std::string, std::shared_ptr<DataStormContract::NodePrx>, const Ice::Current&);
+    virtual void announceTopicWriter(std::string, std::shared_ptr<DataStormContract::NodePrx>, const Ice::Current&);
 
 private:
 

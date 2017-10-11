@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,7 +10,7 @@
 #pragma once
 
 #include <Ice/Ice.h>
-#include <DataStorm/PeerI.h>
+#include <DataStorm/NodeI.h>
 
 #include <DataStorm/Contract.h>
 
@@ -26,11 +26,11 @@ class TraceLevels;
 
 class SessionI : virtual public DataStormContract::Session, public std::enable_shared_from_this<SessionI>
 {
-    template<typename K> class Subscribers
+    template<typename K> class Nodes
     {
     public:
 
-        Subscribers(const std::shared_ptr<K>& key) : _key(key)
+        Nodes(const std::shared_ptr<K>& key) : _key(key)
         {
         }
 
@@ -51,7 +51,7 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
         }
 
         const std::set<DataElementI*>&
-        getSubscribers() const
+        getNodes() const
         {
             return _subscribers;
         }
@@ -62,15 +62,15 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
         std::set<DataElementI*> _subscribers;
     };
 
-    class TopicSubscribers
+    class TopicNodes
     {
     public:
 
-        TopicSubscribers(TopicI* topic) : _topic(topic)
+        TopicNodes(TopicI* topic) : _topic(topic)
         {
         }
 
-        Subscribers<Key>* getKey(long long int id, const std::shared_ptr<Key>& key = nullptr)
+        Nodes<Key>* getKey(long long int id, const std::shared_ptr<Key>& key = nullptr)
         {
             auto p = _keys.find(id);
             if(p != _keys.end())
@@ -79,7 +79,7 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             }
             else if(key)
             {
-                return &_keys.emplace(id, Subscribers<Key>(key)).first->second;
+                return &_keys.emplace(id, Nodes<Key>(key)).first->second;
             }
             else
             {
@@ -87,19 +87,19 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             }
         }
 
-        Subscribers<Key> removeKey(long long id)
+        Nodes<Key> removeKey(long long id)
         {
             auto p = _keys.find(id);
             if(p != _keys.end())
             {
-                Subscribers<Key> tmp(std::move(p->second));
+                Nodes<Key> tmp(std::move(p->second));
                 _keys.erase(p);
                 return tmp;
             }
-            return Subscribers<Key>(nullptr);
+            return Nodes<Key>(nullptr);
         }
 
-        Subscribers<Filter>* getFilter(long long int id, const std::shared_ptr<Filter>& filter = nullptr)
+        Nodes<Filter>* getFilter(long long int id, const std::shared_ptr<Filter>& filter = nullptr)
         {
             auto p = _filters.find(id);
             if(p != _filters.end())
@@ -108,7 +108,7 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             }
             else if(filter)
             {
-                return &_filters.emplace(id, Subscribers<Filter>(filter)).first->second;
+                return &_filters.emplace(id, Nodes<Filter>(filter)).first->second;
             }
             else
             {
@@ -116,25 +116,25 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             }
         }
 
-        Subscribers<Filter> removeFilter(long long id)
+        Nodes<Filter> removeFilter(long long id)
         {
             auto p = _filters.find(id);
             if(p != _filters.end())
             {
-                Subscribers<Filter> tmp(std::move(p->second));
+                Nodes<Filter> tmp(std::move(p->second));
                 _filters.erase(p);
                 return tmp;
             }
-            return Subscribers<Filter>(nullptr);
+            return Nodes<Filter>(nullptr);
         }
 
-        const std::map<long long int, Subscribers<Key>>&
+        const std::map<long long int, Nodes<Key>>&
         getKeys() const
         {
             return _keys;
         }
 
-        const std::map<long long int, Subscribers<Filter>>&
+        const std::map<long long int, Nodes<Filter>>&
         getFilters() const
         {
             return _filters;
@@ -149,13 +149,13 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
     private:
 
         TopicI* _topic;
-        std::map<long long int, Subscribers<Key>> _keys;
-        std::map<long long int, Subscribers<Filter>> _filters;
+        std::map<long long int, Nodes<Key>> _keys;
+        std::map<long long int, Nodes<Filter>> _filters;
     };
 
 public:
 
-    SessionI(PeerI*, const std::shared_ptr<DataStormContract::PeerPrx>&);
+    SessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
     void init();
 
     virtual void announceTopics(DataStormContract::TopicInfoSeq, const Ice::Current&);
@@ -191,9 +191,9 @@ public:
         return _proxy;
     }
 
-    std::shared_ptr<DataStormContract::PeerPrx> getPeer() const
+    std::shared_ptr<DataStormContract::NodePrx> getNode() const
     {
-        return _peer;
+        return _node;
     }
 
     std::unique_lock<std::mutex>& getLock()
@@ -216,18 +216,19 @@ public:
 protected:
 
     void runWithTopic(const std::string&, std::function<void (const std::shared_ptr<TopicI>&)>);
-    void runWithTopic(long long int id, std::function<void (TopicSubscribers&)>);
+    void runWithTopic(long long int id, std::function<void (TopicNodes&)>);
 
     virtual std::shared_ptr<TopicI> getTopic(const std::string&) const = 0;
+    virtual bool reconnect() const = 0;
 
     const std::shared_ptr<Instance> _instance;
     std::shared_ptr<TraceLevels> _traceLevels;
     mutable std::mutex _mutex;
-    PeerI* _parent;
+    NodeI* _parent;
     std::shared_ptr<DataStormContract::SessionPrx> _proxy;
-    const std::shared_ptr<DataStormContract::PeerPrx> _peer;
+    const std::shared_ptr<DataStormContract::NodePrx> _node;
 
-    std::map<long long int, TopicSubscribers> _topics;
+    std::map<long long int, TopicNodes> _topics;
     std::unique_lock<std::mutex>* _lock;
 
     std::shared_ptr<DataStormContract::SessionPrx> _session;
@@ -238,18 +239,20 @@ class SubscriberSessionI : public SessionI, public DataStormContract::Subscriber
 {
 public:
 
-    SubscriberSessionI(SubscriberI*, const std::shared_ptr<DataStormContract::PeerPrx>&);
+    SubscriberSessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
+    virtual void destroy(const Ice::Current&) override;
 
-    virtual void i(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&);
-    virtual void s(long long int, long long int, DataStormContract::DataSample, const Ice::Current&);
-    virtual void f(long long int, long long int, DataStormContract::DataSample, const Ice::Current&);
+    virtual void i(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&) override;
+    virtual void s(long long int, long long int, DataStormContract::DataSample, const Ice::Current&) override;
+    virtual void f(long long int, long long int, DataStormContract::DataSample, const Ice::Current&) override;
 
-    virtual long long int getLastId(long long int) const;
-    virtual bool setLastId(long long int, long long int);
+    virtual long long int getLastId(long long int) const override;
+    virtual bool setLastId(long long int, long long int) override;
 
 private:
 
-    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const;
+    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const override;
+    virtual bool reconnect() const override;
 
     std::map<long long int, long long int> _lastIds;
 };
@@ -258,11 +261,13 @@ class PublisherSessionI : public SessionI, public DataStormContract::PublisherSe
 {
 public:
 
-    PublisherSessionI(PublisherI*, const std::shared_ptr<DataStormContract::PeerPrx>&);
+    PublisherSessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
+    virtual void destroy(const Ice::Current&) override;
 
 private:
 
-    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const;
+    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const override;
+    virtual bool reconnect() const override;
 };
 
 }

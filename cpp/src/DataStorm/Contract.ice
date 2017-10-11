@@ -14,9 +14,30 @@
 module DataStormContract
 {
 
+/** A sequence of bytes use to hold the encoded key or value */
 sequence<byte> ByteSeq;
-sequence<ByteSeq> ByteSeqSeq;
+
+/** A sequence of long */
 sequence<long> LongSeq;
+
+/** The quality of service struct exchanged between nodes on data reader/writer creation. */
+class QoS
+{
+    /** Use a datagram connection to exchange messages between the writer and reader. */
+    bool datagram;
+
+    /** Use a secure connection to exchange messages between the writer and reader. */
+    bool secure;
+
+    /**
+     * Buffers the messages on the data writer or reader and flush the buffer after
+     * a configurable sleep time.
+     */
+    bool buffered;
+
+    /** Specifies how often the buffered messages are flushed in ms. */
+    int flushTime;
+}
 
 struct DataSample
 {
@@ -33,8 +54,6 @@ struct DataSamples
     DataSampleSeq samples;
 }
 sequence<DataSamples> DataSamplesSeq;
-
-sequence<string> StringSeq;
 
 struct TopicInfo
 {
@@ -100,27 +119,17 @@ interface SubscriberSession extends Session
     void f(long topic, long filter, DataSample sample);
 }
 
-interface Publisher;
-
-interface Peer
+interface Node
 {
-}
-
-interface Subscriber extends Peer
-{
-    ["amd"] SubscriberSession* createSession(Publisher* publisher, PublisherSession* session);
-}
-
-interface Publisher extends Peer
-{
-    ["amd"] PublisherSession* createSession(Subscriber* subscriber, SubscriberSession* session);
+    ["amd"] SubscriberSession* createSubscriberSession(Node* publisher, PublisherSession* session);
+    ["amd"] PublisherSession* createPublisherSession(Node* subscriber, SubscriberSession* session);
 }
 
 interface TopicLookup
 {
-    idempotent void announceTopicPublisher(string topic, Publisher* publisher);
+    idempotent void announceTopicReader(string topic, Node* node);
 
-    idempotent void announceTopicSubscriber(string topic, Subscriber* subscriber);
+    idempotent void announceTopicWriter(string topic, Node* node);
 }
 
 }

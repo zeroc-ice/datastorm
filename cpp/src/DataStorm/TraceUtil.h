@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -75,7 +75,7 @@ operator<<(LoggerOutputBase& os, T* session)
 {
     if(session)
     {
-        Ice::Identity id = session->getPeer()->ice_getIdentity();
+        Ice::Identity id = session->getNode()->ice_getIdentity();
         os << id.name;
         if(!id.category.empty())
         {

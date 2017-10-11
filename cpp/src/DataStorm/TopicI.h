@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,10 +18,6 @@ namespace DataStormInternal
 {
 
 class SessionI;
-class SubscriberSessionI;
-class PublisherI;
-class SubscriberI;
-
 class TopicFactoryI;
 
 class TopicI : virtual public Topic, private Forwarder
@@ -235,58 +231,6 @@ public:
 
     void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);
     void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<KeyDataElementI>&);
-};
-
-class TopicFactoryI : public TopicFactory, public std::enable_shared_from_this<TopicFactoryI>
-{
-public:
-
-    TopicFactoryI(const std::shared_ptr<Ice::Communicator>&);
-
-    virtual void init() override;
-
-    virtual std::shared_ptr<TopicReader> getTopicReader(const std::string&,
-                                                        std::function<std::shared_ptr<KeyFactory>()>,
-                                                        std::function<std::shared_ptr<FilterFactory>()>,
-                                                        typename Sample::FactoryType) override;
-
-    virtual std::shared_ptr<TopicWriter> getTopicWriter(const std::string&,
-                                                        std::function<std::shared_ptr<KeyFactory>()>,
-                                                        std::function<std::shared_ptr<FilterFactory>()>,
-                                                        typename Sample::FactoryType) override;
-
-    virtual void destroy(bool) override;
-
-    virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
-
-    void removeTopicReader(const std::string&);
-    void removeTopicWriter(const std::string&);
-
-    std::shared_ptr<TopicReaderI> getTopicReader(const std::string&) const;
-    std::shared_ptr<TopicWriterI> getTopicWriter(const std::string&) const;
-
-    void createSession(const std::string&, const std::shared_ptr<DataStormContract::PublisherPrx>&);
-    void createSession(const std::string&, const std::shared_ptr<DataStormContract::SubscriberPrx>&);
-
-    std::shared_ptr<Instance> getInstance() const
-    {
-        return _instance;
-    }
-
-    DataStormContract::TopicInfoSeq getTopicReaders() const;
-    DataStormContract::TopicInfoSeq getTopicWriters() const;
-
-private:
-
-    mutable std::mutex _mutex;
-    std::shared_ptr<Instance> _instance;
-    std::shared_ptr<TraceLevels> _traceLevels;
-    std::map<std::string, std::shared_ptr<TopicReaderI>> _readers;
-    std::map<std::string, std::shared_ptr<TopicWriterI>> _writers;
-    std::shared_ptr<SubscriberI> _subscriber;
-    std::shared_ptr<PublisherI> _publisher;
-    long long int _nextReaderId;
-    long long int _nextWriterId;
 };
 
 }

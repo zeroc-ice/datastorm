@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -71,7 +71,8 @@ public:
 
 private:
 
-    std::shared_ptr<DataStormInternal::TopicFactory> _impl;
+    std::shared_ptr<DataStormInternal::Instance> _instance;
+    std::shared_ptr<DataStormInternal::TopicFactory> _factory;
 
     template<typename, typename, typename> friend class TopicReader;
     template<typename, typename, typename> friend class TopicWriter;

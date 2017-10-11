@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,7 +37,7 @@ class DataElementI : virtual public DataElement, private Forwarder
         }
     };
 
-    template<typename T> struct Subscribers
+    template<typename T> struct Nodes
     {
         bool add(long long int topic, long long int id, const std::shared_ptr<T>& subscriber)
         {
@@ -84,8 +84,8 @@ class DataElementI : virtual public DataElement, private Forwarder
         }
 
         std::shared_ptr<DataStormContract::SessionPrx> proxy;
-        Subscribers<Key> keys;
-        Subscribers<Filter> filters;
+        Nodes<Key> keys;
+        Nodes<Filter> filters;
     };
 
 public:
