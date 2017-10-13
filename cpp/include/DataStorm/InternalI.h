@@ -47,16 +47,18 @@ class Sample
 {
 public:
 
-    using FactoryType = std::function<std::shared_ptr<Sample>(DataStorm::SampleType,
+    using FactoryType = std::function<std::shared_ptr<Sample>(long long int,
+                                                              DataStorm::SampleType,
                                                               const std::shared_ptr<Key>&,
                                                               std::vector<unsigned char>,
                                                               long long int)>;
 
-    Sample(DataStorm::SampleType type,
+    Sample(long long int id,
+           DataStorm::SampleType type,
            const std::shared_ptr<Key>& key,
            std::vector<unsigned char> value,
            long long int timestamp) :
-        type(type), key(key), timestamp(timestamp), _encodedValue(std::move(value))
+        id(id), type(type), key(key), timestamp(timestamp), _encodedValue(std::move(value))
     {
     }
 
@@ -78,7 +80,12 @@ class Filter : virtual public Element
 public:
 
     virtual bool match(const std::shared_ptr<Key>&) const = 0;
-    virtual bool match(const std::shared_ptr<Sample>&, bool) const = 0;
+
+    virtual bool hasWriterMatch() const = 0;
+    virtual bool writerMatch(const std::shared_ptr<Sample>&) const = 0;
+
+    virtual bool hasReaderMatch() const = 0;
+    virtual bool readerMatch(const std::shared_ptr<Sample>&) const = 0;
 };
 
 class FilterFactory
@@ -138,6 +145,9 @@ public:
 
     virtual std::shared_ptr<DataReader> createFilteredDataReader(const std::shared_ptr<Filter>&) = 0;
     virtual std::shared_ptr<DataReader> createDataReader(const std::vector<std::shared_ptr<Key>>&) = 0;
+
+    virtual bool hasWriters() const = 0;
+    virtual void waitForWriters(int) const = 0;
 };
 
 class TopicWriter : virtual public Topic
@@ -146,6 +156,9 @@ public:
 
     virtual std::shared_ptr<DataWriter> createFilteredDataWriter(const std::shared_ptr<Filter>&) = 0;
     virtual std::shared_ptr<DataWriter> createDataWriter(const std::vector<std::shared_ptr<Key>>&) = 0;
+
+    virtual bool hasReaders() const = 0;
+    virtual void waitForReaders(int) const = 0;
 };
 
 class TopicFactory

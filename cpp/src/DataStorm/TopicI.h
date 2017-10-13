@@ -22,24 +22,24 @@ class TopicFactoryI;
 
 class TopicI : virtual public Topic, private Forwarder
 {
+    struct ListenerKey
+    {
+        SessionI* session;
+
+        bool operator<(const ListenerKey& other) const
+        {
+            return session < other.session;
+        }
+    };
 
     struct Listener
     {
-        long long int id;
-        SessionI* session;
-
-        bool operator<(const Listener& other) const
+        Listener(const std::shared_ptr<DataStormContract::SessionPrx>& proxy) : proxy(proxy)
         {
-            if(id < other.id)
-            {
-                return true;
-            }
-            else if(other.id < id)
-            {
-                return false;
-            }
-            return session < other.session;
         }
+
+        std::set<long long int> topics;
+        std::shared_ptr<DataStormContract::SessionPrx> proxy;
     };
 
 public:
@@ -119,23 +119,28 @@ public:
 
 protected:
 
+    void waitForListeners(int count) const;
+    bool hasListeners() const;
+    void notifyListenerWaiters(std::unique_lock<std::mutex>&) const;
+
     void disconnect();
 
     void attachKeyImpl(long long int,
                        const DataStormContract::KeyInfo&,
+                       long long int,
                        const DataStormContract::DataSampleSeq&,
                        long long int,
                        SessionI*,
                        const std::shared_ptr<DataStormContract::SessionPrx>&,
-                       DataStormContract::KeyInfoAndSamplesSeq&,
-                       DataStormContract::FilterInfoSeq&);
+                       std::map<std::pair<std::shared_ptr<Key>, long long int>, DataStormContract::KeyInfoAndSamples>&,
+                       std::map<std::shared_ptr<Filter>, DataStormContract::FilterInfo>&);
 
     void attachFilterImpl(long long int,
                           const DataStormContract::FilterInfo&,
                           long long int,
                           SessionI*,
                           const std::shared_ptr<DataStormContract::SessionPrx>&,
-                          DataStormContract::KeyInfoAndSamplesSeq&);
+                          std::map<std::pair<std::shared_ptr<Key>, long long int>, DataStormContract::KeyInfoAndSamples>&);
 
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
@@ -175,6 +180,7 @@ protected:
 
     friend class DataElementI;
     friend class DataReaderI;
+    friend class FilteredDataReaderI;
     friend class DataWriterI;
 
     const std::weak_ptr<TopicFactoryI> _factory;
@@ -187,11 +193,14 @@ protected:
     const long long int _id;
     const std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
 
-    std::mutex _mutex;
-    std::condition_variable _cond;
+    mutable std::mutex _mutex;
+    mutable std::condition_variable _cond;
     std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<KeyDataElementI>>> _keyElements;
     std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<FilteredDataElementI>>> _filteredElements;
-    std::map<Listener, std::shared_ptr<DataStormContract::SessionPrx>> _sessions;
+    std::map<ListenerKey, Listener> _listeners;
+    size_t _listenerCount;
+    mutable size_t _waiters;
+    mutable size_t _notified;
     long long int _nextSampleId;
 };
 
@@ -208,6 +217,8 @@ public:
 
     virtual std::shared_ptr<DataReader> createFilteredDataReader(const std::shared_ptr<Filter>&) override;
     virtual std::shared_ptr<DataReader> createDataReader(const std::vector<std::shared_ptr<Key>>&) override;
+    virtual void waitForWriters(int) const override;
+    virtual bool hasWriters() const override;
     virtual void destroy() override;
 
     void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);
@@ -227,6 +238,8 @@ public:
 
     virtual std::shared_ptr<DataWriter> createFilteredDataWriter(const std::shared_ptr<Filter>&) override;
     virtual std::shared_ptr<DataWriter> createDataWriter(const std::vector<std::shared_ptr<Key>>&) override;
+    virtual void waitForReaders(int) const override;
+    virtual bool hasReaders() const override;
     virtual void destroy() override;
 
     void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);

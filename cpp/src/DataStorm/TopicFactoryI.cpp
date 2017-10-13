@@ -16,7 +16,7 @@
 using namespace std;
 using namespace DataStormInternal;
 
-TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance)
+TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(0)
 {
     _instance = instance;
     _traceLevels = _instance->getTraceLevels();
@@ -47,7 +47,7 @@ TopicFactoryI::getTopicReader(const string& name,
         if(_traceLevels->topic > 0)
         {
             Trace out(_traceLevels, _traceLevels->topicCat);
-            out << "added topic reader `" << name << "'";
+            out << name << ": created topic reader";
         }
     }
     _instance->getNode()->getSubscriberForwarder()->announceTopics({ { reader->getId(), name } });
@@ -80,7 +80,7 @@ TopicFactoryI::getTopicWriter(const string& name,
         if(_traceLevels->topic > 0)
         {
             Trace out(_traceLevels, _traceLevels->topicCat);
-            out << "added topic writer `" << name << "'";
+            out << name << ": created topic writer";
         }
     }
     _instance->getNode()->getPublisherForwarder()->announceTopics({ { writer->getId(), name } });
@@ -95,7 +95,7 @@ TopicFactoryI::removeTopicReader(const string& name)
     if(_traceLevels->topic > 0)
     {
         Trace out(_traceLevels, _traceLevels->topicCat);
-        out << "removed topic reader `" << name << "'";
+        out << name << ": destroyed topic reader";
     }
     _readers.erase(name);
 }
@@ -107,7 +107,7 @@ TopicFactoryI::removeTopicWriter(const string& name)
     if(_traceLevels->topic > 0)
     {
         Trace out(_traceLevels, _traceLevels->topicCat);
-        out << "removed topic writer `" << name << "'";
+        out << name << ": destroyed topic writer";
     }
     _writers.erase(name);
 }

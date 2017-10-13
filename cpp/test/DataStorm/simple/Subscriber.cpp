@@ -172,7 +172,6 @@ main(int argc, char* argv[])
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == key);
-            cerr << static_cast<int>(sample.getType()) << " " << static_cast<int>(type) << endl;
             test(sample.getType() == type);
             if(type != SampleType::Remove)
             {
@@ -236,23 +235,25 @@ main(int argc, char* argv[])
             testSample(SampleType::Add, reader, "elemd4", "value1");
         }
 
-        // vector<KeyDataReader<Test::BasePtr>> readers;
-        // for(int i = 0; i < 5; ++i)
-        // {
-        //     ostringstream os;
-        //     os << "elem" << i;
-        //     readers.push_back(KeyDataReader<Test::BasePtr>(topic, os.str()));
-        //     readers.back().waitForWriters(1);
-        // }
-        // for(int i = 0; i < 5; ++i)
-        // {
-        //     ostringstream os;
-        //     os << "elem" << i;
-        //     testSample(SampleType::Update, readers[i], os.str(), "value1");
-        // }
+        {
+            vector<KeyDataReader<string, Test::BasePtr>> readers;
+            for(int i = 0; i < 5; ++i)
+            {
+                ostringstream os;
+                os << "elem" << i;
+                readers.push_back(KeyDataReader<string, Test::BasePtr>(topic, os.str()));
+                readers.back().waitForWriters(1);
+            }
+            for(int i = 0; i < 5; ++i)
+            {
+                ostringstream os;
+                os << "elem" << i;
+                testSample(SampleType::Update, readers[i], os.str(), "value1");
+            }
+        }
+
+        topic.waitForNoWriters();
     }
-
-
 
     return 0;
 }

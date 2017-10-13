@@ -237,7 +237,7 @@ template<typename Key, typename Value> class SampleT : public Sample
 {
 public:
 
-    SampleT(DataStorm::SampleType type, Value value) : Sample(type, nullptr, {}, 0), _value(std::move(value))
+    SampleT(DataStorm::SampleType type, Value value) : Sample(0, type, nullptr, {}, 0), _value(std::move(value))
     {
     }
 
@@ -245,12 +245,17 @@ public:
 
     static FactoryType factory()
     {
-        return [](DataStorm::SampleType type,
+        return [](long long int id,
+                  DataStorm::SampleType type,
                   const std::shared_ptr<DataStormInternal::Key>& key,
                   std::vector<unsigned char> value,
                   long long int timestamp)
         {
-            return std::shared_ptr<Sample>(std::make_shared<SampleT<Key, Value>>(type, key, std::move(value), timestamp));
+            return std::shared_ptr<Sample>(std::make_shared<SampleT<Key, Value>>(id,
+                                                                                 type,
+                                                                                 key,
+                                                                                 std::move(value),
+                                                                                 timestamp));
         };
     }
 
@@ -291,37 +296,8 @@ private:
     Value _value;
 };
 
-template<typename K, typename V, typename F, typename C=void> class FilterT :
-    public Filter, public AbstractElementT<typename F::FilterType>
-{
-public:
-
-    using CachedType = typename F::FilterType;
-
-    template<typename FF>
-    FilterT(FF&& v, long long int id) :
-        AbstractElementT<typename F::FilterType>::AbstractElementT(std::forward<FF>(v), id),
-        _filter(AbstractElementT<typename F::FilterType>::_value)
-    {
-    }
-
-    virtual bool match(const std::shared_ptr<Key>& key) const override
-    {
-        return _filter.match(std::static_pointer_cast<KeyT<K>>(key)->get());
-    }
-
-    virtual bool match(const std::shared_ptr<Sample>& sample, bool writer) const override
-    {
-        return _filter.match(DataStorm::Sample<K, V>(sample), writer);
-    }
-
-private:
-
-    F _filter;
-};
-
 template<typename V, typename F>
-class has_no_key_filter
+class has_key_filter
 {
     template<typename VV, typename FF>
     static auto test(int) -> decltype(std::declval<FF&>().match(std::declval<const VV&>()), std::true_type());
@@ -331,25 +307,82 @@ class has_no_key_filter
 
 public:
 
-    static const bool value = !decltype(test<V, F>(0))::value;
+    static const bool value = decltype(test<V, F>(0))::value;
 };
 
-template<typename V, typename F>
-class has_no_sample_filter
+template<typename K, typename V, typename F>
+class has_rsample_filter
 {
     template<typename VV, typename FF>
-    static auto test(int) -> decltype(std::declval<FF&>().match(std::declval<const VV&>(), false), std::true_type());
+    static auto test(int) -> decltype(std::declval<FF&>().readerMatch(std::declval<const VV&>()), std::true_type());
 
     template<typename, typename>
     static auto test(...) -> std::false_type;
 
 public:
 
-    static const bool value = !decltype(test<V, F>(0))::value;
+    static const bool value = decltype(test<DataStorm::Sample<K, V>, F>(0))::value;
 };
 
 template<typename K, typename V, typename F>
-class FilterT<K, V, F, typename std::enable_if<has_no_key_filter<K, F>::value>::type> :
+class has_wsample_filter
+{
+    template<typename VV, typename FF>
+    static auto test(int) -> decltype(std::declval<FF&>().writerMatch(std::declval<const VV&>()), std::true_type());
+
+    template<typename, typename>
+    static auto test(...) -> std::false_type;
+
+public:
+
+    static const bool value = decltype(test<DataStorm::Sample<K, V>, F>(0))::value;
+};
+
+template<bool> struct FilterMatch;
+
+template<> struct FilterMatch<false>
+{
+    template<typename F, typename T>
+    static bool match(const F& f, T v)
+    {
+        return true;
+    }
+
+    template<typename F, typename T>
+    static bool readerMatch(const F& f, T v)
+    {
+        return true;
+    }
+
+    template<typename F, typename T>
+    static bool writerMatch(const F& f, T v)
+    {
+        return true;
+    }
+};
+
+template<> struct FilterMatch<true>
+{
+    template<typename F, typename T>
+    static bool match(const F& f, T v)
+    {
+        return f.match(v);
+    }
+
+    template<typename F, typename T>
+    static bool readerMatch(const F& f, T v)
+    {
+        return f.readerMatch(v);
+    }
+
+    template<typename F, typename T>
+    static bool writerMatch(const F& f, T v)
+    {
+        return f.writerMatch(v);
+    }
+};
+
+template<typename K, typename V, typename F> class FilterT :
     public Filter, public AbstractElementT<typename F::FilterType>
 {
 public:
@@ -365,12 +398,27 @@ public:
 
     virtual bool match(const std::shared_ptr<Key>& key) const override
     {
-        return true;
+        return FilterMatch<has_key_filter<K, F>::value>::match(_filter, std::static_pointer_cast<KeyT<K>>(key)->get());
     }
 
-    virtual bool match(const std::shared_ptr<Sample>& sample, bool writer) const override
+    virtual bool hasReaderMatch() const override
     {
-        return _filter.match(DataStorm::Sample<K, V>(sample), writer);
+        return has_rsample_filter<K, V, F>::value;
+    }
+
+    virtual bool readerMatch(const std::shared_ptr<Sample>& sample) const override
+    {
+        return FilterMatch<has_rsample_filter<K, V, F>::value>::readerMatch(_filter, DataStorm::Sample<K, V>(sample));
+    }
+
+    virtual bool hasWriterMatch() const override
+    {
+        return has_wsample_filter<K, V, F>::value;
+    }
+
+    virtual bool writerMatch(const std::shared_ptr<Sample>& sample) const override
+    {
+        return FilterMatch<has_wsample_filter<K, V, F>::value>::writerMatch(_filter, DataStorm::Sample<K, V>(sample));
     }
 
 private:
@@ -378,35 +426,6 @@ private:
     F _filter;
 };
 
-template<typename K, typename V, typename F>
-class FilterT<K, V, F, typename std::enable_if<has_no_sample_filter<DataStorm::Sample<K, V>, F>::value>::type> :
-    public Filter, public AbstractElementT<typename F::FilterType>
-{
-public:
-
-    using CachedType = typename F::FilterType;
-
-    template<typename FF>
-    FilterT(FF&& v, long long int id) :
-        AbstractElementT<typename F::FilterType>::AbstractElementT(std::forward<FF>(v), id),
-        _filter(AbstractElementT<typename F::FilterType>::_value)
-    {
-    }
-
-    virtual bool match(const std::shared_ptr<Key>& key) const override
-    {
-        return _filter.match(std::static_pointer_cast<KeyT<K>>(key)->get());
-    }
-
-    virtual bool match(const std::shared_ptr<Sample>&, bool) const override
-    {
-        return true;
-    }
-
-private:
-
-    F _filter;
-};
 
 template<typename K, typename V, typename F> class FilterFactoryT : public FilterFactory,
                                                                     public AbstractFactoryT<FilterT<K, V, F>>

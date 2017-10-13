@@ -30,14 +30,23 @@ class DataElementI : virtual public DataElement, private Forwarder
     struct ListenerKey
     {
         SessionI* session;
+        std::string facet;
 
         bool operator<(const ListenerKey& other) const
         {
-            return session < other.session;
+            if(session < other.session)
+            {
+                return true;
+            }
+            else if(other.session < session)
+            {
+                return false;
+            }
+            return facet < other.facet;
         }
     };
 
-    template<typename T> struct Nodes
+    template<typename T> struct Subscribers
     {
         bool add(long long int topic, long long int id, const std::shared_ptr<T>& subscriber)
         {
@@ -46,11 +55,7 @@ class DataElementI : virtual public DataElement, private Forwarder
 
         bool remove(long long int topic, long long int id)
         {
-            if(subscribers.erase({ topic, id }))
-            {
-                return subscribers.empty();
-            }
-            return false;
+            return subscribers.erase({ topic, id });
         }
 
         std::map<std::pair<long long int, long long int>, std::shared_ptr<T>> subscribers;
@@ -70,7 +75,7 @@ class DataElementI : virtual public DataElement, private Forwarder
             }
             for(const auto& s : filters.subscribers)
             {
-                if(s.second->match(sample, true))
+                if(s.second->writerMatch(sample))
                 {
                     return true;
                 }
@@ -84,8 +89,8 @@ class DataElementI : virtual public DataElement, private Forwarder
         }
 
         std::shared_ptr<DataStormContract::SessionPrx> proxy;
-        Nodes<Key> keys;
-        Nodes<Filter> filters;
+        Subscribers<Key> keys;
+        Subscribers<Filter> filters;
     };
 
 public:
@@ -95,18 +100,22 @@ public:
 
     virtual void destroy() override;
 
-    bool attachKey(long long int, long long int, const std::shared_ptr<Key>&, SessionI*,
-                   const std::shared_ptr<DataStormContract::SessionPrx>&);
-    void detachKey(long long int, long long int, SessionI*, bool = true);
+    virtual bool attachKey(long long int, long long int, const std::shared_ptr<Key>&, SessionI*,
+                           const std::shared_ptr<DataStormContract::SessionPrx>&);
+    virtual void detachKey(long long int, long long int, SessionI*, const std::string&, bool = true);
 
-    bool attachFilter(long long int, long long int, const std::shared_ptr<Filter>&, SessionI*,
-                      const std::shared_ptr<DataStormContract::SessionPrx>&);
-    void detachFilter(long long int, long long int, SessionI*, bool = true);
+    virtual bool attachFilter(long long int, long long int, const std::shared_ptr<Filter>&, SessionI*,
+                              const std::shared_ptr<DataStormContract::SessionPrx>&);
+    virtual void detachFilter(long long int, long long int, SessionI*, const std::string&, bool = true);
 
-    virtual void queue(const std::shared_ptr<Sample>&);
+    virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&);
+
+    virtual void queue(const std::shared_ptr<Sample>&, const std::string& = std::string());
 
     void waitForListeners(int count) const;
     bool hasListeners() const;
+
+    virtual std::string toString() const = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 
@@ -119,6 +128,7 @@ protected:
     std::shared_ptr<TraceLevels> _traceLevels;
     const std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
     mutable std::shared_ptr<Sample> _sample;
+    std::string _facet;
 
 private:
 
@@ -156,7 +166,8 @@ public:
     virtual bool hasUnread() const override;
     virtual std::shared_ptr<Sample> getNextUnread() override;
 
-    virtual void queue(const std::shared_ptr<Sample>&) override;
+    virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&) override;
+    virtual void queue(const std::shared_ptr<Sample>&, const std::string& = std::string()) override;
 
 protected:
 
@@ -172,6 +183,9 @@ class DataWriterI : virtual public DataElementI, public DataWriter
 public:
 
     DataWriterI(TopicWriterI*);
+
+    virtual bool attachFilter(long long int, long long int, const std::shared_ptr<Filter>&, SessionI*,
+                              const std::shared_ptr<DataStormContract::SessionPrx>&) override;
 
     virtual void publish(const std::shared_ptr<Sample>&) override;
 
@@ -196,6 +210,7 @@ public:
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
+    virtual std::string toString() const override;
     virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&) const override;
 
 private:
@@ -214,6 +229,7 @@ public:
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
 
+    virtual std::string toString() const override;
     virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&) const override;
 
 private:
@@ -234,7 +250,9 @@ public:
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
-    virtual void queue(const std::shared_ptr<Sample>&) override;
+    virtual std::string toString() const override;
+    virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&) override;
+    virtual void queue(const std::shared_ptr<Sample>&, const std::string& = std::string()) override;
 
 private:
 
@@ -251,6 +269,8 @@ public:
 
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
+
+    virtual std::string toString() const override;
 
 private:
 

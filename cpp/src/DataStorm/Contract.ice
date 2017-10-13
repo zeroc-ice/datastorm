@@ -20,25 +20,6 @@ sequence<byte> ByteSeq;
 /** A sequence of long */
 sequence<long> LongSeq;
 
-/** The quality of service struct exchanged between nodes on data reader/writer creation. */
-class QoS
-{
-    /** Use a datagram connection to exchange messages between the writer and reader. */
-    bool datagram;
-
-    /** Use a secure connection to exchange messages between the writer and reader. */
-    bool secure;
-
-    /**
-     * Buffers the messages on the data writer or reader and flush the buffer after
-     * a configurable sleep time.
-     */
-    bool buffered;
-
-    /** Specifies how often the buffered messages are flushed in ms. */
-    int flushTime;
-}
-
 struct DataSample
 {
     long id;
@@ -51,6 +32,7 @@ sequence<DataSample> DataSampleSeq;
 struct DataSamples
 {
     long key;
+    long subscriberId;
     DataSampleSeq samples;
 }
 sequence<DataSamples> DataSamplesSeq;
@@ -72,6 +54,7 @@ sequence<KeyInfo> KeyInfoSeq;
 struct KeyInfoAndSamples
 {
     KeyInfo info;
+    long subscriberId;
     DataSampleSeq samples;
 }
 sequence<KeyInfoAndSamples> KeyInfoAndSamplesSeq;
@@ -128,7 +111,6 @@ interface Node
 interface TopicLookup
 {
     idempotent void announceTopicReader(string topic, Node* node);
-
     idempotent void announceTopicWriter(string topic, Node* node);
 }
 

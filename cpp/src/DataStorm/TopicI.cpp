@@ -15,6 +15,24 @@
 
 using namespace std;
 using namespace DataStormInternal;
+using namespace DataStormContract;
+
+namespace
+{
+
+template<typename K, typename V> vector<V>
+toSeq(const map<K, V>& map)
+{
+    vector<V> seq;
+    seq.reserve(map.size());
+    for(const auto& p : map)
+    {
+        seq.push_back(p.second);
+    }
+    return seq;
+}
+
+}
 
 TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
                const shared_ptr<KeyFactory>& keyFactory,
@@ -30,8 +48,11 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
     _instance(factory.lock()->getInstance()),
     _traceLevels(_instance->getTraceLevels()),
     _id(id),
-    _forwarder(Ice::uncheckedCast<DataStormContract::SessionPrx>(_instance->getForwarderManager()->add(this))),
-    _nextSampleId(0)
+    _forwarder(Ice::uncheckedCast<SessionPrx>(_instance->getForwarderManager()->add(this))),
+    _listenerCount(0),
+    _waiters(0),
+    _notified(0),
+   _nextSampleId(0)
 {
 }
 
@@ -39,20 +60,6 @@ TopicI::~TopicI()
 {
     disconnect();
     _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
-}
-
-void
-TopicI::disconnect()
-{
-    map<Listener, shared_ptr<DataStormContract::SessionPrx>> sessions;
-    {
-        lock_guard<mutex> lock(_mutex);
-        _sessions.swap(sessions);
-    }
-    for(auto s : sessions)
-    {
-        s.first.session->disconnect(s.first.id);
-    }
 }
 
 string
@@ -83,10 +90,10 @@ TopicI::destroy()
     disconnect();
 }
 
-DataStormContract::KeyInfoSeq
+KeyInfoSeq
 TopicI::getKeyInfoSeq() const
 {
-    DataStormContract::KeyInfoSeq keys;
+    KeyInfoSeq keys;
     keys.reserve(_keyElements.size());
     for(const auto& element : _keyElements)
     {
@@ -95,10 +102,10 @@ TopicI::getKeyInfoSeq() const
     return keys;
 }
 
-DataStormContract::FilterInfoSeq
+FilterInfoSeq
 TopicI::getFilterInfoSeq() const
 {
-    DataStormContract::FilterInfoSeq filters;
+    FilterInfoSeq filters;
     filters.reserve(_filteredElements.size());
     for(const auto& element : _filteredElements)
     {
@@ -107,117 +114,192 @@ TopicI::getFilterInfoSeq() const
     return filters;
 }
 
-DataStormContract::TopicInfoAndContent
+TopicInfoAndContent
 TopicI::getTopicInfoAndContent(long long int lastId) const
 {
     return { _id, _name, lastId, getKeyInfoSeq(), getFilterInfoSeq() };
 }
 
 void
-TopicI::attach(long long id, SessionI* session, const shared_ptr<DataStormContract::SessionPrx>& prx)
+TopicI::attach(long long id, SessionI* session, const shared_ptr<SessionPrx>& prx)
 {
-    if(_sessions.emplace(Listener { id, session }, prx).second)
+    auto p = _listeners.find({ session });
+    if(p == _listeners.end())
     {
+        p = _listeners.emplace(ListenerKey { session }, Listener(prx)).first;
+    }
+
+    if(p->second.topics.insert(id).second)
+    {
+        ++_listenerCount;
         session->subscribe(id, this);
+        notifyListenerWaiters(session->getTopicLock());
     }
 }
 
 void
 TopicI::detach(long long id, SessionI* session, bool unsubscribe)
 {
-    if(_sessions.erase({ id, session })) // Session might already be detached if topic was destroyed.
+    auto p = _listeners.find({ session });
+    if(p != _listeners.end() && p->second.topics.erase(id))
     {
+        --_listenerCount;
         session->unsubscribe(id, unsubscribe);
+        notifyListenerWaiters(session->getTopicLock());
+        if(p->second.topics.empty())
+        {
+            _listeners.erase(p);
+        }
     }
 }
 
-DataStormContract::KeyInfoAndSamplesSeq
+KeyInfoAndSamplesSeq
 TopicI::attachKeysAndFilters(long long int id,
-                             const DataStormContract::KeyInfoSeq& keys,
-                             const DataStormContract::FilterInfoSeq& filters,
+                             const KeyInfoSeq& keys,
+                             const FilterInfoSeq& filters,
                              long long int lastId,
                              SessionI* session,
-                             const shared_ptr<DataStormContract::SessionPrx>& prx)
+                             const shared_ptr<SessionPrx>& prx)
 {
-    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
-    DataStormContract::FilterInfoSeq ackFilters;
+    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
+    map<shared_ptr<Filter>, FilterInfo> ackFilters;
     for(const auto& info : keys)
     {
-        attachKeyImpl(id, info, {}, lastId, session, prx, ackKeys, ackFilters);
+        attachKeyImpl(id, info, -1, {}, lastId, session, prx, ackKeys, ackFilters);
     }
     for(const auto& info : filters)
     {
         attachFilterImpl(id, info, lastId, session, prx, ackKeys);
     }
-    return ackKeys;
+    return toSeq(ackKeys);
 }
 
-DataStormContract::DataSamplesSeq
+DataSamplesSeq
 TopicI::attachKeysAndFilters(long long int id,
-                             const DataStormContract::KeyInfoAndSamplesSeq& keys,
-                             const DataStormContract::FilterInfoSeq& filters,
+                             const KeyInfoAndSamplesSeq& keys,
+                             const FilterInfoSeq& filters,
                              long long int lastId,
                              SessionI* session,
-                             const shared_ptr<DataStormContract::SessionPrx>& prx)
+                             const shared_ptr<SessionPrx>& prx)
 {
-    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
-    DataStormContract::FilterInfoSeq ackFilters;
+    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
+    map<shared_ptr<Filter>, FilterInfo> ackFilters;
     for(const auto& info : keys)
     {
-        attachKeyImpl(id, info.info, info.samples, lastId, session, prx, ackKeys, ackFilters);
+        attachKeyImpl(id, info.info, info.subscriberId, info.samples, lastId, session, prx, ackKeys, ackFilters);
     }
     for(const auto& info : filters)
     {
         attachFilterImpl(id, info, lastId, session, prx, ackKeys);
     }
-    DataStormContract::DataSamplesSeq samples;
+    DataSamplesSeq samples;
     for(const auto& k : ackKeys)
     {
-        if(!k.samples.empty())
+        if(!k.second.samples.empty())
         {
-            samples.push_back({ k.info.id, move(k.samples) });
+            samples.push_back({ k.second.info.id, k.second.subscriberId, move(k.second.samples) });
         }
     }
     return samples;
 }
 
-pair<DataStormContract::KeyInfoAndSamplesSeq, DataStormContract::FilterInfoSeq>
+pair<KeyInfoAndSamplesSeq, FilterInfoSeq>
 TopicI::attachKeys(long long int id,
-                   const DataStormContract::KeyInfoSeq& infos,
+                   const KeyInfoSeq& infos,
                    long long int lastId,
                    SessionI* session,
-                   const shared_ptr<DataStormContract::SessionPrx>& prx)
+                   const shared_ptr<SessionPrx>& prx)
 {
-    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
-    DataStormContract::FilterInfoSeq ackFilters;
+    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
+    map<shared_ptr<Filter>, FilterInfo> ackFilters;
     for(const auto& info : infos)
     {
-        attachKeyImpl(id, info, {}, lastId, session, prx, ackKeys, ackFilters);
+        attachKeyImpl(id, info, -1, {}, lastId, session, prx, ackKeys, ackFilters);
     }
-    return { ackKeys, ackFilters };
+    return { toSeq(ackKeys), toSeq(ackFilters) };
 }
 
-DataStormContract::KeyInfoAndSamplesSeq
+KeyInfoAndSamplesSeq
 TopicI::attachFilter(long long int id,
-                     const DataStormContract::FilterInfo& info,
+                     const FilterInfo& info,
                      long long int lastId,
                      SessionI* session,
-                     const shared_ptr<DataStormContract::SessionPrx>& prx)
+                     const shared_ptr<SessionPrx>& prx)
 {
-    DataStormContract::KeyInfoAndSamplesSeq ackKeys;
+    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
     attachFilterImpl(id, info, lastId, session, prx, ackKeys);
-    return ackKeys;
+    return toSeq(ackKeys);
+}
+
+void
+TopicI::waitForListeners(int count) const
+{
+    unique_lock<mutex> lock(_mutex);
+    ++_waiters;
+    while(true)
+    {
+        if(count < 0 && _listenerCount == 0)
+        {
+            --_waiters;
+            return;
+        }
+        else if(count >= 0 && _listenerCount >= count)
+        {
+            --_waiters;
+            return;
+        }
+        _cond.wait(lock);
+        ++_notified;
+    }
+}
+
+bool
+TopicI::hasListeners() const
+{
+    unique_lock<mutex> lock(_mutex);
+    return _listenerCount > 0;
+}
+
+void
+TopicI::notifyListenerWaiters(unique_lock<mutex>& lock) const
+{
+    if(_waiters > 0)
+    {
+        _notified = 0;
+        _cond.notify_all();
+        _cond.wait(lock, [&]() { return _notified < _waiters; }); // Wait until all the waiters are notified.
+    }
+}
+
+void
+TopicI::disconnect()
+{
+    map<ListenerKey, Listener> listeners;
+    {
+        unique_lock<mutex> lock(_mutex);
+        listeners.swap(_listeners);
+        notifyListenerWaiters(lock);
+        _listenerCount = 0;
+    }
+    for(auto s : listeners)
+    {
+        for(auto t : s.second.topics)
+        {
+            s.first.session->disconnect(t);
+        }
+    }
 }
 
 void
 TopicI::attachKeyImpl(long long int id,
-                      const DataStormContract::KeyInfo& info,
-                      const DataStormContract::DataSampleSeq& samples,
+                      const KeyInfo& info,
+                      long long int subscriberId,
+                      const DataSampleSeq& samples,
                       long long int lastId,
                       SessionI* session,
-                      const shared_ptr<DataStormContract::SessionPrx>& prx,
-                      DataStormContract::KeyInfoAndSamplesSeq& ackKeys,
-                      DataStormContract::FilterInfoSeq& ackFilters)
+                      const shared_ptr<SessionPrx>& prx,
+                      map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples>& ackKeys,
+                      map<shared_ptr<Filter>, FilterInfo>& ackFilters)
 {
     auto key = _keyFactory->decode(_instance->getCommunicator(), info.key);
 
@@ -229,57 +311,78 @@ TopicI::attachKeyImpl(long long int id,
             {
                 for(const auto& sample : samples)
                 {
-                    if(session->setLastId(id, sample.id))
-                    {
-                        samplesI.push_back(_sampleFactory(sample.type, key, sample.value, sample.timestamp));
-                    }
+                    samplesI.push_back(_sampleFactory(sample.id, sample.type, key, sample.value, sample.timestamp));
                 }
             }
-            for(const auto& sample : samplesI)
-            {
-                reader->queue(sample);
-            }
+            reader->initSamples(samplesI);
         }
     };
 
-    auto p = _keyElements.find(key);
-    if(p != _keyElements.end())
+    if(subscriberId < 0)
     {
-        DataStormContract::DataSampleSeq samples;
-        bool attached = false;
-        for(auto k : p->second)
+        auto p = _keyElements.find(key);
+        if(p != _keyElements.end())
         {
-            if(k->attachKey(id, info.id, key, session, prx))
+            DataSampleSeq samples;
+            bool ack = ackKeys.find({ key, -1 }) == ackKeys.end(); // Don't ack twice the same element
+            bool attached = false;
+            for(auto k : p->second)
             {
-                queueSamples(k);
-                auto s = k->getSamples(lastId, nullptr);
-                samples.insert(samples.end(), s.begin(), s.end());
-                attached = true;
+                if(k->attachKey(id, info.id, key, session, prx))
+                {
+                    attached = true;
+                    queueSamples(k);
+                    if(ack)
+                    {
+                        auto s = k->getSamples(lastId, nullptr);
+                        samples.insert(samples.end(), s.begin(), s.end());
+                    }
+                }
             }
-        }
-        if(attached)
-        {
-            sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
-            ackKeys.push_back({ { p->first->getId(), p->first->encode(_instance->getCommunicator()) }, samples });
+            if(attached && ack)
+            {
+                sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
+                ackKeys.emplace(make_pair(key, -1),
+                                KeyInfoAndSamples
+                                {
+                                    {
+                                        p->first->getId(),
+                                        p->first->encode(_instance->getCommunicator())
+                                    },
+                                    -1,
+                                    samples
+                                });
+            }
         }
     }
 
     for(const auto& element : _filteredElements)
     {
-        if(element.first->match(key))
+        if(subscriberId < 0  || subscriberId == element.first->getId())
         {
-            bool attached = false;
-            for(auto f : element.second)
+            if(element.first->match(key))
             {
-                if(f->attachKey(id, info.id, key, session, prx))
+                bool attached = false;
+                for(auto f : element.second)
                 {
-                    queueSamples(f);
-                    attached = true;
+                    if(f->attachKey(id, info.id, key, session, prx))
+                    {
+                        if(!element.first->hasWriterMatch() || subscriberId == element.first->getId())
+                        {
+                            queueSamples(f);
+                        }
+                        attached = true;
+                    }
                 }
-            }
-            if(attached)
-            {
-                ackFilters.push_back({ element.first->getId(), element.first->encode(_instance->getCommunicator())} );
+                if(attached && ackFilters.find(element.first) == ackFilters.end())
+                {
+                    ackFilters.emplace(element.first,
+                                       FilterInfo
+                                       {
+                                           element.first->getId(),
+                                           element.first->encode(_instance->getCommunicator())
+                                       });
+                }
             }
         }
     }
@@ -287,11 +390,11 @@ TopicI::attachKeyImpl(long long int id,
 
 void
 TopicI::attachFilterImpl(long long int id,
-                         const DataStormContract::FilterInfo& info,
+                         const FilterInfo& info,
                          long long int lastId,
                          SessionI* session,
-                         const shared_ptr<DataStormContract::SessionPrx>& prx,
-                         DataStormContract::KeyInfoAndSamplesSeq& ack)
+                         const shared_ptr<SessionPrx>& prx,
+                         map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples>& ackKeys)
 {
     auto filter = _filterFactory->decode(_instance->getCommunicator(), info.filter);
 
@@ -299,21 +402,35 @@ TopicI::attachFilterImpl(long long int id,
     {
         if(filter->match(element.first))
         {
-            DataStormContract::DataSampleSeq samples;
+            DataSampleSeq samples;
+            long long int subscriberId = filter->hasWriterMatch() ? info.id : -1;
+            bool ack = ackKeys.find({ element.first, subscriberId }) == ackKeys.end();
             bool attached = false;
             for(auto k : element.second)
             {
                 if(k->attachFilter(id, info.id, filter, session, prx))
                 {
-                    auto s = k->getSamples(lastId, filter);
-                    samples.insert(samples.end(), s.begin(), s.end());
                     attached = true;
+                    if(ack)
+                    {
+                        auto s = k->getSamples(lastId, filter);
+                        samples.insert(samples.end(), s.begin(), s.end());
+                    }
                 }
             }
-            if(attached)
+            if(attached && ack)
             {
                 sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
-                ack.push_back({ { element.first->getId(), element.first->encode(_instance->getCommunicator()) }, samples });
+                ackKeys.emplace(make_pair(element.first, subscriberId),
+                                KeyInfoAndSamples
+                                {
+                                    {
+                                        element.first->getId(),
+                                        element.first->encode(_instance->getCommunicator())
+                                    },
+                                    subscriberId,
+                                    samples
+                                });
             }
         }
     }
@@ -323,9 +440,9 @@ void
 TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 {
     // Forwarder proxy must be called with the mutex locked!
-    for(auto session : _sessions)
+    for(auto listener : _listeners)
     {
-        session.second->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+        listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
     }
 }
 
@@ -351,6 +468,18 @@ TopicReaderI::createDataReader(const vector<shared_ptr<Key>>& keys)
 {
     lock_guard<mutex> lock(_mutex);
     return add(make_shared<KeyDataReaderI>(this, keys), keys);
+}
+
+void
+TopicReaderI::waitForWriters(int count) const
+{
+    waitForListeners(count);
+}
+
+bool
+TopicReaderI::hasWriters() const
+{
+    return hasListeners();
 }
 
 void
@@ -418,6 +547,18 @@ TopicWriterI::createDataWriter(const vector<shared_ptr<Key>>& keys)
 {
     lock_guard<mutex> lock(_mutex);
     return add(make_shared<KeyDataWriterI>(this, keys), keys);
+}
+
+void
+TopicWriterI::waitForReaders(int count) const
+{
+    waitForListeners(count);
+}
+
+bool
+TopicWriterI::hasReaders() const
+{
+    return hasListeners();
 }
 
 void

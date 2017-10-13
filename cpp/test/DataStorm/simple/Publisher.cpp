@@ -176,12 +176,12 @@ main(int argc, char* argv[])
             writer.add(make_shared<Test::Base>("value1"));
             writer.waitForNoReaders();
         }
-        // {
-        //     FilteredDataWriter<shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
-        //     writer.waitForReaders(5);
-        //     writer.update(make_shared<Test::Base>("value1"));
-        //     writer.waitForNoReaders();
-        // }
+        {
+            FilteredDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
+            writer.waitForReaders(5);
+            writer.update(make_shared<Test::Base>("value1"));
+            writer.waitForNoReaders();
+        }
     }
     cout << "ok" << endl;
 

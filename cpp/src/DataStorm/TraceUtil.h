@@ -69,6 +69,13 @@ operator<<(LoggerOutputBase& os, T* topic)
     return os << (topic ? topic->getName() : "<null>");
 }
 
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::DataElementI, T>::value>::type* = nullptr>
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, T* element)
+{
+    return os << (element ? element->toString() : "<null>");
+}
+
 template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::SessionI, T>::value>::type* = nullptr>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, T* session)

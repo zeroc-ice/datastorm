@@ -22,6 +22,7 @@ namespace DataStormInternal
 
 class TraceLevels;
 class Instance;
+class SessionI;
 class PublisherSessionI;
 class SubscriberSessionI;
 
@@ -63,6 +64,8 @@ public:
 
     void removePublisherSession(PublisherSessionI*);
 
+    std::shared_ptr<Ice::Object> getServant(const Ice::Identity&) const;
+
     std::shared_ptr<DataStormContract::NodePrx> getProxy() const
     {
         return Ice::uncheckedCast<DataStormContract::NodePrx>(_proxy);
@@ -98,6 +101,9 @@ private:
     std::shared_ptr<DataStormContract::PublisherSessionPrx> _publisherForwarder;
     std::map<Ice::Identity, std::shared_ptr<SubscriberSessionI>> _subscribers;
     std::map<Ice::Identity, std::shared_ptr<PublisherSessionI>> _publishers;
+    std::map<Ice::Identity, std::shared_ptr<SessionI>> _sessions;
+    long long int _nextSubscriberSessionId;
+    long long int _nextPublisherSessionId;
 };
 
 }
