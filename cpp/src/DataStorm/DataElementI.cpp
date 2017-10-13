@@ -271,7 +271,6 @@ DataReaderI::getAllUnread()
         s->decode(getCommunicator());
         _all.push_back(s);
     }
-    _all.insert(_all.end(), unread.begin(), unread.end());
     _unread.clear();
     return unread;
 }

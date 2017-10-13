@@ -20,83 +20,95 @@ main(int argc, char* argv[])
 {
     Node node(argc, argv);
 
-    cout << "testing string... " << flush;
+    cout << "testing key data reader/writer... " << flush;
     {
-        TopicWriter<string, string> topic(node, "string");
-        KeyDataWriter<string, string> writer(topic, "elem1");
-
-        writer.waitForReaders(1);
-        test(writer.hasReaders());
-
-        writer.add("value1");
-        writer.update("value2");
-        writer.remove();
-
-        writer.waitForNoReaders();
-    }
-    cout << "ok" << endl;
-
-    cout << "testing struct... " << flush;
-    {
-        TopicWriter<int, Test::StructValue> topic(node, "struct");
-        KeyDataWriter<int, Test::StructValue> writer(topic, 10);
-
-        writer.waitForReaders(1);
-        test(writer.hasReaders());
-
-        writer.add({"firstName", "lastName", 10});
-        writer.update({"firstName", "lastName", 11});
-        writer.remove();
-
-        writer.waitForNoReaders();
-    }
-    cout << "ok" << endl;
-
-    cout << "testing class... " << flush;
-    {
-        TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass");
-        KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
-
-        writer.waitForReaders(1);
-        test(writer.hasReaders());
-
-        writer.add(make_shared<Test::Base>("value1"));
-        writer.update(make_shared<Test::Base>("value2"));
-        writer.remove();
-
-        writer.waitForNoReaders();
-    }
-    cout << "ok" << endl;
-
-    cout << "testing topic updates... " << flush;
-    {
-        TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
         {
+            TopicWriter<string, string> topic(node, "string");
+            KeyDataWriter<string, string> writer(topic, "elem1");
+
+            writer.waitForReaders(1);
+            test(writer.hasReaders());
+
+            writer.add("value1");
+            writer.update("value2");
+            writer.remove();
+
+            writer.waitForNoReaders();
+        }
+        {
+            TopicWriter<int, Test::StructValue> topic(node, "struct");
+            KeyDataWriter<int, Test::StructValue> writer(topic, 10);
+
+            writer.waitForReaders(1);
+            test(writer.hasReaders());
+
+            writer.add({"firstName", "lastName", 10});
+            writer.update({"firstName", "lastName", 11});
+            writer.remove();
+
+            writer.waitForNoReaders();
+        }
+        {
+            TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass");
             KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
+
             writer.waitForReaders(1);
             test(writer.hasReaders());
 
             writer.add(make_shared<Test::Base>("value1"));
             writer.update(make_shared<Test::Base>("value2"));
             writer.remove();
+
             writer.waitForNoReaders();
         }
         {
-            KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem2");
-            writer.waitForReaders(1);
-            writer.update(make_shared<Test::Base>("value1"));
-            writer.waitForNoReaders();
+            TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
+            {
+                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
+                writer.waitForReaders(1);
+                test(writer.hasReaders());
+
+                writer.add(make_shared<Test::Base>("value1"));
+                writer.update(make_shared<Test::Base>("value2"));
+                writer.remove();
+                writer.waitForNoReaders();
+            }
+            {
+                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem2");
+                writer.waitForReaders(1);
+                writer.update(make_shared<Test::Base>("value1"));
+                writer.waitForNoReaders();
+            }
+            {
+                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem3");
+                writer.waitForReaders(1);
+                writer.remove();
+                writer.waitForNoReaders();
+            }
+            {
+                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem4");
+                writer.waitForReaders(1);
+                writer.add(make_shared<Test::Base>("value1"));
+                writer.waitForNoReaders();
+            }
         }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing multi-key data reader/writer... " << flush;
+    {
         {
-            KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem3");
-            writer.waitForReaders(1);
+            TopicWriter<string, string> topic(node, "multikey1");
+            KeyDataWriter<string, string> writer(topic, vector<string> { "elem1", "elem2" });
+
+            writer.add("value1");
+            writer.update("value2");
             writer.remove();
+
+            writer.waitForReaders(2);
             writer.waitForNoReaders();
-        }
-        {
-            KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem4");
+
             writer.waitForReaders(1);
-            writer.add(make_shared<Test::Base>("value1"));
             writer.waitForNoReaders();
         }
     }

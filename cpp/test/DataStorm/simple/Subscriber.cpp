@@ -137,6 +137,23 @@ main(int argc, char* argv[])
     }
 
     {
+        TopicReader<string, string> topic(node, "multikey1");
+        {
+            KeyDataReader<string, string> reader1(topic, "elem1");
+            KeyDataReader<string, string> reader2(topic, "elem2");
+            reader1.waitForUnread(3);
+            reader2.waitForUnread(3);
+            test(reader1.getAll().size() == 3);
+            test(reader2.getAll().size() == 3);
+        }
+        {
+            KeyDataReader<string, string> reader(topic, vector<string> { "elem1", "elem2" });
+            reader.waitForUnread(6);
+            test(reader.getAll().size() == 6);
+        }
+    }
+
+    {
         TopicReader<string, Test::BasePtr> topic(node, "baseclass3");
 
         FilteredDataReader<string, Test::BasePtr> reader(topic, "elem[0-9]");

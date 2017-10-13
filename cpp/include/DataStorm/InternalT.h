@@ -136,18 +136,18 @@ public:
         _deleter = { std::enable_shared_from_this<AbstractFactoryT<T>>::shared_from_this() };
     }
 
-    template<typename F> std::shared_ptr<V>
+    template<typename F> std::shared_ptr<typename V::ClassType>
     create(F&& value)
     {
         std::lock_guard<std::mutex> lock(_mutex);
         return createImpl(std::forward<F>(value));
     }
 
-    std::vector<std::shared_ptr<V>>
+    std::vector<std::shared_ptr<typename V::ClassType>>
     create(const std::vector<K>& values)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        std::vector<std::shared_ptr<V>> seq;
+        std::vector<std::shared_ptr<typename V::ClassType>> seq;
         for(const auto& v : values)
         {
             seq.push_back(createImpl(v));
@@ -209,6 +209,7 @@ public:
 
     using CachedType = K;
     using AbstractElementT<K>::AbstractElementT;
+    using ClassType = Key;
 };
 
 template<typename K> class KeyFactoryT : public KeyFactory, public AbstractFactoryT<KeyT<K>>
@@ -388,6 +389,7 @@ template<typename K, typename V, typename F> class FilterT :
 public:
 
     using CachedType = typename F::FilterType;
+    using ClassType = Filter;
 
     template<typename FF>
     FilterT(FF&& v, long long int id) :

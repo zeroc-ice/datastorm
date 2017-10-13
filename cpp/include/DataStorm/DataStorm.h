@@ -413,7 +413,7 @@ public:
     /**
      * Construct a new TopicWriter by taking ownership of the given topic writer.
      *
-     * @param reader The topic writer to transfer ownership from.
+     * @param writer The topic writer to transfer ownership from.
      */
     TopicWriter(TopicWriter&&);
 
