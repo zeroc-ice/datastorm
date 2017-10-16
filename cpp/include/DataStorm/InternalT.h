@@ -224,13 +224,11 @@ public:
         return AbstractFactoryT<KeyT<K>>::create(DataStorm::Encoder<K>::decode(communicator, data));
     }
 
-    static std::function<std::shared_ptr<KeyFactory>()> factory()
+    static std::shared_ptr<KeyFactoryT<K>> createFactory()
     {
-        return [] {
-            auto f = std::make_shared<KeyFactoryT<K>>();
-            f->init();
-            return f;
-        };
+        auto f = std::make_shared<KeyFactoryT<K>>();
+        f->init();
+        return f;
     }
 };
 
@@ -442,13 +440,11 @@ public:
         return AbstractFactoryT<FilterT<K, V, F>>::create(DataStorm::Encoder<typename F::FilterType>::decode(communicator, data));
     }
 
-    static std::function<std::shared_ptr<FilterFactory>()> factory()
+    static std::shared_ptr<FilterFactoryT<K, V, F>> createFactory()
     {
-        return [] {
-            auto f = std::make_shared<FilterFactoryT<K, V, F>>();
-            f->init();
-            return f;
-        };
+        auto f = std::make_shared<FilterFactoryT<K, V, F>>();
+        f->init();
+        return f;
     }
 };
 

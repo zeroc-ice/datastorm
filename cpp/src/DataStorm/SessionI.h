@@ -26,6 +26,16 @@ class TraceLevels;
 
 class SessionI : virtual public DataStormContract::Session, public std::enable_shared_from_this<SessionI>
 {
+    struct Subscriber
+    {
+        Subscriber(const std::string& facet) : facet(facet), initialized(false)
+        {
+        }
+
+        const std::string facet;
+        bool initialized;
+    };
+
     template<typename K> class Subscribers
     {
     public:
@@ -36,7 +46,7 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
 
         void add(DataElementI* element, const std::string& facet)
         {
-            _subscribers.emplace(element, facet);
+            _subscribers.emplace(element, Subscriber { facet });
         }
 
         void remove(DataElementI* element)
@@ -50,8 +60,8 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             return _key;
         }
 
-        const std::map<DataElementI*, std::string>&
-        getSubscribers() const
+        std::map<DataElementI*, Subscriber>&
+        getSubscribers()
         {
             return _subscribers;
         }
@@ -59,7 +69,57 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
     private:
 
         const std::shared_ptr<K> _key;
-        std::map<DataElementI*, std::string> _subscribers;
+        std::map<DataElementI*, Subscriber> _subscribers;
+    };
+
+    template<typename K> class SubscribersFactory
+    {
+    public:
+
+        Subscribers<K>* get(long long int id, const std::shared_ptr<K>& k = nullptr)
+        {
+            auto p = _elements.find(id);
+            if(p != _elements.end())
+            {
+                return &p->second;
+            }
+            else if(k)
+            {
+                return &_elements.emplace(id, Subscribers<K>(k)).first->second;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        Subscribers<K> remove(long long id)
+        {
+            auto p = _elements.find(id);
+            if(p != _elements.end())
+            {
+                Subscribers<K> tmp(std::move(p->second));
+                _elements.erase(p);
+                return tmp;
+            }
+            return Subscribers<K>(nullptr);
+        }
+
+        std::map<long long int, Subscribers<K>>&
+        getAll()
+        {
+            return _elements;
+        }
+
+    private:
+
+        std::map<long long int, Subscribers<K>> _elements;
+    };
+
+    struct TopicSubscriber
+    {
+        SubscribersFactory<Key> keys;
+        SubscribersFactory<Filter> filters;
     };
 
     class TopicSubscribers
@@ -68,76 +128,6 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
 
         TopicSubscribers() : _lastId(-1)
         {
-        }
-
-        Subscribers<Key>* getKey(long long int id, const std::shared_ptr<Key>& key = nullptr)
-        {
-            auto p = _keys.find(id);
-            if(p != _keys.end())
-            {
-                return &p->second;
-            }
-            else if(key)
-            {
-                return &_keys.emplace(id, Subscribers<Key>(key)).first->second;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-
-        Subscribers<Key> removeKey(long long id)
-        {
-            auto p = _keys.find(id);
-            if(p != _keys.end())
-            {
-                Subscribers<Key> tmp(std::move(p->second));
-                _keys.erase(p);
-                return tmp;
-            }
-            return Subscribers<Key>(nullptr);
-        }
-
-        Subscribers<Filter>* getFilter(long long int id, const std::shared_ptr<Filter>& filter = nullptr)
-        {
-            auto p = _filters.find(id);
-            if(p != _filters.end())
-            {
-                return &p->second;
-            }
-            else if(filter)
-            {
-                return &_filters.emplace(id, Subscribers<Filter>(filter)).first->second;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-
-        Subscribers<Filter> removeFilter(long long id)
-        {
-            auto p = _filters.find(id);
-            if(p != _filters.end())
-            {
-                Subscribers<Filter> tmp(std::move(p->second));
-                _filters.erase(p);
-                return tmp;
-            }
-            return Subscribers<Filter>(nullptr);
-        }
-
-        const std::map<long long int, Subscribers<Key>>&
-        getKeys() const
-        {
-            return _keys;
-        }
-
-        const std::map<long long int, Subscribers<Filter>>&
-        getFilters() const
-        {
-            return _filters;
         }
 
         long long int
@@ -157,11 +147,41 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             return true;
         }
 
+        void
+        addSubscriber(TopicI* topic)
+        {
+            _subscribers[topic] = TopicSubscriber();
+        }
+
+        TopicSubscriber&
+        getSubscriber(TopicI* topic)
+        {
+            assert(_subscribers.find(topic) != _subscribers.end());
+            return _subscribers.at(topic);
+        }
+
+        void
+        removeSubscriber(TopicI* topic)
+        {
+            _subscribers.erase(topic);
+        }
+
+        std::map<TopicI*, TopicSubscriber>&
+        getSubscribers()
+        {
+            return _subscribers;
+        }
+
+        void
+        clearSubscribers()
+        {
+            _subscribers.clear();
+        }
+
     private:
 
         long long int _lastId;
-        std::map<long long int, Subscribers<Key>> _keys;
-        std::map<long long int, Subscribers<Filter>> _filters;
+        std::map<TopicI*, TopicSubscriber> _subscribers;
     };
 
 public:
@@ -213,7 +233,7 @@ public:
     }
 
     void subscribe(long long int, TopicI*);
-    void unsubscribe(long long int, TopicI*, bool);
+    void unsubscribe(long long int, TopicI*);
     void disconnect(long long int, TopicI*);
 
     void subscribeToKey(long long int, long long int, const std::shared_ptr<Key>&, DataElementI*);
@@ -227,8 +247,9 @@ public:
 protected:
 
     void runWithTopics(const std::string&, std::function<void (const std::shared_ptr<TopicI>&)>);
-    void runWithTopics(long long int, std::function<void (TopicI*, TopicSubscribers&)>);
-    void runWithTopic(long long int, TopicI*, std::function<void (TopicSubscribers&)>);
+    void runWithTopics(long long int, std::function<void (TopicI*, TopicSubscriber&)>);
+    void runWithTopics(long long int, std::function<void (TopicI*, TopicSubscriber&, TopicSubscribers&)>);
+    void runWithTopic(long long int, TopicI*, std::function<void (TopicSubscriber&)>);
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const = 0;
     virtual bool reconnect() const = 0;
@@ -242,7 +263,7 @@ protected:
     const std::shared_ptr<DataStormContract::NodePrx> _node;
     bool _destroyed;
 
-    std::map<long long int, std::map<TopicI*, TopicSubscribers>> _topics;
+    std::map<long long int, TopicSubscribers> _topics;
     std::unique_lock<std::mutex>* _topicLock;
 
     std::shared_ptr<DataStormContract::SessionPrx> _session;

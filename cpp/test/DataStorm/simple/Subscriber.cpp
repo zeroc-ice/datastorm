@@ -21,8 +21,8 @@ main(int argc, char* argv[])
     Node node(argc, argv);
 
     {
-        TopicReader<string, string> topic(node, "string");
-        KeyDataReader<string, string> reader(topic, "elem1");
+        Topic<string, string> topic(node, "string");
+        KeyReader<string, string> reader(topic, "elem1");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -51,8 +51,8 @@ main(int argc, char* argv[])
     }
 
     {
-        TopicReader<int, Test::StructValue> topic(node, "struct");
-        KeyDataReader<int, Test::StructValue> reader(topic, 10);
+        Topic<int, Test::StructValue> topic(node, "struct");
+        KeyReader<int, Test::StructValue> reader(topic, 10);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -75,8 +75,8 @@ main(int argc, char* argv[])
     }
 
     {
-        TopicReader<string, Test::BasePtr> topic(node, "baseclass");
-        KeyDataReader<string, Test::BasePtr> reader(topic, "elem1");
+        Topic<string, Test::BasePtr> topic(node, "baseclass");
+        KeyReader<string, Test::BasePtr> reader(topic, "elem1");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -99,7 +99,7 @@ main(int argc, char* argv[])
     }
 
     {
-        TopicReader<string, Test::BasePtr> topic(node, "baseclass2");
+        Topic<string, Test::BasePtr> topic(node, "baseclass2");
 
         auto testSample = [&topic](auto& reader, SampleType type, string key, string value = "")
         {
@@ -117,46 +117,46 @@ main(int argc, char* argv[])
         };
 
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elem1");
+            KeyReader<string, Test::BasePtr> reader(topic, "elem1");
             testSample(reader, SampleType::Add, "elem1", "value1");
             testSample(reader, SampleType::Update, "elem1", "value2");
             testSample(reader, SampleType::Remove, "elem1");
         }
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elem2");
+            KeyReader<string, Test::BasePtr> reader(topic, "elem2");
             testSample(reader, SampleType::Update, "elem2", "value1");
         }
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elem3");
+            KeyReader<string, Test::BasePtr> reader(topic, "elem3");
             testSample(reader, SampleType::Remove, "elem3");
         }
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elem4");
+            KeyReader<string, Test::BasePtr> reader(topic, "elem4");
             testSample(reader, SampleType::Add, "elem4", "value1");
         }
     }
 
     {
-        TopicReader<string, string> topic(node, "multikey1");
+        Topic<string, string> topic(node, "multikey1");
         {
-            KeyDataReader<string, string> reader1(topic, "elem1");
-            KeyDataReader<string, string> reader2(topic, "elem2");
+            KeyReader<string, string> reader1(topic, "elem1");
+            KeyReader<string, string> reader2(topic, "elem2");
             reader1.waitForUnread(3);
             reader2.waitForUnread(3);
             test(reader1.getAll().size() == 3);
             test(reader2.getAll().size() == 3);
         }
         {
-            KeyDataReader<string, string> reader(topic, vector<string> { "elem1", "elem2" });
+            KeyReader<string, string> reader(topic, vector<string> { "elem1", "elem2" });
             reader.waitForUnread(6);
             test(reader.getAll().size() == 6);
         }
     }
 
     {
-        TopicReader<string, Test::BasePtr> topic(node, "baseclass3");
+        Topic<string, Test::BasePtr> topic(node, "baseclass3");
 
-        FilteredDataReader<string, Test::BasePtr> reader(topic, "elem[0-9]");
+        FilteredReader<string, Test::BasePtr> reader(topic, "elem[0-9]");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -182,7 +182,7 @@ main(int argc, char* argv[])
         testSample(SampleType::Add, "elem4", "value1");
     }
     {
-        TopicReader<string, string, RegexKeyValueFilter<string, string>> topic(node, "filtered reader key/value filter");
+        Topic<string, string, RegexKeyValueFilter<string, string>> topic(node, "filtered reader key/value filter");
 
         auto testSample = [](auto& reader, SampleType type, string key, string value = "")
         {
@@ -196,21 +196,21 @@ main(int argc, char* argv[])
             }
         };
 
-        FilteredDataReader<string, string> reader11(topic, { "elem[1]", "value[0-9]", { SampleType::Add }});
-        FilteredDataReader<string, string> reader12(topic, { "elem[1]", "value[0-9]", { SampleType::Update }});
-        FilteredDataReader<string, string> reader13(topic, { "elem[1]", "", { SampleType::Remove }});
+        FilteredReader<string, string> reader11(topic, { "elem[1]", "value[0-9]", { SampleType::Add }});
+        FilteredReader<string, string> reader12(topic, { "elem[1]", "value[0-9]", { SampleType::Update }});
+        FilteredReader<string, string> reader13(topic, { "elem[1]", "", { SampleType::Remove }});
         testSample(reader11, SampleType::Add, "elem1", "value1");
         testSample(reader12, SampleType::Update, "elem1", "value2");
         testSample(reader13, SampleType::Remove, "elem1");
 
-        FilteredDataReader<string, string> reader2(topic, { "elem2", "value[2-4]"});
+        FilteredReader<string, string> reader2(topic, { "elem2", "value[2-4]"});
         testSample(reader2, SampleType::Update, "elem2", "value2");
         testSample(reader2, SampleType::Update, "elem2", "value3");
         testSample(reader2, SampleType::Update, "elem2", "value4");
      }
 
     {
-        TopicReader<string, Test::BasePtr> topic(node, "baseclass4");
+        Topic<string, Test::BasePtr> topic(node, "baseclass4");
 
         auto testSample = [&topic](SampleType type, auto& reader, string key, string value = "")
         {
@@ -226,7 +226,7 @@ main(int argc, char* argv[])
         };
 
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elema1");
+            KeyReader<string, Test::BasePtr> reader(topic, "elema1");
             reader.waitForWriters(1);
             test(reader.hasWriters());
             testSample(SampleType::Add, reader, "elema1", "value1");
@@ -234,31 +234,31 @@ main(int argc, char* argv[])
             testSample(SampleType::Remove, reader, "elema1");
         }
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elemb2");
+            KeyReader<string, Test::BasePtr> reader(topic, "elemb2");
             reader.waitForWriters(1);
             test(reader.hasWriters());
             testSample(SampleType::Update, reader, "elemb2", "value1");
         }
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elemc3");
+            KeyReader<string, Test::BasePtr> reader(topic, "elemc3");
             reader.waitForWriters(1);
             test(reader.hasWriters());
             testSample(SampleType::Remove, reader, "elemc3");
         }
         {
-            KeyDataReader<string, Test::BasePtr> reader(topic, "elemd4");
+            KeyReader<string, Test::BasePtr> reader(topic, "elemd4");
             reader.waitForWriters(1);
             test(reader.hasWriters());
             testSample(SampleType::Add, reader, "elemd4", "value1");
         }
 
         {
-            vector<KeyDataReader<string, Test::BasePtr>> readers;
+            vector<KeyReader<string, Test::BasePtr>> readers;
             for(int i = 0; i < 5; ++i)
             {
                 ostringstream os;
                 os << "elem" << i;
-                readers.push_back(KeyDataReader<string, Test::BasePtr>(topic, os.str()));
+                readers.push_back(KeyReader<string, Test::BasePtr>(topic, os.str()));
                 readers.back().waitForWriters(1);
             }
             for(int i = 0; i < 5; ++i)
@@ -273,8 +273,12 @@ main(int argc, char* argv[])
     }
 
     {
-        TopicReader<string, string> t1(node, "topic");
-        TopicReader<string, string> t2(node, "topic");
+        Topic<string, string> t1(node, "topic");
+        Topic<string, string> t2(node, "topic");
+        t1.waitForWriters();
+        t2.waitForWriters();
+        test(t1.hasWriters());
+        test(t2.hasWriters());
         t1.waitForWriters(2);
         t2.waitForWriters(2);
         t1.waitForNoWriters();

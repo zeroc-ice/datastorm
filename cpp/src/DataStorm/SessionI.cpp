@@ -54,10 +54,10 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
     TopicInfoAndContentSeq ack;
     for(const auto& info : topics)
     {
-        runWithTopics(info.name, [&](auto t)
+        runWithTopics(info.name, [&](auto topic)
         {
-            t->attach(info.id, this, _session);
-            ack.emplace_back(t->getTopicInfoAndContent(getLastId(t->getId())));
+            topic->attach(info.id, this, _session);
+            ack.emplace_back(topic->getTopicInfoAndContent(getLastId(info.id)));
         });
     }
     if(!ack.empty())
@@ -83,14 +83,14 @@ SessionI::attachTopics(TopicInfoAndContentSeq topics, const Ice::Current& curren
 
     for(const auto& info : topics)
     {
-        runWithTopics(info.name, [&](auto t)
+        runWithTopics(info.name, [&](auto topic)
         {
-            t->attach(info.id, this, _session);
-            auto keys = t->attachKeysAndFilters(info.id, info.keys, info.filters, info.lastId, this, _session);
-            auto filters = t->getFilterInfoSeq();
+            topic->attach(info.id, this, _session);
+            auto keys = topic->attachKeysAndFilters(info.id, info.keys, info.filters, info.lastId, this, _session);
+            auto filters = topic->getFilterInfoSeq();
             if(!keys.empty() || !filters.empty())
             {
-                _session->attachKeysAndFiltersAsync(t->getId(), getLastId(t->getId()), keys, filters);
+                _session->attachKeysAndFiltersAsync(topic->getId(), getLastId(info.id), keys, filters);
             }
         });
     }
@@ -111,7 +111,10 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
         out << _id << ": detaching topic `" << id << "'";
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers) { topic->detach(id, this); });
+    runWithTopics(id, [&](auto topic, auto& subscriber) { topic->detach(id, this); });
+
+    // Erase the topic
+    _topics.erase(id);
 }
 
 void
@@ -129,7 +132,7 @@ SessionI::announceKeys(long long int id, KeyInfoSeq keys, const Ice::Current&)
         out << _id << ": announcing key `[" << keys << "]@" << id << "'";
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
     {
         auto kAndF = topic->attachKeys(id, keys, 0, this, _session);
         if(!kAndF.first.empty() || !kAndF.second.empty())
@@ -154,7 +157,7 @@ SessionI::announceFilter(long long int id, FilterInfo filter, const Ice::Current
         out << _id <<  ": announcing filter `" << filter << '@' << id << "'";
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
     {
         auto keys = topic->attachFilter(id, filter, 0, this, _session);
         if(!keys.empty())
@@ -183,7 +186,7 @@ SessionI::attachKeysAndFilters(long long int id,
         out << _id << ": attaching keys and filters `([" << keys << "];[" << filters << "])@" << id << "'";
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber)
     {
         auto samples = topic->attachKeysAndFilters(id, keys, filters, lastId, this, _session);
         if(!samples.empty())
@@ -208,14 +211,14 @@ SessionI::detachKeys(long long int id, LongSeq keys, const Ice::Current&)
         out << _id << ": detaching key `[" << keys << "]@" << id << "'";
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber)
     {
         for(auto key : keys)
         {
-            auto k = subscribers.removeKey(key);
-            for(auto subscriber : k.getSubscribers())
+            auto k = subscriber.keys.remove(key);
+            for(auto ks : k.getSubscribers())
             {
-                subscriber.first->detachKey(id, key, this, subscriber.second);
+                ks.first->detachKey(id, key, this, ks.second.facet);
             }
         }
     });
@@ -236,12 +239,12 @@ SessionI::detachFilter(long long int id, long long int filter, const Ice::Curren
         out << _id << ": detaching filter `" << filter << "@" << id << "'";
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber)
     {
-        auto f = subscribers.removeFilter(filter);
-        for(auto subscriber : f.getSubscribers())
+        auto f = subscriber.filters.remove(filter);
+        for(auto fs : f.getSubscribers())
         {
-            subscriber.first->detachFilter(id, filter, this, subscriber.second);
+            fs.first->detachFilter(id, filter, this, fs.second.facet);
         }
     });
 }
@@ -310,11 +313,13 @@ SessionI::disconnected(exception_ptr ex)
             }
         }
 
-        for(const auto& t : _topics)
+        for(auto& t : _topics)
         {
-            runWithTopics(t.first, [&](auto topic, auto subscribers) { topic->detach(t.first, this, false); });
+            runWithTopics(t.first, [&](auto topic, auto& subscriber) { topic->detach(t.first, this); });
+
+            // Clear the subscribers but don't remove the topic in order to preserve lastId.
+            t.second.clearSubscribers();
         }
-        _topics.clear();
 
         _session = nullptr;
         _connection = nullptr;
@@ -353,9 +358,8 @@ SessionI::destroyImpl()
 
     for(const auto& t : _topics)
     {
-        runWithTopics(t.first, [&](auto topic, auto subscribers) { topic->detach(t.first, this, false); });
+        runWithTopics(t.first, [&](auto topic, auto& subscriber) { topic->detach(t.first, this); });
     }
-    _topics.clear();
 
     for(auto c : _connectedCallbacks)
     {
@@ -395,11 +399,11 @@ long long int
 SessionI::getLastId(long long int topic) const
 {
     // Called within the topic synchronization
-    // auto p = _topics.find(topic);
-    // if(p != _topics.end())
-    // {
-    //     return p->second.getLastId();
-    // }
+    auto p = _topics.find(topic);
+    if(p != _topics.end())
+    {
+        return p->second.getLastId();
+    }
     return -1;
 }
 
@@ -411,40 +415,32 @@ SessionI::subscribe(long long id, TopicI* topic)
         Trace out(_traceLevels, _traceLevels->sessionCat);
         out << _id << ": subscribed topic `" << id << "' to topic `" << topic << "'";
     }
-    _topics[id].emplace(topic, TopicSubscribers());
+    _topics[id].addSubscriber(topic);
 }
 
 void
-SessionI::unsubscribe(long long id, TopicI* topic, bool remove)
+SessionI::unsubscribe(long long id, TopicI* topic)
 {
     assert(_topics.find(id) != _topics.end());
-    auto& subscribers = _topics.at(id).at(topic);
-    for(auto k : subscribers.getKeys())
+    auto& subscriber = _topics.at(id).getSubscriber(topic);
+    for(auto& k : subscriber.keys.getAll())
     {
-        for(auto e : k.second.getSubscribers())
+        for(auto& e : k.second.getSubscribers())
         {
-            e.first->detachKey(id, k.first, this, e.second, false);
+            e.first->detachKey(id, k.first, this, e.second.facet, false);
         }
     }
-    for(auto f : subscribers.getFilters())
+    for(auto& f : subscriber.filters.getAll())
     {
-        for(auto e : f.second.getSubscribers())
+        for(auto& e : f.second.getSubscribers())
         {
-            e.first->detachKey(id, f.first, this, e.second, false);
+            e.first->detachKey(id, f.first, this, e.second.facet, false);
         }
     }
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
         out << _id << ": unsubscribed topic `" << id << "' from topic `" << topic << "'";
-    }
-    if(remove)
-    {
-        _topics.at(id).erase(topic);
-        if(_topics.at(id).empty())
-        {
-            _topics.erase(id);
-        }
     }
 }
 
@@ -457,14 +453,26 @@ SessionI::disconnect(long long id, TopicI* topic)
         return;
     }
 
-    runWithTopic(id, topic, [&](auto) { unsubscribe(id, topic, true); });
+    if(_topics.find(id) == _topics.end())
+    {
+        return; // Peer topic detached first.
+    }
+
+    runWithTopic(id, topic, [&](auto) { unsubscribe(id, topic); });
+
+    auto& subscriber = _topics.at(id);
+    subscriber.removeSubscriber(topic);
+    if(subscriber.getSubscribers().empty())
+    {
+        _topics.erase(id);
+    }
 }
 
 void
 SessionI::subscribeToKey(long long topic, long long int id, const shared_ptr<Key>& key, DataElementI* element)
 {
     assert(_topics.find(topic) != _topics.end());
-    auto& t = _topics.at(topic).at(element->getTopic());
+    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
     auto facet = element->getFacet();
     if(_traceLevels->session > 1)
     {
@@ -475,15 +483,15 @@ SessionI::subscribeToKey(long long topic, long long int id, const shared_ptr<Key
             out << " (facet=" << facet << ')';
         }
     }
-    t.getKey(id, key)->add(element, facet);
+    subscriber.keys.get(id, key)->add(element, facet);
 }
 
 void
 SessionI::unsubscribeFromKey(long long topic, long long int id, DataElementI* element)
 {
     assert(_topics.find(topic) != _topics.end());
-    auto& t = _topics.at(topic).at(element->getTopic());
-    auto k = t.getKey(id);
+    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
+    auto k = subscriber.keys.get(id);
     if(k)
     {
         if(_traceLevels->session > 1)
@@ -511,7 +519,7 @@ void
 SessionI::subscribeToFilter(long long topic, long long int id, const shared_ptr<Filter>& filter, DataElementI* element)
 {
     assert(_topics.find(topic) != _topics.end());
-    auto& t = _topics.at(topic).at(element->getTopic());
+    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
     auto facet = element->getFacet();
     if(_traceLevels->session > 1)
     {
@@ -522,15 +530,15 @@ SessionI::subscribeToFilter(long long topic, long long int id, const shared_ptr<
             out << " (facet=" << facet << ')';
         }
     }
-    t.getFilter(id, filter)->add(element, facet);
+    subscriber.filters.get(id, filter)->add(element, facet);
 }
 
 void
 SessionI::unsubscribeFromFilter(long long topic, long long int id, DataElementI* element)
 {
     assert(_topics.find(topic) != _topics.end());
-    auto& t = _topics.at(topic).at(element->getTopic());
-    auto f = t.getFilter(id);
+    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
+    auto f = subscriber.filters.get(id);
     if(f)
     {
         if(_traceLevels->session > 1)
@@ -568,13 +576,12 @@ SessionI::runWithTopics(const std::string& name, function<void (const shared_ptr
 }
 
 void
-SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribers&)> fn)
+SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscriber&)> fn)
 {
     auto t = _topics.find(id);
     if(t != _topics.end())
     {
-        auto tpcs = t->second;
-        for(auto s : tpcs)
+        for(auto& s : t->second.getSubscribers())
         {
             unique_lock<mutex> l(s.first->getMutex());
             _topicLock = &l;
@@ -585,17 +592,33 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
 }
 
 void
-SessionI::runWithTopic(long long int id, TopicI* topic, function<void (TopicSubscribers&)> fn)
+SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscriber&, TopicSubscribers&)> fn)
 {
     auto t = _topics.find(id);
     if(t != _topics.end())
     {
-        auto s = t->second.find(topic);
-        if(s != t->second.end())
+        for(auto& s : t->second.getSubscribers())
         {
-            unique_lock<mutex> l(s->first->getMutex());
+            unique_lock<mutex> l(s.first->getMutex());
             _topicLock = &l;
-            fn(s->second);
+            fn(s.first, s.second, t->second);
+            _topicLock = nullptr;
+        }
+    }
+}
+
+void
+SessionI::runWithTopic(long long int id, TopicI* topic, function<void (TopicSubscriber&)> fn)
+{
+    auto t = _topics.find(id);
+    if(t != _topics.end())
+    {
+        auto p = t->second.getSubscribers().find(topic);
+        if(p != t->second.getSubscribers().end())
+        {
+            unique_lock<mutex> l(topic->getMutex());
+            _topicLock = &l;
+            fn(p->second);
             _topicLock = nullptr;
         }
     }
@@ -630,15 +653,15 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
     auto communicator = _instance->getCommunicator();
     for(const auto& samples : samplesSeq)
     {
-        runWithTopics(id, [&](auto topic, auto subscribers)
+        runWithTopics(id, [&](auto topic, auto& subscriber)
         {
-            auto k = subscribers.getKey(samples.key);
+            auto k = subscriber.keys.get(samples.key);
             if(k)
             {
                 if(_traceLevels->session > 2)
                 {
                     Trace out(_traceLevels, _traceLevels->sessionCat);
-                    out << _id << ": initiazing samples for key `" << k->get() << "'";
+                    out << _id << ": initializing samples for key `" << k->get() << "'";
                 }
                 vector<shared_ptr<Sample>> samplesI;
                 samplesI.reserve(samples.samples.size());
@@ -646,9 +669,13 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
                 {
                     samplesI.push_back(topic->getSampleFactory()(s.id, s.type, k->get(), move(s.value), s.timestamp));
                 }
-                for(auto subscriber : k->getSubscribers())
+                for(auto& ks : k->getSubscribers())
                 {
-                    subscriber.first->initSamples(samplesI);
+                    if(!ks.second.initialized)
+                    {
+                        ks.second.initialized = true;
+                        ks.first->initSamples(samplesI);
+                    }
                 }
             }
         });
@@ -664,10 +691,10 @@ SubscriberSessionI::s(long long int id, long long int key, DataSample s, const I
         return;
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber, auto topicSubscribers)
     {
-        auto k = subscribers.getKey(key);
-        if(k && subscribers.setLastId(s.id))
+        auto k = subscriber.keys.get(key);
+        if(k && topicSubscribers.setLastId(s.id))
         {
             if(_traceLevels->session > 2)
             {
@@ -680,11 +707,11 @@ SubscriberSessionI::s(long long int id, long long int key, DataSample s, const I
             }
 
             auto impl = topic->getSampleFactory()(s.id, s.type, k->get(), move(s.value), s.timestamp);
-            for(auto subscriber : k->getSubscribers())
+            for(auto& ks : k->getSubscribers())
             {
-                if(current.facet == subscriber.second)
+                if(current.facet == ks.second.facet)
                 {
-                    subscriber.first->queue(impl);
+                    ks.first->queue(impl);
                 }
             }
         }
@@ -700,10 +727,10 @@ SubscriberSessionI::f(long long int id, long long int filter, DataSample s, cons
         return;
     }
 
-    runWithTopics(id, [&](auto topic, auto subscribers)
+    runWithTopics(id, [&](auto topic, auto& subscriber, auto topicSubscribers)
     {
-        auto f = subscribers.getFilter(filter);
-        if(f && subscribers.setLastId(s.id))
+        auto f = subscriber.filters.get(filter);
+        if(f && topicSubscribers.setLastId(s.id))
         {
             if(_traceLevels->session > 2)
             {
@@ -725,11 +752,11 @@ SubscriberSessionI::f(long long int id, long long int filter, DataSample s, cons
                 }
             }
 
-            for(auto subscriber : f->getSubscribers())
+            for(auto& fs : f->getSubscribers())
             {
-                if(current.facet == subscriber.second)
+                if(current.facet == fs.second.facet)
                 {
-                    subscriber.first->queue(impl);
+                    fs.first->queue(impl);
                 }
             }
         }

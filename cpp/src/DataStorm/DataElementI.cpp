@@ -312,7 +312,7 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples)
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": initialized samples";
+            out << this << ": initialized " << samples.size() << " samples";
             if(!_facet.empty())
             {
                 out << " (facet = " << _facet << ")";
@@ -394,7 +394,7 @@ KeyDataReaderI::KeyDataReaderI(TopicReaderI* parent, const vector<shared_ptr<Key
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": created key data reader";
+        out << this << ": created key reader";
     }
 }
 
@@ -404,7 +404,7 @@ KeyDataReaderI::destroyImpl()
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": destroyed key data reader";
+        out << this << ": destroyed key reader";
     }
     LongSeq ids;
     for(auto k : _keys)
@@ -458,7 +458,7 @@ KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic, const vector<shared_ptr<Key>
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": created key data writer";
+        out << this << ": created key writer";
     }
 }
 
@@ -468,7 +468,7 @@ KeyDataWriterI::destroyImpl()
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": destroyed key data writer";
+        out << this << ": destroyed key writer";
     }
     LongSeq ids;
     for(auto k : _keys)
@@ -526,6 +526,7 @@ KeyDataWriterI::getSamples(long long int lastId, const shared_ptr<Filter>& filte
             }
         }
     }
+    Trace out(_traceLevels, _traceLevels->dataCat);
     return samples;
 }
 
@@ -550,7 +551,7 @@ FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic, const shared_ptr<F
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": created filtered data reader";
+        out << this << ": created filtered reader";
     }
 
     //
@@ -571,7 +572,7 @@ FilteredDataReaderI::destroyImpl()
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": destroyed filter data reader";
+        out << this << ": destroyed filter reader";
     }
     _forwarder->detachFilter(_parent->getId(), _filter->getId());
     _parent->removeFiltered(_filter, shared_from_this());
@@ -651,7 +652,7 @@ FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic, const shared_ptr<F
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": created filtered data writer";
+        out << this << ": created filtered writer";
     }
 }
 
@@ -661,7 +662,7 @@ FilteredDataWriterI::destroyImpl()
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": destroyed filter data writer";
+        out << this << ": destroyed filter writer";
     }
     _forwarder->detachFilter(_parent->getId(), _filter->getId());
     _parent->removeFiltered(_filter, shared_from_this());

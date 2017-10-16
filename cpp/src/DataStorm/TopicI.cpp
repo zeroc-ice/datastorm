@@ -138,13 +138,13 @@ TopicI::attach(long long id, SessionI* session, const shared_ptr<SessionPrx>& pr
 }
 
 void
-TopicI::detach(long long id, SessionI* session, bool unsubscribe)
+TopicI::detach(long long id, SessionI* session)
 {
     auto p = _listeners.find({ session });
     if(p != _listeners.end() && p->second.topics.erase(id))
     {
         --_listenerCount;
-        session->unsubscribe(id, this, unsubscribe);
+        session->unsubscribe(id, this);
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.topics.empty())
         {
@@ -331,13 +331,13 @@ TopicI::attachKeyImpl(long long int id,
                 if(k->attachKey(id, info.id, key, session, prx))
                 {
                     attached = true;
-                    queueSamples(k);
                     if(ack)
                     {
                         auto s = k->getSamples(lastId, nullptr);
                         samples.insert(samples.end(), s.begin(), s.end());
                     }
                 }
+                queueSamples(k);
             }
             if(attached && ack)
             {
@@ -367,11 +367,11 @@ TopicI::attachKeyImpl(long long int id,
                 {
                     if(f->attachKey(id, info.id, key, session, prx))
                     {
-                        if(!element.first->hasWriterMatch() || subscriberId == element.first->getId())
-                        {
-                            queueSamples(f);
-                        }
                         attached = true;
+                    }
+                    if(!element.first->hasWriterMatch() || subscriberId == element.first->getId())
+                    {
+                        queueSamples(f);
                     }
                 }
                 if(attached && ackFilters.find(element.first) == ackFilters.end())

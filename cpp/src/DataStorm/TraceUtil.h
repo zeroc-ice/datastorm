@@ -165,4 +165,14 @@ public:
     }
 };
 
+class Warning : public Ice::Warning
+{
+public:
+
+    Warning(std::shared_ptr<TraceLevels> traceLevels) :
+        Ice::Warning(traceLevels->logger)
+    {
+    }
+};
+
 }

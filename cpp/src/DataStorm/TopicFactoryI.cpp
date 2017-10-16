@@ -24,16 +24,16 @@ TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReader
 
 shared_ptr<TopicReader>
 TopicFactoryI::createTopicReader(const string& name,
-                                 function<shared_ptr<KeyFactory>()> createKeyFactory,
-                                 function<shared_ptr<FilterFactory>()> createFilterFactory,
+                                 const shared_ptr<KeyFactory>& keyFactory,
+                                 const shared_ptr<FilterFactory>& filterFactory,
                                  typename Sample::FactoryType sampleFactory)
 {
     shared_ptr<TopicReaderI> reader;
     {
         lock_guard<mutex> lock(_mutex);
         reader = make_shared<TopicReaderI>(shared_from_this(),
-                                           createKeyFactory(),
-                                           createFilterFactory(),
+                                           keyFactory,
+                                           filterFactory,
                                            move(sampleFactory),
                                            name,
                                            _nextReaderId++);
@@ -51,16 +51,16 @@ TopicFactoryI::createTopicReader(const string& name,
 
 shared_ptr<TopicWriter>
 TopicFactoryI::createTopicWriter(const string& name,
-                                 function<shared_ptr<KeyFactory>()> createKeyFactory,
-                                 function<shared_ptr<FilterFactory>()> createFilterFactory,
+                                 const shared_ptr<KeyFactory>& keyFactory,
+                                 const shared_ptr<FilterFactory>& filterFactory,
                                  typename Sample::FactoryType sampleFactory)
 {
     shared_ptr<TopicWriterI> writer;
     {
         lock_guard<mutex> lock(_mutex);
         writer = make_shared<TopicWriterI>(shared_from_this(),
-                                           createKeyFactory(),
-                                           createFilterFactory(),
+                                           keyFactory,
+                                           filterFactory,
                                            move(sampleFactory),
                                            name,
                                            _nextWriterId++);

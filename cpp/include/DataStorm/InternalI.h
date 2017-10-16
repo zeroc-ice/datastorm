@@ -166,13 +166,13 @@ class TopicFactory
 public:
 
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
-                                                           std::function<std::shared_ptr<KeyFactory>()>,
-                                                           std::function<std::shared_ptr<FilterFactory>()>,
+                                                           const std::shared_ptr<KeyFactory>&,
+                                                           const std::shared_ptr<FilterFactory>&,
                                                            typename Sample::FactoryType) = 0;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
-                                                           std::function<std::shared_ptr<KeyFactory>()>,
-                                                           std::function<std::shared_ptr<FilterFactory>()>,
+                                                           const std::shared_ptr<KeyFactory>&,
+                                                           const std::shared_ptr<FilterFactory>&,
                                                            typename Sample::FactoryType) = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;

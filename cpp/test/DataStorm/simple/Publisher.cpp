@@ -20,11 +20,11 @@ main(int argc, char* argv[])
 {
     Node node(argc, argv);
 
-    cout << "testing key data reader/writer... " << flush;
+    cout << "testing key reader/writer... " << flush;
     {
         {
-            TopicWriter<string, string> topic(node, "string");
-            KeyDataWriter<string, string> writer(topic, "elem1");
+            Topic<string, string> topic(node, "string");
+            KeyWriter<string, string> writer(topic, "elem1");
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -36,8 +36,8 @@ main(int argc, char* argv[])
             writer.waitForNoReaders();
         }
         {
-            TopicWriter<int, Test::StructValue> topic(node, "struct");
-            KeyDataWriter<int, Test::StructValue> writer(topic, 10);
+            Topic<int, Test::StructValue> topic(node, "struct");
+            KeyWriter<int, Test::StructValue> writer(topic, 10);
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -49,8 +49,8 @@ main(int argc, char* argv[])
             writer.waitForNoReaders();
         }
         {
-            TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass");
-            KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
+            Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass");
+            KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -62,9 +62,9 @@ main(int argc, char* argv[])
             writer.waitForNoReaders();
         }
         {
-            TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
+            Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
             {
-                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
+                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
                 writer.waitForReaders(1);
                 test(writer.hasReaders());
 
@@ -74,19 +74,19 @@ main(int argc, char* argv[])
                 writer.waitForNoReaders();
             }
             {
-                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem2");
+                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem2");
                 writer.waitForReaders(1);
                 writer.update(make_shared<Test::Base>("value1"));
                 writer.waitForNoReaders();
             }
             {
-                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem3");
+                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem3");
                 writer.waitForReaders(1);
                 writer.remove();
                 writer.waitForNoReaders();
             }
             {
-                KeyDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem4");
+                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem4");
                 writer.waitForReaders(1);
                 writer.add(make_shared<Test::Base>("value1"));
                 writer.waitForNoReaders();
@@ -95,11 +95,11 @@ main(int argc, char* argv[])
     }
     cout << "ok" << endl;
 
-    cout << "testing multi-key data reader/writer... " << flush;
+    cout << "testing multi-key reader/writer... " << flush;
     {
         {
-            TopicWriter<string, string> topic(node, "multikey1");
-            KeyDataWriter<string, string> writer(topic, vector<string> { "elem1", "elem2" });
+            Topic<string, string> topic(node, "multikey1");
+            KeyWriter<string, string> writer(topic, vector<string> { "elem1", "elem2" });
 
             writer.add("value1");
             writer.update("value2");
@@ -116,39 +116,39 @@ main(int argc, char* argv[])
 
     cout << "testing filtered reader... " << flush;
     {
-        TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass3");
+        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass3");
 
-        KeyDataWriter<string, shared_ptr<Test::Base>> writer1(topic, "elem1");
+        KeyWriter<string, shared_ptr<Test::Base>> writer1(topic, "elem1");
         writer1.waitForReaders(1);
         test(writer1.hasReaders());
         writer1.add(make_shared<Test::Base>("value1"));
         writer1.update(make_shared<Test::Base>("value2"));
         writer1.remove();
 
-        KeyDataWriter<string, shared_ptr<Test::Base>> writer2(topic, "elem2");
+        KeyWriter<string, shared_ptr<Test::Base>> writer2(topic, "elem2");
         writer2.waitForReaders(1);
         writer2.update(make_shared<Test::Base>("value1"));
 
-        KeyDataWriter<string, shared_ptr<Test::Base>> writer3(topic, "elem3");
+        KeyWriter<string, shared_ptr<Test::Base>> writer3(topic, "elem3");
         writer3.waitForReaders(1);
         writer3.remove();
 
-        KeyDataWriter<string, shared_ptr<Test::Base>> writer4(topic, "elem4");
+        KeyWriter<string, shared_ptr<Test::Base>> writer4(topic, "elem4");
         writer4.waitForReaders(1);
         writer4.add(make_shared<Test::Base>("value1"));
         writer4.waitForNoReaders();
     }
     {
-        TopicWriter<string, string, RegexKeyValueFilter<string, string>> topic(node, "filtered reader key/value filter");
+        Topic<string, string, RegexKeyValueFilter<string, string>> topic(node, "filtered reader key/value filter");
 
-        KeyDataWriter<string, string> writer1(topic, "elem1");
+        KeyWriter<string, string> writer1(topic, "elem1");
         writer1.waitForReaders(3);
         test(writer1.hasReaders());
         writer1.add("value1");
         writer1.update("value2");
         writer1.remove();
 
-        KeyDataWriter<string, string> writer2(topic, "elem2");
+        KeyWriter<string, string> writer2(topic, "elem2");
         writer2.waitForReaders(1);
         writer2.update("value1");
         writer2.update("value2");
@@ -160,9 +160,9 @@ main(int argc, char* argv[])
 
     cout << "testing filtered writer... " << flush;
     {
-        TopicWriter<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
+        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
         {
-            FilteredDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elema[0-9]");
+            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elema[0-9]");
             writer.waitForReaders(1);
             test(writer.hasReaders());
             writer.add(make_shared<Test::Base>("value1"));
@@ -171,25 +171,25 @@ main(int argc, char* argv[])
             writer.waitForNoReaders();
         }
         {
-            FilteredDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elemb[0-9]");
+            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemb[0-9]");
             writer.waitForReaders(1);
             writer.update(make_shared<Test::Base>("value1"));
             writer.waitForNoReaders();
         }
         {
-            FilteredDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elemc[0-9]");
+            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemc[0-9]");
             writer.waitForReaders(1);
             writer.remove();
             writer.waitForNoReaders();
         }
         {
-            FilteredDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elemd[0-9]");
+            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemd[0-9]");
             writer.waitForReaders(1);
             writer.add(make_shared<Test::Base>("value1"));
             writer.waitForNoReaders();
         }
         {
-            FilteredDataWriter<string, shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
+            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
             writer.waitForReaders(5);
             writer.update(make_shared<Test::Base>("value1"));
             writer.waitForNoReaders();
@@ -199,8 +199,12 @@ main(int argc, char* argv[])
 
     cout << "testing topic reader/writer... " << flush;
     {
-        TopicWriter<string, string> t1(node, "topic");
-        TopicWriter<string, string> t2(node, "topic");
+        Topic<string, string> t1(node, "topic");
+        Topic<string, string> t2(node, "topic");
+        t1.waitForReaders();
+        t2.waitForReaders();
+        test(t1.hasReaders());
+        test(t2.hasReaders());
         t1.waitForReaders(2);
         t2.waitForReaders(2);
     }

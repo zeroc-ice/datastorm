@@ -34,10 +34,10 @@
 namespace DataStorm
 {
 
-template<typename K, typename V> class KeyDataReader;
-template<typename K, typename V> class KeyDataWriter;
-template<typename K, typename V> class FilteredDataReader;
-template<typename K, typename V> class FilteredDataWriter;
+template<typename K, typename V> class KeyReader;
+template<typename K, typename V> class KeyWriter;
+template<typename K, typename V> class FilteredReader;
+template<typename K, typename V> class FilteredWriter;
 
 /**
  * The Encoder template provides methods to encode and decode user types.
@@ -330,9 +330,9 @@ operator<<(std::ostream& os, const RegexFilter& filter)
 };
 
 /**
- * The TopicReader class allows to construct DataReader objects.
+ * The Topic class allows to construct Reader and Writer objects.
  */
-template<typename Key, typename Value, typename Filter=RegexKeyFilter<Key, Value>> class TopicReader
+template<typename Key, typename Value, typename Filter=RegexKeyFilter<Key, Value>> class Topic
 {
 public:
 
@@ -341,25 +341,24 @@ public:
     using FilterType = Filter;
 
     /**
-     * Construct a new TopicReader for the topic with the given name. This connects
-     * the reader to topic writers with a matching name.
+     * Construct a new Topic for the topic with the given name.
      *
      * @param node The DataStorm node
      * @param name The name of the topic
      */
-    TopicReader(Node&, const std::string&);
+    Topic(Node&, const std::string&);
 
     /**
-     * Construct a new TopicReader by taking ownership of the given topic reader.
+     * Construct a new Topic by taking ownership of the given topic.
      *
-     * @param reader The topic reader to transfer ownership from.
+     * @param topic The topic to transfer ownership from.
      */
-    TopicReader(TopicReader&&);
+    Topic(Topic&&);
 
     /**
-     * Destruct the new TopicReader. This disconnects the reader from the writers.
+     * Destruct the Topic. This disconnects the topic from peers.
      */
-    ~TopicReader();
+    ~Topic();
 
     /**
      * Indicates whether or not topic writers are online.
@@ -379,48 +378,6 @@ public:
      * Wait for topic writers to be offline.
      */
     void waitForNoWriters() const;
-
-private:
-
-    friend class KeyDataReader<Key, Value>;
-    friend class FilteredDataReader<Key, Value>;
-
-    std::shared_ptr<DataStormInternal::TopicReader> _impl;
-    std::shared_ptr<DataStormInternal::KeyFactoryT<Key>> _keyFactory;
-    std::shared_ptr<DataStormInternal::FilterFactoryT<Key, Value, Filter>> _filterFactory;
-};
-
-/**
- * The TopicWriter class allows to construct DataWriter objects.
- */
-template<typename Key, typename Value, typename Filter=RegexKeyFilter<Key, Value>> class TopicWriter
-{
-public:
-
-    using KeyType = Key;
-    using ValueType = Value;
-    using FilterType = Filter;
-
-    /**
-     * Construct a new TopicWriter for the topic with the given name. This connects
-     * the writer to topic readers with a matching name.
-     *
-     * @param node The DataStorm node
-     * @param name The name of the topic
-     */
-    TopicWriter(Node&, const std::string&);
-
-    /**
-     * Construct a new TopicWriter by taking ownership of the given topic writer.
-     *
-     * @param writer The topic writer to transfer ownership from.
-     */
-    TopicWriter(TopicWriter&&);
-
-    /**
-     * Destruct the new TopicWriter. This disconnects the writer from the readers.
-     */
-    ~TopicWriter();
 
     /**
      * Indicates whether or not topic readers are online.
@@ -443,18 +400,28 @@ public:
 
 private:
 
-    friend class KeyDataWriter<Key, Value>;
-    friend class FilteredDataWriter<Key, Value>;
+    std::shared_ptr<DataStormInternal::TopicReader> getReader() const;
+    std::shared_ptr<DataStormInternal::TopicWriter> getWriter() const;
 
-    std::shared_ptr<DataStormInternal::TopicWriter> _impl;
-    std::shared_ptr<DataStormInternal::KeyFactoryT<Key>> _keyFactory;
-    std::shared_ptr<DataStormInternal::FilterFactoryT<Key, Value, Filter>> _filterFactory;
+    friend class KeyWriter<Key, Value>;
+    friend class FilteredWriter<Key, Value>;
+    friend class KeyReader<Key, Value>;
+    friend class FilteredReader<Key, Value>;
+
+    const std::string _name;
+    const std::shared_ptr<DataStormInternal::TopicFactory> _topicFactory;
+    const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>> _keyFactory;
+    const std::shared_ptr<DataStormInternal::FilterFactoryT<Key, Value, Filter>> _filterFactory;
+
+    mutable std::mutex _mutex;
+    mutable std::shared_ptr<DataStormInternal::TopicReader> _reader;
+    mutable std::shared_ptr<DataStormInternal::TopicWriter> _writer;
 };
 
 /**
- * The DataReader class is used to retrieve samples for a data element.
+ * The Reader class is used to retrieve samples for a data element.
  */
-template<typename Key, typename Value> class DataReader
+template<typename Key, typename Value> class Reader
 {
 public:
 
@@ -462,15 +429,15 @@ public:
     using ValueType = Value;
 
     /**
-     * Destruct the data reader. The destruction of the data reader disconnects to the
+     * Destruct the reader. The destruction of the reader disconnects
      * the reader from the writers.
      */
-    ~DataReader();
+    ~Reader();
 
     /**
-     * Indicates whether or not data writers are online.
+     * Indicates whether or not writers are online.
      *
-     * @return True if data writers are connected, false otherwise.
+     * @return True if writers are connected, false otherwise.
      */
     bool hasWriters() const;
 
@@ -489,7 +456,7 @@ public:
     /**
      * Returns the number of times the data element was instantiated.
      *
-     * This returns the number of times {@link DataWriter::add} was called for the
+     * This returns the number of times {@link Writer::add} was called for the
      * data element.
      */
     int getInstanceCount() const;
@@ -528,12 +495,12 @@ public:
 protected:
 
     /** @private */
-    DataReader(const std::shared_ptr<DataStormInternal::DataReader>& impl) : _impl(impl)
+    Reader(const std::shared_ptr<DataStormInternal::DataReader>& impl) : _impl(impl)
     {
     }
 
     /** @private */
-    DataReader(DataReader&& reader) : _impl(std::move(reader._impl))
+    Reader(Reader&& reader) : _impl(std::move(reader._impl))
     {
     }
 
@@ -543,69 +510,69 @@ private:
 };
 
 /**
- * The key data reader to read the data element associated with a given key.
+ * The key reader to read the data element associated with a given key.
  */
-template<typename Key, typename Value> class KeyDataReader : public DataReader<Key, Value>
+template<typename Key, typename Value> class KeyReader : public Reader<Key, Value>
 {
 public:
 
     /**
-     * Construct a new data reader for the given key. The construction of the data reader
+     * Construct a new reader for the given key. The construction of the reader
      * connects the reader to writers with a matching key.
      *
      * @param topic The topic reader.
      * @param key The key of the data element to read.
      */
     template<typename Filter>
-    KeyDataReader(TopicReader<Key, Value, Filter>&, const Key&);
+    KeyReader(Topic<Key, Value, Filter>&, const Key&);
 
     /**
-     * Construct a new data reader for the given keys. The construction of the data reader
+     * Construct a new reader for the given keys. The construction of the reader
      * connects the reader to writers with matching keys.
      *
      * @param topic The topic reader.
      * @param keys The keys of the data elements to read.
      */
     template<typename Filter>
-    KeyDataReader(TopicReader<Key, Value, Filter>&, const std::vector<Key>&);
+    KeyReader(Topic<Key, Value, Filter>&, const std::vector<Key>&);
 
     /**
-     * Transfers the given data reader to this data reader.
+     * Transfers the given reader to this reader.
      *
-     * @param reader The data reader.
+     * @param reader The reader.
      **/
-    KeyDataReader(KeyDataReader&&);
+    KeyReader(KeyReader&&);
 };
 
 /**
- * The filtered data reader to read data elements whose key match a given filter.
+ * The filtered reader to read data elements whose key match a given filter.
  */
-template<typename Key, typename Value> class FilteredDataReader : public DataReader<Key, Value>
+template<typename Key, typename Value> class FilteredReader : public Reader<Key, Value>
 {
 public:
 
     /**
-     * Construct a new data reader for the given filter. The construction of the data reader
+     * Construct a new reader for the given filter. The construction of the reader
      * connects the reader to writers whose key matches the filter.
      *
      * @param topic The topic reader.
      * @param filter The filter.
      */
     template<typename Filter>
-    FilteredDataReader(TopicReader<Key, Value, Filter>&, const typename Filter::FilterType&);
+    FilteredReader(Topic<Key, Value, Filter>&, const typename Filter::FilterType&);
 
     /**
-     * Transfers the given data reader to this data reader.
+     * Transfers the given reader to this reader.
      *
-     * @param reader The data reader.
+     * @param reader The reader.
      **/
-    FilteredDataReader(FilteredDataReader&&);
+    FilteredReader(FilteredReader&&);
 };
 
 /**
- * The DataWriter class is used to write samples for a data element.
+ * The Writer class is used to write samples for a data element.
  */
-template<typename Key, typename Value> class DataWriter
+template<typename Key, typename Value> class Writer
 {
 public:
 
@@ -613,15 +580,15 @@ public:
     using ValueType = Value;
 
     /**
-     * Destruct the data writer. The destruction of the data writer disconnects the
+     * Destruct the writer. The destruction of the writer disconnects
      * the writer from the readers.
      */
-    ~DataWriter();
+    ~Writer();
 
     /**
-     * Indicates whether or not data readers are online.
+     * Indicates whether or not readers are online.
      *
-     * @return True if data readers are connected, false otherwise.
+     * @return True if readers are connected, false otherwise.
      */
     bool hasReaders() const;
 
@@ -661,12 +628,12 @@ public:
 protected:
 
     /** @private */
-    DataWriter(const std::shared_ptr<DataStormInternal::DataWriter>& impl) : _impl(impl)
+    Writer(const std::shared_ptr<DataStormInternal::DataWriter>& impl) : _impl(impl)
     {
     }
 
     /** @private */
-    DataWriter(DataWriter&& writer) : _impl(std::move(writer.impl))
+    Writer(Writer&& writer) : _impl(std::move(writer.impl))
     {
     }
 
@@ -676,63 +643,63 @@ private:
 };
 
 /**
- * The key data writer to write the data element associated with a given key.
+ * The key writer to write the data element associated with a given key.
  */
-template<typename Key, typename Value> class KeyDataWriter : public DataWriter<Key, Value>
+template<typename Key, typename Value> class KeyWriter : public Writer<Key, Value>
 {
 public:
 
     /**
-     * Construct a new data writer for the given key. The construction of the data writer
+     * Construct a new writer for the given key. The construction of the writer
      * connects the writer to readers with a matching key.
      *
      * @param topic The topic writer.
      * @param key The key of the data element to write.
      */
     template<typename Filter>
-    KeyDataWriter(TopicWriter<Key, Value, Filter>&, const Key&);
+    KeyWriter(Topic<Key, Value, Filter>&, const Key&);
 
     /**
-     * Construct a new data writer for the given keys. The construction of the data writer
+     * Construct a new writer for the given keys. The construction of the writer
      * connects the writer to readers with matching keys.
      *
      * @param topic The topic writer.
      * @param keys The key of the data elements to write.
      */
     template<typename Filter>
-    KeyDataWriter(TopicWriter<Key, Value, Filter>&, const std::vector<Key>&);
+    KeyWriter(Topic<Key, Value, Filter>&, const std::vector<Key>&);
 
     /**
-     * Transfers the given data writer to this data writer.
+     * Transfers the given writer to this writer.
      *
-     * @param writer The data writer.
+     * @param writer The writer.
      **/
-    KeyDataWriter(KeyDataWriter&&);
+    KeyWriter(KeyWriter&&);
 };
 
 /**
- * The filtered data writer to write data elements whose key match a given filter.
+ * The filtered writer to write data elements whose key match a given filter.
  */
-template<typename Key, typename Value> class FilteredDataWriter : public DataWriter<Key, Value>
+template<typename Key, typename Value> class FilteredWriter : public Writer<Key, Value>
 {
 public:
 
     /**
-     * Construct a new data writer for the given filter. The construction of the data writer
+     * Construct a new writer for the given filter. The construction of the writer
      * connects the writer to readers whose key matches the filter.
      *
      * @param topic The topic writer.
      * @param filter The filter.
      */
     template<typename Filter>
-    FilteredDataWriter(TopicWriter<Key, Value, Filter>&, const typename Filter::FilterType&);
+    FilteredWriter(Topic<Key, Value, Filter>&, const typename Filter::FilterType&);
 
     /**
-     * Transfers the given data writer to this data writer.
+     * Transfers the given writer to this writer.
      *
-     * @param writer The data writer.
+     * @param writer The writer.
      **/
-    FilteredDataWriter(FilteredDataWriter&&);
+    FilteredWriter(FilteredWriter&&);
 };
 
 }
@@ -813,10 +780,10 @@ Sample<Key, Value>::Sample(const std::shared_ptr<DataStormInternal::Sample>& imp
 }
 
 //
-// DataReader template implementation
+// Reader template implementation
 //
 template<typename Key, typename Value>
-DataReader<Key, Value>::~DataReader()
+Reader<Key, Value>::~Reader()
 {
     if(_impl)
     {
@@ -825,31 +792,31 @@ DataReader<Key, Value>::~DataReader()
 }
 
 template<typename Key, typename Value> bool
-DataReader<Key, Value>::hasWriters() const
+Reader<Key, Value>::hasWriters() const
 {
     return _impl->hasWriters();
 }
 
 template<typename Key, typename Value> void
-DataReader<Key, Value>::waitForWriters(unsigned int count) const
+Reader<Key, Value>::waitForWriters(unsigned int count) const
 {
     _impl->waitForWriters(count);
 }
 
 template<typename Key, typename Value> void
-DataReader<Key, Value>::waitForNoWriters() const
+Reader<Key, Value>::waitForNoWriters() const
 {
     _impl->waitForWriters(-1);
 }
 
 template<typename Key, typename Value> int
-DataReader<Key, Value>::getInstanceCount() const
+Reader<Key, Value>::getInstanceCount() const
 {
     return _impl->getInstanceCount();
 }
 
 template<typename Key, typename Value> std::vector<Sample<Key, Value>>
-DataReader<Key, Value>::getAll() const
+Reader<Key, Value>::getAll() const
 {
     auto all = _impl->getAll();
     std::vector<Sample<Key, Value>> samples;
@@ -862,7 +829,7 @@ DataReader<Key, Value>::getAll() const
 }
 
 template<typename Key, typename Value> std::vector<Sample<Key, Value>>
-DataReader<Key, Value>::getAllUnread()
+Reader<Key, Value>::getAllUnread()
 {
     auto unread = _impl->getAllUnread();
     std::vector<Sample<Key, Value>> samples;
@@ -875,59 +842,59 @@ DataReader<Key, Value>::getAllUnread()
 }
 
 template<typename Key, typename Value> void
-DataReader<Key, Value>::waitForUnread(unsigned int count) const
+Reader<Key, Value>::waitForUnread(unsigned int count) const
 {
     _impl->waitForUnread(count);
 }
 
 template<typename Key, typename Value> bool
-DataReader<Key, Value>::hasUnread() const
+Reader<Key, Value>::hasUnread() const
 {
     return _impl->hasUnread();
 }
 
 template<typename Key, typename Value> Sample<Key, Value>
-DataReader<Key, Value>::getNextUnread()
+Reader<Key, Value>::getNextUnread()
 {
     return Sample<Key, Value>(_impl->getNextUnread());
 }
 
 template<typename Key, typename Value> template<typename Filter>
-KeyDataReader<Key, Value>::KeyDataReader(TopicReader<Key, Value, Filter>& topic, const Key& key) :
-    DataReader<Key, Value>(topic._impl->createDataReader({ topic._keyFactory->create(key) }))
+KeyReader<Key, Value>::KeyReader(Topic<Key, Value, Filter>& topic, const Key& key) :
+    Reader<Key, Value>(topic.getReader()->createDataReader({ topic._keyFactory->create(key) }))
 {
 }
 
 template<typename Key, typename Value> template<typename Filter>
-KeyDataReader<Key, Value>::KeyDataReader(TopicReader<Key, Value, Filter>& topic, const std::vector<Key>& keys) :
-    DataReader<Key, Value>(topic._impl->createDataReader(topic._keyFactory->create(keys)))
+KeyReader<Key, Value>::KeyReader(Topic<Key, Value, Filter>& topic, const std::vector<Key>& keys) :
+    Reader<Key, Value>(topic.getReader()->createDataReader(topic._keyFactory->create(keys)))
 {
 }
 
 template<typename Key, typename Value>
-KeyDataReader<Key, Value>::KeyDataReader(KeyDataReader<Key, Value>&& reader) :
-    DataReader<Key, Value>(std::move(reader))
+KeyReader<Key, Value>::KeyReader(KeyReader<Key, Value>&& reader) :
+    Reader<Key, Value>(std::move(reader))
 {
 }
 
 template<typename Key, typename Value> template<typename Filter>
-FilteredDataReader<Key, Value>::FilteredDataReader(TopicReader<Key, Value, Filter>& topic,
-                                                   const typename Filter::FilterType& filter) :
-    DataReader<Key, Value>(topic._impl->createFilteredDataReader(topic._filterFactory->create(filter)))
+FilteredReader<Key, Value>::FilteredReader(Topic<Key, Value, Filter>& topic,
+                                           const typename Filter::FilterType& filter) :
+    Reader<Key, Value>(topic.getReader()->createFilteredDataReader(topic._filterFactory->create(filter)))
 {
 }
 
 template<typename Key, typename Value>
-FilteredDataReader<Key, Value>::FilteredDataReader(FilteredDataReader<Key, Value>&& reader) :
-    DataReader<Key, Value>(std::move(reader))
+FilteredReader<Key, Value>::FilteredReader(FilteredReader<Key, Value>&& reader) :
+    Reader<Key, Value>(std::move(reader))
 {
 }
 
 //
-// DataWriter template implementation
+// Writer template implementation
 //
 template<typename Key, typename Value>
-DataWriter<Key, Value>::~DataWriter()
+Writer<Key, Value>::~Writer()
 {
     if(_impl)
     {
@@ -936,168 +903,170 @@ DataWriter<Key, Value>::~DataWriter()
 }
 
 template<typename Key, typename Value> bool
-DataWriter<Key, Value>::hasReaders() const
+Writer<Key, Value>::hasReaders() const
 {
     return _impl->hasReaders();
 }
 
 template<typename Key, typename Value> void
-DataWriter<Key, Value>::waitForReaders(unsigned int count) const
+Writer<Key, Value>::waitForReaders(unsigned int count) const
 {
     return _impl->waitForReaders(count);
 }
 
 template<typename Key, typename Value> void
-DataWriter<Key, Value>::waitForNoReaders() const
+Writer<Key, Value>::waitForNoReaders() const
 {
     return _impl->waitForReaders(-1);
 }
 
 template<typename Key, typename Value> void
-DataWriter<Key, Value>::add(const Value& value)
+Writer<Key, Value>::add(const Value& value)
 {
     _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleType::Add, value));
 }
 
 template<typename Key, typename Value> void
-DataWriter<Key, Value>::update(const Value& value)
+Writer<Key, Value>::update(const Value& value)
 {
     _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleType::Update, value));
 }
 
 template<typename Key, typename Value> void
-DataWriter<Key, Value>::remove()
+Writer<Key, Value>::remove()
 {
     _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleType::Remove, Value()));
 }
 
 template<typename Key, typename Value> template<typename Filter>
-KeyDataWriter<Key, Value>::KeyDataWriter(TopicWriter<Key, Value, Filter>& topic, const Key& key) :
-    DataWriter<Key, Value>(topic._impl->createDataWriter({ topic._keyFactory->create(key) }))
+KeyWriter<Key, Value>::KeyWriter(Topic<Key, Value, Filter>& topic, const Key& key) :
+    Writer<Key, Value>(topic.getWriter()->createDataWriter({ topic._keyFactory->create(key) }))
 {
 }
 
 template<typename Key, typename Value> template<typename Filter>
-KeyDataWriter<Key, Value>::KeyDataWriter(TopicWriter<Key, Value, Filter>& topic, const std::vector<Key>& keys) :
-    DataWriter<Key, Value>(topic._impl->createDataWriter(topic._keyFactory->create(keys)))
+KeyWriter<Key, Value>::KeyWriter(Topic<Key, Value, Filter>& topic, const std::vector<Key>& keys) :
+    Writer<Key, Value>(topic.getWriter()->createDataWriter(topic._keyFactory->create(keys)))
 {
 }
 
 template<typename Key, typename Value>
-KeyDataWriter<Key, Value>::KeyDataWriter(KeyDataWriter<Key, Value>&& writer) :
-    DataWriter<Key, Value>(std::move(writer))
+KeyWriter<Key, Value>::KeyWriter(KeyWriter<Key, Value>&& writer) :
+    Writer<Key, Value>(std::move(writer))
 {
 }
 
 template<typename Key, typename Value> template<typename Filter>
-FilteredDataWriter<Key, Value>::FilteredDataWriter(TopicWriter<Key, Value, Filter>& topic,
+FilteredWriter<Key, Value>::FilteredWriter(Topic<Key, Value, Filter>& topic,
                                                    const typename Filter::FilterType& filter) :
-    DataWriter<Key, Value>(topic._impl->createFilteredDataWriter(topic._filterFactory->create(filter)))
+    Writer<Key, Value>(topic.getWriter()->createFilteredDataWriter(topic._filterFactory->create(filter)))
 {
 }
 
 template<typename Key, typename Value>
-FilteredDataWriter<Key, Value>::FilteredDataWriter(FilteredDataWriter<Key, Value>&& writer) :
-    DataWriter<Key, Value>(std::move(writer))
+FilteredWriter<Key, Value>::FilteredWriter(FilteredWriter<Key, Value>&& writer) :
+    Writer<Key, Value>(std::move(writer))
 {
 }
 
 //
-// TopicReader template implementation
+// Topic template implementation
 //
 template<typename Key, typename Value, typename Filter>
-TopicReader<Key, Value, Filter>::TopicReader(Node& node, const std::string& name) :
-    _impl(node._factory->createTopicReader(name,
-                                           DataStormInternal::KeyFactoryT<Key>::factory(),
-                                           DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
-                                           DataStormInternal::SampleT<Key, Value>::factory())),
-    _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<Key>>(_impl->getKeyFactory())),
-    _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<Key, Value, Filter>>(_impl->getFilterFactory()))
+Topic<Key, Value, Filter>::Topic(Node& node, const std::string& name) :
+    _name(name),
+    _topicFactory(node._factory),
+    _keyFactory(DataStormInternal::KeyFactoryT<Key>::createFactory()),
+    _filterFactory(DataStormInternal::FilterFactoryT<Key, Value, Filter>::createFactory())
 {
 }
 
 template<typename Key, typename Value, typename Filter>
-TopicReader<Key, Value, Filter>::TopicReader(TopicReader<Key, Value, Filter>&& reader) :
-    _impl(std::move(reader._impl)),
-    _keyFactory(std::move(reader._keyFactory)),
-    _filterFactory(std::move(reader._filterFactory))
+Topic<Key, Value, Filter>::Topic(Topic<Key, Value, Filter>&& topic) :
+    _topicFactory(topic._topicFactory),
+    _reader(std::move(topic._reader)),
+    _writer(std::move(topic._writer)),
+    _keyFactory(std::move(topic._keyFactory)),
+    _filterFactory(std::move(topic._filterFactory))
 {
 }
 
 template<typename Key, typename Value, typename Filter>
-TopicReader<Key, Value, Filter>::~TopicReader()
+Topic<Key, Value, Filter>::~Topic()
 {
-    if(_impl)
+    std::lock_guard<std::mutex> lock(_mutex);
+    if(_reader)
     {
-        _impl->destroy();
+        _reader->destroy();
+    }
+    if(_writer)
+    {
+        _writer->destroy();
     }
 }
 
 template<typename Key, typename Value, typename Filter> bool
-TopicReader<Key, Value, Filter>::hasWriters() const
+Topic<Key, Value, Filter>::hasWriters() const
 {
-    return _impl->hasWriters();
+    return getReader()->hasWriters();
 }
 
 template<typename Key, typename Value, typename Filter> void
-TopicReader<Key, Value, Filter>::waitForWriters(unsigned int count) const
+Topic<Key, Value, Filter>::waitForWriters(unsigned int count) const
 {
-    _impl->waitForWriters(count);
+    getReader()->waitForWriters(count);
 }
 
 template<typename Key, typename Value, typename Filter> void
-TopicReader<Key, Value, Filter>::waitForNoWriters() const
+Topic<Key, Value, Filter>::waitForNoWriters() const
 {
-    _impl->waitForWriters(-1);
-}
-
-//
-// TopicWriter template implementation
-//
-template<typename Key, typename Value, typename Filter>
-TopicWriter<Key, Value, Filter>::TopicWriter(Node& node, const std::string& name) :
-    _impl(node._factory->createTopicWriter(name,
-                                           DataStormInternal::KeyFactoryT<Key>::factory(),
-                                           DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
-                                           DataStormInternal::SampleT<Key, Value>::factory())),
-    _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<Key>>(_impl->getKeyFactory())),
-    _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<Key, Value, Filter>>(_impl->getFilterFactory()))
-{
-}
-
-template<typename Key, typename Value, typename Filter>
-TopicWriter<Key, Value, Filter>::TopicWriter(TopicWriter<Key, Value, Filter>&& writer) :
-    _impl(std::move(writer._impl)),
-    _keyFactory(std::move(writer._keyFactory)),
-    _filterFactory(std::move(writer._filterFactory))
-{
-}
-
-template<typename Key, typename Value, typename Filter>
-TopicWriter<Key, Value, Filter>::~TopicWriter()
-{
-    if(_impl)
-    {
-        _impl->destroy();
-    }
+    getReader()->waitForWriters(-1);
 }
 
 template<typename Key, typename Value, typename Filter> bool
-TopicWriter<Key, Value, Filter>::hasReaders() const
+Topic<Key, Value, Filter>::hasReaders() const
 {
-    return _impl->hasReaders();
+    return getWriter()->hasReaders();
 }
 
 template<typename Key, typename Value, typename Filter> void
-TopicWriter<Key, Value, Filter>::waitForReaders(unsigned int count) const
+Topic<Key, Value, Filter>::waitForReaders(unsigned int count) const
 {
-    _impl->waitForReaders(count);
+    getWriter()->waitForReaders(count);
 }
 
 template<typename Key, typename Value, typename Filter> void
-TopicWriter<Key, Value, Filter>::waitForNoReaders() const
+Topic<Key, Value, Filter>::waitForNoReaders() const
 {
-    _impl->waitForReaders(-1);
+    getWriter()->waitForReaders(-1);
+}
+
+template<typename Key, typename Value, typename Filter> std::shared_ptr<DataStormInternal::TopicReader>
+Topic<Key, Value, Filter>::getReader() const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    if(!_reader)
+    {
+        _reader = _topicFactory->createTopicReader(_name,
+                                                   _keyFactory,
+                                                   _filterFactory,
+                                                   DataStormInternal::SampleT<Key, Value>::factory());
+    }
+    return _reader;
+}
+
+template<typename Key, typename Value, typename Filter> std::shared_ptr<DataStormInternal::TopicWriter>
+Topic<Key, Value, Filter>::getWriter() const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    if(!_writer)
+    {
+        _writer = _topicFactory->createTopicWriter(_name,
+                                                   _keyFactory,
+                                                   _filterFactory,
+                                                   DataStormInternal::SampleT<Key, Value>::factory());
+    }
+    return _writer;
 }
 
 }

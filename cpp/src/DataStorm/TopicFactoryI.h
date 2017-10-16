@@ -29,13 +29,13 @@ public:
     TopicFactoryI(const std::shared_ptr<Instance>&);
 
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
-                                                           std::function<std::shared_ptr<KeyFactory>()>,
-                                                           std::function<std::shared_ptr<FilterFactory>()>,
+                                                           const std::shared_ptr<KeyFactory>&,
+                                                           const std::shared_ptr<FilterFactory>&,
                                                            typename Sample::FactoryType) override;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
-                                                           std::function<std::shared_ptr<KeyFactory>()>,
-                                                           std::function<std::shared_ptr<FilterFactory>()>,
+                                                           const std::shared_ptr<KeyFactory>&,
+                                                           const std::shared_ptr<FilterFactory>&,
                                                            typename Sample::FactoryType) override;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;

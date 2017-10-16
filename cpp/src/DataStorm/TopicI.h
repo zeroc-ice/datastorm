@@ -68,7 +68,7 @@ public:
     DataStormContract::TopicInfoAndContent getTopicInfoAndContent(long long int) const;
 
     void attach(long long int, SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&);
-    void detach(long long int, SessionI*, bool = true);
+    void detach(long long int, SessionI*);
 
     DataStormContract::KeyInfoAndSamplesSeq
     attachKeysAndFilters(long long int,
