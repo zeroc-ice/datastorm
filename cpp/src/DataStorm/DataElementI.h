@@ -116,8 +116,17 @@ public:
     bool hasListeners() const;
 
     virtual std::string toString() const = 0;
-
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
+
+    const std::string& getFacet() const
+    {
+        return _facet;
+    }
+
+    TopicI* getTopic() const
+    {
+        return _parent;
+    }
 
 protected:
 

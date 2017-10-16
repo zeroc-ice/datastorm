@@ -28,6 +28,6 @@ struct RegexFilter
 
     /** The accepted sample types */
     SampleTypeSeq types;
-};
+}
 
-};
+}

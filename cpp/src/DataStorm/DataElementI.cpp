@@ -70,7 +70,7 @@ DataElementI::attachKey(long long int topic,
     if(p->second.keys.add(topic, id, key))
     {
         ++_listenerCount;
-        session->subscribeToKey(topic, id, key, this, _facet);
+        session->subscribeToKey(topic, id, key, this);
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -116,7 +116,7 @@ DataElementI::attachFilter(long long int topic,
     if(p->second.filters.add(topic, id, filter))
     {
         ++_listenerCount;
-        session->subscribeToFilter(topic, id, filter, this, _facet);
+        session->subscribeToFilter(topic, id, filter, this);
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }

@@ -1007,10 +1007,10 @@ FilteredDataWriter<Key, Value>::FilteredDataWriter(FilteredDataWriter<Key, Value
 //
 template<typename Key, typename Value, typename Filter>
 TopicReader<Key, Value, Filter>::TopicReader(Node& node, const std::string& name) :
-    _impl(node._factory->getTopicReader(name,
-                                        DataStormInternal::KeyFactoryT<Key>::factory(),
-                                        DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
-                                        DataStormInternal::SampleT<Key, Value>::factory())),
+    _impl(node._factory->createTopicReader(name,
+                                           DataStormInternal::KeyFactoryT<Key>::factory(),
+                                           DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
+                                           DataStormInternal::SampleT<Key, Value>::factory())),
     _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<Key>>(_impl->getKeyFactory())),
     _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<Key, Value, Filter>>(_impl->getFilterFactory()))
 {
@@ -1056,10 +1056,10 @@ TopicReader<Key, Value, Filter>::waitForNoWriters() const
 //
 template<typename Key, typename Value, typename Filter>
 TopicWriter<Key, Value, Filter>::TopicWriter(Node& node, const std::string& name) :
-    _impl(node._factory->getTopicWriter(name,
-                                        DataStormInternal::KeyFactoryT<Key>::factory(),
-                                        DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
-                                        DataStormInternal::SampleT<Key, Value>::factory())),
+    _impl(node._factory->createTopicWriter(name,
+                                           DataStormInternal::KeyFactoryT<Key>::factory(),
+                                           DataStormInternal::FilterFactoryT<Key, Value, Filter>::factory(),
+                                           DataStormInternal::SampleT<Key, Value>::factory())),
     _keyFactory(std::static_pointer_cast<DataStormInternal::KeyFactoryT<Key>>(_impl->getKeyFactory())),
     _filterFactory(std::static_pointer_cast<DataStormInternal::FilterFactoryT<Key, Value, Filter>>(_impl->getFilterFactory()))
 {

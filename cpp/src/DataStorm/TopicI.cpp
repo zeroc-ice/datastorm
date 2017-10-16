@@ -144,7 +144,7 @@ TopicI::detach(long long id, SessionI* session, bool unsubscribe)
     if(p != _listeners.end() && p->second.topics.erase(id))
     {
         --_listenerCount;
-        session->unsubscribe(id, unsubscribe);
+        session->unsubscribe(id, this, unsubscribe);
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.topics.empty())
         {
@@ -278,14 +278,14 @@ TopicI::disconnect()
     {
         unique_lock<mutex> lock(_mutex);
         listeners.swap(_listeners);
-        notifyListenerWaiters(lock);
         _listenerCount = 0;
+        notifyListenerWaiters(lock);
     }
     for(auto s : listeners)
     {
         for(auto t : s.second.topics)
         {
-            s.first.session->disconnect(t);
+            s.first.session->disconnect(t, this);
         }
     }
 }
@@ -490,7 +490,7 @@ TopicReaderI::destroy()
     auto factory = _factory.lock();;
     if(factory)
     {
-        factory->removeTopicReader(_name);
+        factory->removeTopicReader(_name, shared_from_this());
     }
 }
 
@@ -569,7 +569,7 @@ TopicWriterI::destroy()
     auto factory = _factory.lock();
     if(factory)
     {
-        factory->removeTopicWriter(_name);
+        factory->removeTopicWriter(_name, shared_from_this());
     }
 }
 

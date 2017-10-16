@@ -23,27 +23,21 @@ TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReader
 }
 
 shared_ptr<TopicReader>
-TopicFactoryI::getTopicReader(const string& name,
-                              function<shared_ptr<KeyFactory>()> createKeyFactory,
-                              function<shared_ptr<FilterFactory>()> createFilterFactory,
-                              typename Sample::FactoryType sampleFactory)
+TopicFactoryI::createTopicReader(const string& name,
+                                 function<shared_ptr<KeyFactory>()> createKeyFactory,
+                                 function<shared_ptr<FilterFactory>()> createFilterFactory,
+                                 typename Sample::FactoryType sampleFactory)
 {
     shared_ptr<TopicReaderI> reader;
     {
         lock_guard<mutex> lock(_mutex);
-        auto p = _readers.find(name);
-        if(p != _readers.end())
-        {
-            return p->second;
-        }
-
         reader = make_shared<TopicReaderI>(shared_from_this(),
                                            createKeyFactory(),
                                            createFilterFactory(),
                                            move(sampleFactory),
                                            name,
                                            _nextReaderId++);
-        _readers.insert(make_pair(name, reader));
+        _readers[name].push_back(reader);
         if(_traceLevels->topic > 0)
         {
             Trace out(_traceLevels, _traceLevels->topicCat);
@@ -56,27 +50,21 @@ TopicFactoryI::getTopicReader(const string& name,
 }
 
 shared_ptr<TopicWriter>
-TopicFactoryI::getTopicWriter(const string& name,
-                              function<shared_ptr<KeyFactory>()> createKeyFactory,
-                              function<shared_ptr<FilterFactory>()> createFilterFactory,
-                              typename Sample::FactoryType sampleFactory)
+TopicFactoryI::createTopicWriter(const string& name,
+                                 function<shared_ptr<KeyFactory>()> createKeyFactory,
+                                 function<shared_ptr<FilterFactory>()> createFilterFactory,
+                                 typename Sample::FactoryType sampleFactory)
 {
     shared_ptr<TopicWriterI> writer;
     {
         lock_guard<mutex> lock(_mutex);
-        auto p = _writers.find(name);
-        if(p != _writers.end())
-        {
-            return p->second;
-        }
-
         writer = make_shared<TopicWriterI>(shared_from_this(),
                                            createKeyFactory(),
                                            createFilterFactory(),
                                            move(sampleFactory),
                                            name,
                                            _nextWriterId++);
-        _writers.insert(make_pair(name, writer));
+        _writers[name].push_back(writer);
         if(_traceLevels->topic > 0)
         {
             Trace out(_traceLevels, _traceLevels->topicCat);
@@ -89,7 +77,7 @@ TopicFactoryI::getTopicWriter(const string& name,
 }
 
 void
-TopicFactoryI::removeTopicReader(const string& name)
+TopicFactoryI::removeTopicReader(const string& name, const shared_ptr<TopicI>& reader)
 {
     lock_guard<mutex> lock(_mutex);
     if(_traceLevels->topic > 0)
@@ -97,11 +85,16 @@ TopicFactoryI::removeTopicReader(const string& name)
         Trace out(_traceLevels, _traceLevels->topicCat);
         out << name << ": destroyed topic reader";
     }
-    _readers.erase(name);
+    auto& readers = _readers[name];
+    readers.erase(find(readers.begin(), readers.end(), reader));
+    if(readers.empty())
+    {
+        _readers.erase(name);
+    }
 }
 
 void
-TopicFactoryI::removeTopicWriter(const string& name)
+TopicFactoryI::removeTopicWriter(const string& name, const shared_ptr<TopicI>& writer)
 {
     lock_guard<mutex> lock(_mutex);
     if(_traceLevels->topic > 0)
@@ -109,29 +102,34 @@ TopicFactoryI::removeTopicWriter(const string& name)
         Trace out(_traceLevels, _traceLevels->topicCat);
         out << name << ": destroyed topic writer";
     }
-    _writers.erase(name);
+    auto& writers = _writers[name];
+    writers.erase(find(writers.begin(), writers.end(), writer));
+    if(writers.empty())
+    {
+        _writers.erase(name);
+    }
 }
 
-shared_ptr<TopicReaderI>
-TopicFactoryI::getTopicReader(const string& name) const
+vector<shared_ptr<TopicI>>
+TopicFactoryI::getTopicReaders(const string& name) const
 {
     lock_guard<mutex> lock(_mutex);
     auto p = _readers.find(name);
     if(p == _readers.end())
     {
-        return nullptr;
+        return vector<shared_ptr<TopicI>>();
     }
     return p->second;
 }
 
-shared_ptr<TopicWriterI>
-TopicFactoryI::getTopicWriter(const string& name) const
+vector<shared_ptr<TopicI>>
+TopicFactoryI::getTopicWriters(const string& name) const
 {
     lock_guard<mutex> lock(_mutex);
     auto p = _writers.find(name);
     if(p == _writers.end())
     {
-        return nullptr;
+        return vector<shared_ptr<TopicI>>();
     }
     return p->second;
 }
@@ -139,8 +137,8 @@ TopicFactoryI::getTopicWriter(const string& name) const
 void
 TopicFactoryI::createPublisherSession(const string& topic, const shared_ptr<DataStormContract::NodePrx>& publisher)
 {
-    auto reader = getTopicReader(topic);
-    if(reader)
+    auto readers = getTopicReaders(topic);
+    if(!readers.empty())
     {
         _instance->getNode()->createPublisherSession(publisher);
     }
@@ -149,8 +147,8 @@ TopicFactoryI::createPublisherSession(const string& topic, const shared_ptr<Data
 void
 TopicFactoryI::createSubscriberSession(const string& topic, const shared_ptr<DataStormContract::NodePrx>& subscriber)
 {
-    auto writer = getTopicWriter(topic);
-    if(writer)
+    auto writers = getTopicWriters(topic);
+    if(!writers.empty())
     {
         _instance->getNode()->createSubscriberSession(subscriber);
     }
@@ -164,7 +162,10 @@ TopicFactoryI::getTopicReaders() const
     readers.reserve(_readers.size());
     for(const auto& p : _readers)
     {
-        readers.push_back({ p.second->getId(), p.first });
+        for(const auto& r : p.second)
+        {
+            readers.push_back({ r->getId(), p.first });
+        }
     }
     return readers;
 }
@@ -177,7 +178,10 @@ TopicFactoryI::getTopicWriters() const
     writers.reserve(_writers.size());
     for(const auto& p : _writers)
     {
-        writers.push_back({ p.second->getId(), p.first});
+        for(const auto& w : p.second)
+        {
+            writers.push_back({ w->getId(), p.first });
+        }
     }
     return writers;
 }

@@ -197,5 +197,14 @@ main(int argc, char* argv[])
     }
     cout << "ok" << endl;
 
+    cout << "testing topic reader/writer... " << flush;
+    {
+        TopicWriter<string, string> t1(node, "topic");
+        TopicWriter<string, string> t2(node, "topic");
+        t1.waitForReaders(2);
+        t2.waitForReaders(2);
+    }
+    cout << "ok" << endl;
+
     return 0;
 }

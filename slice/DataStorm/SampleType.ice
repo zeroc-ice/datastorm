@@ -31,11 +31,11 @@ enum SampleType
 
     /** The data element has been removed. */
     Remove,
-};
+}
 
 /**
  * A sequence of sample type enumeration.
  */
 sequence<SampleType> SampleTypeSeq;
 
-};
+}

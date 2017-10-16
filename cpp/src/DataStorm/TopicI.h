@@ -20,7 +20,7 @@ namespace DataStormInternal
 class SessionI;
 class TopicFactoryI;
 
-class TopicI : virtual public Topic, private Forwarder
+class TopicI : virtual public Topic, private Forwarder, public std::enable_shared_from_this<TopicI>
 {
     struct ListenerKey
     {

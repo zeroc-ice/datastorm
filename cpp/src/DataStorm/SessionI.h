@@ -66,7 +66,7 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
     {
     public:
 
-        TopicSubscribers(TopicI* topic) : _topic(topic), _lastId(-1)
+        TopicSubscribers() : _lastId(-1)
         {
         }
 
@@ -140,12 +140,6 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             return _filters;
         }
 
-        TopicI*
-        get() const
-        {
-            return _topic;
-        }
-
         long long int
         getLastId() const
         {
@@ -165,7 +159,6 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
 
     private:
 
-        TopicI* _topic;
         long long int _lastId;
         std::map<long long int, Subscribers<Key>> _keys;
         std::map<long long int, Subscribers<Filter>> _filters;
@@ -220,23 +213,24 @@ public:
     }
 
     void subscribe(long long int, TopicI*);
-    void unsubscribe(long long int, bool);
-    void disconnect(long long int);
+    void unsubscribe(long long int, TopicI*, bool);
+    void disconnect(long long int, TopicI*);
 
-    void subscribeToKey(long long int, long long int, const std::shared_ptr<Key>&, DataElementI*, const std::string&);
+    void subscribeToKey(long long int, long long int, const std::shared_ptr<Key>&, DataElementI*);
     void unsubscribeFromKey(long long int, long long int, DataElementI*);
     void disconnectFromKey(long long int, long long int, DataElementI*);
 
-    void subscribeToFilter(long long int, long long int, const std::shared_ptr<Filter>&, DataElementI*, const std::string&);
+    void subscribeToFilter(long long int, long long int, const std::shared_ptr<Filter>&, DataElementI*);
     void unsubscribeFromFilter(long long int, long long int, DataElementI*);
     void disconnectFromFilter(long long int, long long int, DataElementI*);
 
 protected:
 
-    void runWithTopic(const std::string&, std::function<void (const std::shared_ptr<TopicI>&)>);
-    void runWithTopic(long long int id, std::function<void (TopicSubscribers&)>);
+    void runWithTopics(const std::string&, std::function<void (const std::shared_ptr<TopicI>&)>);
+    void runWithTopics(long long int, std::function<void (TopicI*, TopicSubscribers&)>);
+    void runWithTopic(long long int, TopicI*, std::function<void (TopicSubscribers&)>);
 
-    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const = 0;
+    virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const = 0;
     virtual bool reconnect() const = 0;
 
     const std::shared_ptr<Instance> _instance;
@@ -248,7 +242,7 @@ protected:
     const std::shared_ptr<DataStormContract::NodePrx> _node;
     bool _destroyed;
 
-    std::map<long long int, TopicSubscribers> _topics;
+    std::map<long long int, std::map<TopicI*, TopicSubscribers>> _topics;
     std::unique_lock<std::mutex>* _topicLock;
 
     std::shared_ptr<DataStormContract::SessionPrx> _session;
@@ -269,7 +263,7 @@ public:
 
 private:
 
-    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const override;
+    virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const override;
     virtual bool reconnect() const override;
 };
 
@@ -282,7 +276,7 @@ public:
 
 private:
 
-    virtual std::shared_ptr<TopicI> getTopic(const std::string&) const override;
+    virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const override;
     virtual bool reconnect() const override;
 };
 

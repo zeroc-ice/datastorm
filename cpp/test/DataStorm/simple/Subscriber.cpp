@@ -272,5 +272,13 @@ main(int argc, char* argv[])
         topic.waitForNoWriters();
     }
 
+    {
+        TopicReader<string, string> t1(node, "topic");
+        TopicReader<string, string> t2(node, "topic");
+        t1.waitForWriters(2);
+        t2.waitForWriters(2);
+        t1.waitForNoWriters();
+        t2.waitForNoWriters();
+    }
     return 0;
 }
