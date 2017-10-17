@@ -155,58 +155,65 @@ main(int argc, char* argv[])
         writer2.update("value3");
         writer2.update("value4");
         writer2.update("value5");
+
+        writer1.waitForNoReaders();
+        writer2.waitForNoReaders();
     }
     cout << "ok" << endl;
 
-    cout << "testing filtered writer... " << flush;
-    {
-        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
-        {
-            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elema[0-9]");
-            writer.waitForReaders(1);
-            test(writer.hasReaders());
-            writer.add(make_shared<Test::Base>("value1"));
-            writer.update(make_shared<Test::Base>("value2"));
-            writer.remove();
-            writer.waitForNoReaders();
-        }
-        {
-            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemb[0-9]");
-            writer.waitForReaders(1);
-            writer.update(make_shared<Test::Base>("value1"));
-            writer.waitForNoReaders();
-        }
-        {
-            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemc[0-9]");
-            writer.waitForReaders(1);
-            writer.remove();
-            writer.waitForNoReaders();
-        }
-        {
-            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemd[0-9]");
-            writer.waitForReaders(1);
-            writer.add(make_shared<Test::Base>("value1"));
-            writer.waitForNoReaders();
-        }
-        {
-            FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
-            writer.waitForReaders(5);
-            writer.update(make_shared<Test::Base>("value1"));
-            writer.waitForNoReaders();
-        }
-    }
-    cout << "ok" << endl;
+    // cout << "testing filtered writer... " << flush;
+    // {
+    //     Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
+    //     {
+    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elema[0-9]");
+    //         writer.waitForReaders(1);
+    //         test(writer.hasReaders());
+    //         writer.add(make_shared<Test::Base>("value1"));
+    //         writer.update(make_shared<Test::Base>("value2"));
+    //         writer.remove();
+    //         writer.waitForNoReaders();
+    //     }
+    //     {
+    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemb[0-9]");
+    //         writer.waitForReaders(1);
+    //         writer.update(make_shared<Test::Base>("value1"));
+    //         writer.waitForNoReaders();
+    //     }
+    //     {
+    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemc[0-9]");
+    //         writer.waitForReaders(1);
+    //         writer.remove();
+    //         writer.waitForNoReaders();
+    //     }
+    //     {
+    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemd[0-9]");
+    //         writer.waitForReaders(1);
+    //         writer.add(make_shared<Test::Base>("value1"));
+    //         writer.waitForNoReaders();
+    //     }
+    //     {
+    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
+    //         writer.waitForReaders(5);
+    //         writer.update(make_shared<Test::Base>("value1"));
+    //         writer.waitForNoReaders();
+    //     }
+    // }
+    // cout << "ok" << endl;
 
     cout << "testing topic reader/writer... " << flush;
     {
         Topic<string, string> t1(node, "topic");
         Topic<string, string> t2(node, "topic");
-        t1.waitForReaders();
-        t2.waitForReaders();
-        test(t1.hasReaders());
-        test(t2.hasReaders());
+        t1.hasReaders(); // Required to create the underlying topic writer
+        t2.hasReaders(); // Required to create the underlying topic writer
         t1.waitForReaders(2);
         t2.waitForReaders(2);
+
+        KeyWriter<string, string> writer(t1, "shutdown");
+        writer.add("now");
+
+        t1.waitForNoReaders();
+        t2.waitForNoReaders();
     }
     cout << "ok" << endl;
 

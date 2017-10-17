@@ -70,7 +70,7 @@ DataElementI::attachKey(long long int topic,
     if(p->second.keys.add(topic, id, key))
     {
         ++_listenerCount;
-        session->subscribeToKey(topic, id, key, this);
+        session->subscribeToKey(topic, id, key, this, prx->ice_getFacet());
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -116,7 +116,7 @@ DataElementI::attachFilter(long long int topic,
     if(p->second.filters.add(topic, id, filter))
     {
         ++_listenerCount;
-        session->subscribeToFilter(topic, id, filter, this);
+        session->subscribeToFilter(topic, id, filter, this, prx->ice_getFacet());
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -149,7 +149,6 @@ DataElementI::detachFilter(long long int topic, long long int id, SessionI* sess
 void
 DataElementI::initSamples(const vector<shared_ptr<Sample>>&)
 {
-    assert(false);
 }
 
 void
@@ -185,6 +184,12 @@ DataElementI::hasListeners() const
 {
     unique_lock<mutex> lock(_parent->_mutex);
     return _listenerCount > 0;
+}
+
+long long int
+DataElementI::getSubscriberId() const
+{
+    return -1;
 }
 
 shared_ptr<Ice::Communicator>
@@ -307,20 +312,17 @@ DataReaderI::getNextUnread()
 void
 DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples)
 {
-    if(_all.empty())
+    if(_traceLevels->data > 1)
     {
-        if(_traceLevels->data > 1)
+        Trace out(_traceLevels, _traceLevels->dataCat);
+        out << this << ": initialized " << samples.size() << " samples";
+        if(!_facet.empty())
         {
-            Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": initialized " << samples.size() << " samples";
-            if(!_facet.empty())
-            {
-                out << " (facet = " << _facet << ")";
-            }
+            out << " (facet = " << _facet << ")";
         }
-        _unread.insert(_unread.end(), samples.begin(), samples.end());
-        _parent->_cond.notify_all();
     }
+    _unread.insert(_unread.end(), samples.begin(), samples.end());
+    _parent->_cond.notify_all();
 }
 
 void
@@ -590,6 +592,12 @@ FilteredDataReaderI::hasWriters()
      return hasListeners();
 }
 
+long long int
+FilteredDataReaderI::getSubscriberId() const
+{
+    return _filter->hasWriterMatch() ? _filter->getId() : -1;
+}
+
 string
 FilteredDataReaderI::toString() const
 {
@@ -601,29 +609,26 @@ FilteredDataReaderI::toString() const
 void
 FilteredDataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples)
 {
-    if(_all.empty())
+    if(_filter->hasReaderMatch())
     {
-        if(_filter->hasReaderMatch())
+        for(auto s : samples)
         {
-            for(auto s : samples)
+            s->decode(getCommunicator());
+            if(_filter->readerMatch(s))
             {
-                s->decode(getCommunicator());
-                if(_filter->readerMatch(s))
-                {
-                    _unread.push_back(s);
-                }
+                _unread.push_back(s);
             }
-            if(_traceLevels->data > 0)
-            {
-                Trace out(_traceLevels, _traceLevels->dataCat);
-                out << this << ": initialized samples";
-            }
-            _parent->_cond.notify_all();
         }
-        else
+        if(_traceLevels->data > 0)
         {
-            DataReaderI::initSamples(samples);
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": initialized samples";
         }
+        _parent->_cond.notify_all();
+    }
+    else
+    {
+        DataReaderI::initSamples(samples);
     }
 }
 

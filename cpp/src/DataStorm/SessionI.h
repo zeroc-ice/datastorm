@@ -236,11 +236,11 @@ public:
     void unsubscribe(long long int, TopicI*);
     void disconnect(long long int, TopicI*);
 
-    void subscribeToKey(long long int, long long int, const std::shared_ptr<Key>&, DataElementI*);
+    void subscribeToKey(long long int, long long int, const std::shared_ptr<Key>&, DataElementI*, const std::string&);
     void unsubscribeFromKey(long long int, long long int, DataElementI*);
     void disconnectFromKey(long long int, long long int, DataElementI*);
 
-    void subscribeToFilter(long long int, long long int, const std::shared_ptr<Filter>&, DataElementI*);
+    void subscribeToFilter(long long int, long long int, const std::shared_ptr<Filter>&, DataElementI*, const std::string&);
     void unsubscribeFromFilter(long long int, long long int, DataElementI*);
     void disconnectFromFilter(long long int, long long int, DataElementI*);
 

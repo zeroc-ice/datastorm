@@ -165,7 +165,7 @@ TopicI::attachKeysAndFilters(long long int id,
     map<shared_ptr<Filter>, FilterInfo> ackFilters;
     for(const auto& info : keys)
     {
-        attachKeyImpl(id, info, -1, {}, lastId, session, prx, ackKeys, ackFilters);
+        attachKeyImpl(id, info, lastId, session, prx, ackKeys, ackFilters);
     }
     for(const auto& info : filters)
     {
@@ -186,7 +186,7 @@ TopicI::attachKeysAndFilters(long long int id,
     map<shared_ptr<Filter>, FilterInfo> ackFilters;
     for(const auto& info : keys)
     {
-        attachKeyImpl(id, info.info, info.subscriberId, info.samples, lastId, session, prx, ackKeys, ackFilters);
+        attachKeyImpl(id, info.info, lastId, session, prx, ackKeys, ackFilters);
     }
     for(const auto& info : filters)
     {
@@ -195,10 +195,7 @@ TopicI::attachKeysAndFilters(long long int id,
     DataSamplesSeq samples;
     for(const auto& k : ackKeys)
     {
-        if(!k.second.samples.empty())
-        {
-            samples.push_back({ k.second.info.id, k.second.subscriberId, move(k.second.samples) });
-        }
+        samples.push_back({ k.second.info.id, k.second.subscriberId, move(k.second.samples) });
     }
     return samples;
 }
@@ -214,7 +211,7 @@ TopicI::attachKeys(long long int id,
     map<shared_ptr<Filter>, FilterInfo> ackFilters;
     for(const auto& info : infos)
     {
-        attachKeyImpl(id, info, -1, {}, lastId, session, prx, ackKeys, ackFilters);
+        attachKeyImpl(id, info, lastId, session, prx, ackKeys, ackFilters);
     }
     return { toSeq(ackKeys), toSeq(ackFilters) };
 }
@@ -293,8 +290,6 @@ TopicI::disconnect()
 void
 TopicI::attachKeyImpl(long long int id,
                       const KeyInfo& info,
-                      long long int subscriberId,
-                      const DataSampleSeq& samples,
                       long long int lastId,
                       SessionI* session,
                       const shared_ptr<SessionPrx>& prx,
@@ -303,86 +298,60 @@ TopicI::attachKeyImpl(long long int id,
 {
     auto key = _keyFactory->decode(_instance->getCommunicator(), info.key);
 
-    vector<shared_ptr<Sample>> samplesI;
-    function<void(const shared_ptr<DataElementI>&)> queueSamples = [&](auto reader) {
-        if(!samples.empty())
-        {
-            if(samplesI.empty())
-            {
-                for(const auto& sample : samples)
-                {
-                    samplesI.push_back(_sampleFactory(sample.id, sample.type, key, sample.value, sample.timestamp));
-                }
-            }
-            reader->initSamples(samplesI);
-        }
-    };
-
-    if(subscriberId < 0)
+    auto p = _keyElements.find(key);
+    if(p != _keyElements.end())
     {
-        auto p = _keyElements.find(key);
-        if(p != _keyElements.end())
+        DataSampleSeq samples;
+        bool ack = ackKeys.find({ key, -1 }) == ackKeys.end(); // Don't ack twice the same element
+        bool attached = false;
+        for(auto k : p->second)
         {
-            DataSampleSeq samples;
-            bool ack = ackKeys.find({ key, -1 }) == ackKeys.end(); // Don't ack twice the same element
-            bool attached = false;
-            for(auto k : p->second)
+            if(k->attachKey(id, info.id, key, session, prx))
             {
-                if(k->attachKey(id, info.id, key, session, prx))
+                attached = true;
+                if(ack)
                 {
-                    attached = true;
-                    if(ack)
-                    {
-                        auto s = k->getSamples(lastId, nullptr);
-                        samples.insert(samples.end(), s.begin(), s.end());
-                    }
+                    auto s = k->getSamples(lastId, nullptr);
+                    samples.insert(samples.end(), s.begin(), s.end());
                 }
-                queueSamples(k);
             }
-            if(attached && ack)
-            {
-                sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
-                ackKeys.emplace(make_pair(key, -1),
-                                KeyInfoAndSamples
+        }
+        if(attached && ack)
+        {
+            sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
+            ackKeys.emplace(make_pair(key, -1),
+                            KeyInfoAndSamples
+                            {
                                 {
-                                    {
-                                        p->first->getId(),
-                                        p->first->encode(_instance->getCommunicator())
-                                    },
-                                    -1,
-                                    samples
-                                });
-            }
+                                    p->first->getId(),
+                                    p->first->encode(_instance->getCommunicator())
+                                },
+                                -1,
+                                samples
+                            });
         }
     }
 
     for(const auto& element : _filteredElements)
     {
-        if(subscriberId < 0  || subscriberId == element.first->getId())
+        if(element.first->match(key))
         {
-            if(element.first->match(key))
+            bool attached = false;
+            for(auto f : element.second)
             {
-                bool attached = false;
-                for(auto f : element.second)
+                if(f->attachKey(id, info.id, key, session, prx))
                 {
-                    if(f->attachKey(id, info.id, key, session, prx))
-                    {
-                        attached = true;
-                    }
-                    if(!element.first->hasWriterMatch() || subscriberId == element.first->getId())
-                    {
-                        queueSamples(f);
-                    }
+                    attached = true;
                 }
-                if(attached && ackFilters.find(element.first) == ackFilters.end())
-                {
-                    ackFilters.emplace(element.first,
-                                       FilterInfo
-                                       {
-                                           element.first->getId(),
-                                           element.first->encode(_instance->getCommunicator())
-                                       });
-                }
+            }
+            if(attached && ackFilters.find(element.first) == ackFilters.end())
+            {
+                ackFilters.emplace(element.first,
+                                   FilterInfo
+                                   {
+                                       element.first->getId(),
+                                       element.first->encode(_instance->getCommunicator())
+                                   });
             }
         }
     }

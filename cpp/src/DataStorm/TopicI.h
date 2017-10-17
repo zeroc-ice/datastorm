@@ -128,8 +128,6 @@ protected:
     void attachKeyImpl(long long int,
                        const DataStormContract::KeyInfo&,
                        long long int,
-                       const DataStormContract::DataSampleSeq&,
-                       long long int,
                        SessionI*,
                        const std::shared_ptr<DataStormContract::SessionPrx>&,
                        std::map<std::pair<std::shared_ptr<Key>, long long int>, DataStormContract::KeyInfoAndSamples>&,

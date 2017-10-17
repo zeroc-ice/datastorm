@@ -115,6 +115,7 @@ public:
     void waitForListeners(int count) const;
     bool hasListeners() const;
 
+    virtual long long int getSubscriberId() const;
     virtual std::string toString() const = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 
@@ -259,6 +260,7 @@ public:
     virtual void waitForWriters(int) override;
     virtual bool hasWriters() override;
 
+    virtual long long int getSubscriberId() const override;
     virtual std::string toString() const override;
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&) override;
     virtual void queue(const std::shared_ptr<Sample>&, const std::string& = std::string()) override;
