@@ -505,9 +505,17 @@ public:
 };
 
 template<typename K, typename V, typename KF, typename KFC, typename SFC=void>
-KeyReader<K, V, SFC> makeKeyReader(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyType key)
+KeyReader<K, V, SFC>
+makeKeyReader(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyType key)
 {
     return KeyReader<K, V, SFC>(topic, key);
+}
+
+template<typename K, typename V, typename KF, typename KFC, typename SFC>
+KeyReader<K, V, SFC>
+makeKeyReader(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyType key, SFC sampleFilterCriteria)
+{
+    return KeyReader<K, V, SFC>(topic, key, sampleFilterCriteria);
 }
 
 template<typename Key, typename Value>
@@ -564,6 +572,22 @@ public:
      **/
     FilteredReader(FilteredReader&&);
 };
+
+template<typename K, typename V, typename KF, typename KFC, typename SFC=void>
+FilteredReader<K, V, SFC>
+makeFilteredReader(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyFilterCriteriaType filter)
+{
+    return FilteredReader<K, V, SFC>(topic, filter);
+}
+
+template<typename K, typename V, typename KF, typename KFC, typename SFC>
+FilteredReader<K, V, SFC>
+makeFilteredReader(Topic<K, V, KF, KFC>& topic,
+                   typename Topic<K, V, KF, KFC>::KeyFilterCriteriaType filter,
+                   SFC sampleFilterCriteria)
+{
+    return FilteredReader<K, V, SFC>(topic, filter, sampleFilterCriteria);
+}
 
 template<typename Key, typename Value>
 class FilteredReader<Key, Value, void> : public Reader<Key, Value>
@@ -677,8 +701,16 @@ public:
     KeyWriter(KeyWriter&&);
 };
 
-template<typename K, typename V, typename KF, typename KFC, typename SF=void, typename SFC=void>
-KeyWriter<K, V, SF, SFC> makeKeyWriter(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyType key)
+template<typename K, typename V, typename KF, typename KFC>
+KeyWriter<K, V, void, void>
+makeKeyWriter(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyType key)
+{
+    return KeyWriter<K, V, void, void>(topic, key);
+}
+
+template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC>
+KeyWriter<K, V, SF, SFC>
+makeKeyWriter(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyType key)
 {
     return KeyWriter<K, V, SF, SFC>(topic, key);
 }
