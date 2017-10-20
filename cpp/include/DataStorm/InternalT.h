@@ -74,7 +74,7 @@ public:
     virtual std::string toString() const override
     {
         std::ostringstream os;
-        os << _id << ':' << DataStorm::Stringifier<T>::toString(_value);
+        os << _id << ':' << Stringifier<T>::toString(_value);
         return os.str();
     }
 

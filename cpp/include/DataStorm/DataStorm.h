@@ -75,21 +75,6 @@ struct Encoder
     static T decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&);
 };
 
-template<typename T>
-struct Stringifier
-{
-    /**
-     * Transforms the given value to a string. Specialization can define this to provide
-     * a custom stringification implementation. The default implementation uses
-     * `std::ostream::operator<<` to transform the value to a string. This option is
-     * mandatory for key types.
-     *
-     * @param value The value to stringify
-     * @return The string representation of the value
-     */
-    static std::string toString(const T&);
-};
-
 /**
  * A sample provides information about an update of a data element.
  *
@@ -139,8 +124,19 @@ public:
      *
      * @return The timestamp.
      */
-    IceUtil::Time getTimestamp() const;
+    IceUtil::Time getTimeStamp() const;
 
+    /**
+     * The origin of the sample.
+     *
+     * The origin of the sample identifies uniquely on the node the writer
+     * that created the sample. It's a tupple composed of the node session
+     * identity, the topic and writer opaque identifiers.
+     *
+     * @return The tuple that uniquely identifies on the node the origin
+     *         of the sample.
+     */
+    std::tuple<std::string, long long int, long long int> getOrigin() const;
 
     /** @private */
     Sample(const std::shared_ptr<DataStormInternal::Sample>&);
@@ -175,7 +171,9 @@ public:
      */
     bool match(const T& value) const
     {
-        return std::regex_match(DataStorm::Stringifier<T>::toString(value), _regex);
+        std::ostringstream os;
+        os << value;
+        return std::regex_match(os.str(), _regex);
     }
 
 private:
@@ -518,17 +516,39 @@ makeKeyReader(Topic<K, V, KF, KFC>& topic, typename Topic<K, V, KF, KFC>::KeyTyp
     return KeyReader<K, V, SFC>(topic, key, sampleFilterCriteria);
 }
 
+/**
+ * Key reader template specialization for key readers with no sample filter.
+ */
 template<typename Key, typename Value>
 class KeyReader<Key, Value, void> : public Reader<Key, Value>
 {
 public:
 
+    /**
+     * Construct a new reader for the given key. The construction of the reader
+     * connects the reader to writers with a matching key.
+     *
+     * @param topic The topic.
+     * @param key The key of the data element to read.
+     */
     template<typename KeyFilter, typename KeyFilterCriteria>
     KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&, Key);
 
+    /**
+     * Construct a new reader for the given keys. The construction of the reader
+     * connects the reader to writers with matching keys.
+     *
+     * @param topic The topic.
+     * @param keys The keys of the data elements to read.
+     */
     template<typename KeyFilter, typename KeyFilterCriteria>
     KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&, std::vector<Key>);
 
+    /**
+     * Transfers the given reader to this reader.
+     *
+     * @param reader The reader.
+     **/
     KeyReader(KeyReader&&);
 };
 
@@ -589,15 +609,31 @@ makeFilteredReader(Topic<K, V, KF, KFC>& topic,
     return FilteredReader<K, V, SFC>(topic, filter, sampleFilterCriteria);
 }
 
+/**
+ * Filtered reader template specialization for filtered readers with no sample filter.
+ */
+
 template<typename Key, typename Value>
 class FilteredReader<Key, Value, void> : public Reader<Key, Value>
 {
 public:
 
+    /**
+     * Construct a new reader for the given key filter. The construction of the reader
+     * connects the reader to writers whose key matches the key filter criteria.
+     *
+     * @param topic The topic.
+     * @param criteria The filter criteria.
+     */
     template<typename KeyFilter, typename KeyFilterCriteria>
     FilteredReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&,
                    typename Topic<Key, Value, KeyFilter, KeyFilterCriteria>::KeyFilterCriteriaType);
 
+    /**
+     * Transfers the given reader to this reader.
+     *
+     * @param reader The reader.
+     **/
     FilteredReader(FilteredReader&&);
 };
 
@@ -753,12 +789,6 @@ Encoder<T>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const
     return v;
 }
 
-template<typename T> std::string
-Stringifier<T>::toString(const T& value)
-{
-    return DataStormInternal::Stringifier<T>::toString(value);
-}
-
 //
 // Sample template implementation
 //
@@ -781,9 +811,15 @@ Sample<Key, Value>::getValue() const
 }
 
 template<typename Key, typename Value> IceUtil::Time
-Sample<Key, Value>::getTimestamp() const
+Sample<Key, Value>::getTimeStamp() const
 {
     return IceUtil::Time::milliSeconds(_impl->timestamp);
+}
+
+template<typename Key, typename Value> std::tuple<std::string, long long int, long long int>
+Sample<Key, Value>::getOrigin() const
+{
+    return std::make_tuple<std::string, long long int, long long int>(_impl->session, _impl->topic, _impl->element);
 }
 
 template<typename Key, typename Value>
