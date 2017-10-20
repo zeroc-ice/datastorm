@@ -22,32 +22,42 @@ main(int argc, char* argv[])
 
     {
         Topic<string, string> topic(node, "string");
-        KeyReader<string, string> reader(topic, "elem1");
-
-        reader.waitForWriters(1);
-        test(reader.hasWriters());
-
-        auto testSample = [&reader](SampleType type, string key, string value = "")
         {
-            reader.waitForUnread(1);
-            auto sample = reader.getNextUnread();
-            test(sample.getKey() == key);
-            test(sample.getType() == type);
-            if(type != SampleType::Remove)
+            KeyReader<string, string> reader(topic, "elem1");
+
+            reader.waitForWriters(1);
+            test(reader.hasWriters());
+
+            auto testSample = [&reader](SampleType type, string key, string value = "")
             {
-                test(sample.getValue() == value);
-            }
-        };
+                reader.waitForUnread(1);
+                auto sample = reader.getNextUnread();
+                test(sample.getKey() == key);
+                test(sample.getType() == type);
+                if(type != SampleType::Remove)
+                {
+                    test(sample.getValue() == value);
+                }
+            };
 
-        testSample(SampleType::Add, "elem1", "value1");
-        testSample(SampleType::Update, "elem1", "value2");
-        testSample(SampleType::Remove, "elem1");
+            testSample(SampleType::Add, "elem1", "value1");
+            testSample(SampleType::Update, "elem1", "value2");
+            testSample(SampleType::Remove, "elem1");
 
-        auto samples = reader.getAll();
-        test(samples.size() == 3);
+            auto samples = reader.getAll();
+            test(samples.size() == 3);
 
-        samples = reader.getAllUnread();
-        test(samples.empty());
+            samples = reader.getAllUnread();
+            test(samples.empty());
+        }
+        {
+            KeyReader<string, string> reader1(topic, "elem2");
+            KeyReader<string, string> reader2(topic, "elem2");
+            reader1.waitForWriters(1);
+            reader2.waitForWriters(1);
+            reader1.waitForUnread();
+            reader2.waitForUnread();
+        }
     }
 
     {
@@ -75,8 +85,8 @@ main(int argc, char* argv[])
     }
 
     {
-        Topic<string, Test::BasePtr> topic(node, "baseclass");
-        KeyReader<string, Test::BasePtr> reader(topic, "elem1");
+        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass");
+        KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem1");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -99,7 +109,7 @@ main(int argc, char* argv[])
     }
 
     {
-        Topic<string, Test::BasePtr> topic(node, "baseclass2");
+        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
 
         auto testSample = [&topic](auto& reader, SampleType type, string key, string value = "")
         {
@@ -117,46 +127,38 @@ main(int argc, char* argv[])
         };
 
         {
-            KeyReader<string, Test::BasePtr> reader(topic, "elem1");
+            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem1");
             testSample(reader, SampleType::Add, "elem1", "value1");
             testSample(reader, SampleType::Update, "elem1", "value2");
             testSample(reader, SampleType::Remove, "elem1");
         }
         {
-            KeyReader<string, Test::BasePtr> reader(topic, "elem2");
+            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem2");
             testSample(reader, SampleType::Update, "elem2", "value1");
         }
         {
-            KeyReader<string, Test::BasePtr> reader(topic, "elem3");
+            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem3");
             testSample(reader, SampleType::Remove, "elem3");
         }
         {
-            KeyReader<string, Test::BasePtr> reader(topic, "elem4");
+            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem4");
             testSample(reader, SampleType::Add, "elem4", "value1");
         }
     }
 
     {
         Topic<string, string> topic(node, "multikey1");
-        {
-            KeyReader<string, string> reader1(topic, "elem1");
-            KeyReader<string, string> reader2(topic, "elem2");
-            reader1.waitForUnread(3);
-            reader2.waitForUnread(3);
-            test(reader1.getAll().size() == 3);
-            test(reader2.getAll().size() == 3);
-        }
-        {
-            KeyReader<string, string> reader(topic, vector<string> { "elem1", "elem2" });
-            reader.waitForUnread(6);
-            test(reader.getAll().size() == 6);
-        }
+
+        KeyReader<string, string> reader(topic, vector<string> { "elem1", "elem2" });
+        reader.waitForWriters(2);
+        reader.waitForUnread(6);
+        test(reader.getAll().size() == 6);
     }
 
     {
-        Topic<string, Test::BasePtr> topic(node, "baseclass3");
+        Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
-        FilteredReader<string, Test::BasePtr> reader(topic, "elem[0-9]");
+        FilteredReader<string, shared_ptr<Test::Base>> reader(topic, "elem[0-9]");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -182,7 +184,7 @@ main(int argc, char* argv[])
         testSample(SampleType::Add, "elem4", "value1");
     }
     {
-        Topic<string, string, RegexKeyValueFilter<string, string>> topic(node, "filtered reader key/value filter");
+        Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
 
         auto testSample = [](auto& reader, SampleType type, string key, string value = "")
         {
@@ -196,21 +198,21 @@ main(int argc, char* argv[])
             }
         };
 
-        FilteredReader<string, string> reader11(topic, { "elem[1]", "value[0-9]", { SampleType::Add }});
-        FilteredReader<string, string> reader12(topic, { "elem[1]", "value[0-9]", { SampleType::Update }});
-        FilteredReader<string, string> reader13(topic, { "elem[1]", "", { SampleType::Remove }});
+        FilteredReader<string, string, SampleTypeSeq> reader11(topic, "elem[1]", { SampleType::Add });
+        FilteredReader<string, string, SampleTypeSeq> reader12(topic, "elem[1]", { SampleType::Update });
+        FilteredReader<string, string, SampleTypeSeq> reader13(topic, "elem[1]", { SampleType::Remove });
         testSample(reader11, SampleType::Add, "elem1", "value1");
         testSample(reader12, SampleType::Update, "elem1", "value2");
         testSample(reader13, SampleType::Remove, "elem1");
 
-        FilteredReader<string, string> reader2(topic, { "elem2", "value[2-4]"});
+        FilteredReader<string, string, string> reader2(topic, "elem[2]", "value[2-4]");
         testSample(reader2, SampleType::Update, "elem2", "value2");
         testSample(reader2, SampleType::Update, "elem2", "value3");
         testSample(reader2, SampleType::Update, "elem2", "value4");
      }
 
     // {
-    //     Topic<string, Test::BasePtr> topic(node, "baseclass4");
+    //     Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
 
     //     auto testSample = [&topic](SampleType type, auto& reader, string key, string value = "")
     //     {
@@ -226,7 +228,7 @@ main(int argc, char* argv[])
     //     };
 
     //     {
-    //         KeyReader<string, Test::BasePtr> reader(topic, "elema1");
+    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elema1");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
     //         testSample(SampleType::Add, reader, "elema1", "value1");
@@ -234,31 +236,31 @@ main(int argc, char* argv[])
     //         testSample(SampleType::Remove, reader, "elema1");
     //     }
     //     {
-    //         KeyReader<string, Test::BasePtr> reader(topic, "elemb2");
+    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemb2");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
     //         testSample(SampleType::Update, reader, "elemb2", "value1");
     //     }
     //     {
-    //         KeyReader<string, Test::BasePtr> reader(topic, "elemc3");
+    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemc3");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
     //         testSample(SampleType::Remove, reader, "elemc3");
     //     }
     //     {
-    //         KeyReader<string, Test::BasePtr> reader(topic, "elemd4");
+    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemd4");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
     //         testSample(SampleType::Add, reader, "elemd4", "value1");
     //     }
 
     //     {
-    //         vector<KeyReader<string, Test::BasePtr>> readers;
+    //         vector<KeyReader<string, shared_ptr<Test::Base>>> readers;
     //         for(int i = 0; i < 5; ++i)
     //         {
     //             ostringstream os;
     //             os << "elem" << i;
-    //             readers.push_back(KeyReader<string, Test::BasePtr>(topic, os.str()));
+    //             readers.push_back(KeyReader<string, shared_ptr<Test::Base>>(topic, os.str()));
     //             readers.back().waitForWriters(1);
     //         }
     //         for(int i = 0; i < 5; ++i)

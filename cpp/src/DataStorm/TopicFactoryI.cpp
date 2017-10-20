@@ -16,7 +16,7 @@
 using namespace std;
 using namespace DataStormInternal;
 
-TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(0)
+TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(10)
 {
     _instance = instance;
     _traceLevels = _instance->getTraceLevels();
@@ -26,7 +26,7 @@ shared_ptr<TopicReader>
 TopicFactoryI::createTopicReader(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
                                  const shared_ptr<FilterFactory>& filterFactory,
-                                 typename Sample::FactoryType sampleFactory)
+                                 const shared_ptr<SampleFactory>& sampleFactory)
 {
     shared_ptr<TopicReaderI> reader;
     {
@@ -44,8 +44,8 @@ TopicFactoryI::createTopicReader(const string& name,
             out << name << ": created topic reader";
         }
     }
-    _instance->getNode()->getSubscriberForwarder()->announceTopics({ { reader->getId(), name } });
-    _instance->getTopicLookup()->announceTopicReaderAsync(reader->getName(), _instance->getNode()->getProxy());
+    _instance->getNode()->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } });
+    _instance->getTopicLookup()->announceTopicReaderAsync(name, _instance->getNode()->getProxy());
     return reader;
 }
 
@@ -53,7 +53,7 @@ shared_ptr<TopicWriter>
 TopicFactoryI::createTopicWriter(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
                                  const shared_ptr<FilterFactory>& filterFactory,
-                                 typename Sample::FactoryType sampleFactory)
+                                 const shared_ptr<SampleFactory>& sampleFactory)
 {
     shared_ptr<TopicWriterI> writer;
     {
@@ -71,8 +71,8 @@ TopicFactoryI::createTopicWriter(const string& name,
             out << name << ": created topic writer";
         }
     }
-    _instance->getNode()->getPublisherForwarder()->announceTopics({ { writer->getId(), name } });
-    _instance->getTopicLookup()->announceTopicWriterAsync(writer->getName(), _instance->getNode()->getProxy());
+    _instance->getNode()->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } });
+    _instance->getTopicLookup()->announceTopicWriterAsync(name, _instance->getNode()->getProxy());
     return writer;
 }
 
@@ -162,10 +162,14 @@ TopicFactoryI::getTopicReaders() const
     readers.reserve(_readers.size());
     for(const auto& p : _readers)
     {
-        for(const auto& r : p.second)
+        DataStormContract::TopicInfo info;
+        info.name = p.first;
+        info.ids.reserve(p.second.size());
+        for(const auto& p : p.second)
         {
-            readers.push_back({ r->getId(), p.first });
+            info.ids.push_back(p->getId());
         }
+        readers.push_back(move(info));
     }
     return readers;
 }
@@ -178,10 +182,14 @@ TopicFactoryI::getTopicWriters() const
     writers.reserve(_writers.size());
     for(const auto& p : _writers)
     {
-        for(const auto& w : p.second)
+        DataStormContract::TopicInfo info;
+        info.name = p.first;
+        info.ids.reserve(p.second.size());
+        for(const auto& p : p.second)
         {
-            writers.push_back({ w->getId(), p.first });
+            info.ids.push_back(p->getId());
         }
+        writers.push_back(info);
     }
     return writers;
 }

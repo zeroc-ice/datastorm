@@ -81,6 +81,7 @@ class SessionI : virtual public DataStormContract::Session, public std::enable_s
             auto p = _elements.find(id);
             if(p != _elements.end())
             {
+                //assert(!k || k == p->second.get());
                 return &p->second;
             }
             else if(k)
@@ -189,20 +190,16 @@ public:
     SessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
     void init(const std::shared_ptr<DataStormContract::SessionPrx>&);
 
-    virtual void announceTopics(DataStormContract::TopicInfoSeq, const Ice::Current&);
-    virtual void attachTopics(DataStormContract::TopicInfoAndContentSeq, const Ice::Current&);
-    virtual void detachTopic(long long int, const Ice::Current&);
+    virtual void announceTopics(DataStormContract::TopicInfoSeq, const Ice::Current&) override;
+    virtual void attachTopic(DataStormContract::TopicSpec, const Ice::Current&) override;
+    virtual void detachTopic(long long int, const Ice::Current&) override;
 
-    virtual void announceKeys(long long int, DataStormContract::KeyInfoSeq, const Ice::Current&);
-    virtual void announceFilter(long long int, DataStormContract::FilterInfo, const Ice::Current&);
-    virtual void attachKeysAndFilters(long long int,
-                                      long long int,
-                                      DataStormContract::KeyInfoAndSamplesSeq,
-                                      DataStormContract::FilterInfoSeq,
-                                      const Ice::Current&);
-    virtual void detachKeys(long long int, DataStormContract::LongSeq, const Ice::Current&);
-    virtual void detachFilter(long long int, long long int, const Ice::Current&);
+    virtual void announceElements(long long int, DataStormContract::ElementInfoSeq, const Ice::Current&) override;
+    virtual void attachElements(long long int, long long int, DataStormContract::ElementSpecSeq, const Ice::Current&) override;
+    virtual void attachElementsAck(long long int, long long int, DataStormContract::ElementSpecAckSeq, const Ice::Current&) override;
+    virtual void detachElements(long long int, DataStormContract::LongSeq, const Ice::Current&) override;
 
+    virtual void initSamples(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&) override;
 
     void connected(const std::shared_ptr<DataStormContract::SessionPrx>&,
                    const std::shared_ptr<Ice::Connection>&,
@@ -210,12 +207,17 @@ public:
     void disconnected(std::exception_ptr);
     void destroyImpl();
 
+    const std::string& getId() const
+    {
+        return _id;
+    }
+
     void addConnectedCallback(std::function<void(std::shared_ptr<DataStormContract::SessionPrx>)>);
 
     std::shared_ptr<DataStormContract::SessionPrx> getSession() const;
     std::shared_ptr<DataStormContract::SessionPrx> getSessionNoLock() const;
 
-    virtual long long int getLastId(long long int) const;
+    long long int getLastId(long long int) const;
 
     std::shared_ptr<DataStormContract::SessionPrx> getProxy() const
     {
@@ -243,6 +245,8 @@ public:
     void subscribeToFilter(long long int, long long int, const std::shared_ptr<Filter>&, DataElementI*, const std::string&);
     void unsubscribeFromFilter(long long int, long long int, DataElementI*);
     void disconnectFromFilter(long long int, long long int, DataElementI*);
+
+    void subscriberInitialized(long long int, long long int, DataElementI*);
 
 protected:
 
@@ -278,9 +282,7 @@ public:
     SubscriberSessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
     virtual void destroy(const Ice::Current&) override;
 
-    virtual void i(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&) override;
     virtual void s(long long int, long long int, DataStormContract::DataSample, const Ice::Current&) override;
-    virtual void f(long long int, long long int, DataStormContract::DataSample, const Ice::Current&) override;
 
 private:
 

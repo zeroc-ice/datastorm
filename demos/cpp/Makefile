@@ -1,0 +1,16 @@
+# **********************************************************************
+#
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+#
+# **********************************************************************
+
+top_srcdir      := ../..
+lang_srcdir     := $(top_srcdir)/demos/cpp
+
+include $(lang_srcdir)/make/Make.rules
+
+demos		= minimal
+
+include $(shell find $(lang_srcdir) -name Makefile.mk)
+$(foreach t,$(demos),$(eval $(call create-demo-project,$(t))))
+$(call make-projects,$(projects))

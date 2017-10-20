@@ -15,6 +15,7 @@
 
 #include <DataStorm/InternalI.h>
 #include <DataStorm/SessionI.h>
+#include <DataStorm/DataElementI.h>
 
 namespace Ice
 {
@@ -66,7 +67,14 @@ template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormIntern
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, T* topic)
 {
-    return os << (topic ? topic->getName() : "<null>");
+    if(topic)
+    {
+        return os << topic->getName() << ":" << topic->getId();
+    }
+    else
+    {
+        return os << "<null>";
+    }
 }
 
 template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::DataElementI, T>::value>::type* = nullptr>
@@ -102,34 +110,99 @@ operator<<(LoggerOutputBase& os, const Ice::Identity& id)
     return os << (id.category.empty() ? "" : id.category + "/") << id.name;
 }
 
+inline std::string
+valueIdToString(long long int valueId)
+{
+    std::ostringstream os;
+    if(valueId < 0)
+    {
+        os << "f" << -valueId;
+    }
+    else
+    {
+        os << "k" << valueId;
+    }
+    return os.str();
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::ElementInfo& info)
+{
+    return os << valueIdToString(info.valueId);
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::ElementData& data)
+{
+    os << 'e' << data.id;
+    if(!data.facet.empty())
+    {
+        os << ':' << data.facet;
+    }
+    return os;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpec& spec)
+{
+    for(auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
+    {
+        if(q != spec.elements.begin())
+        {
+            os << ',';
+        }
+        os << *q << ':' << valueIdToString(spec.valueId) << ":pv" << valueIdToString(spec.peerValueId);
+    }
+    return os;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::ElementDataAck& data)
+{
+    os << 'e' << data.id << ":pe" << data.peerId;
+    if(!data.facet.empty())
+    {
+        os << ':' << data.facet;
+    }
+    if(!data.samples.empty())
+    {
+        os << ":sz" << data.samples.size();
+    }
+    return os;
+}
+
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpecAck& spec)
+{
+    for(auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
+    {
+        if(q != spec.elements.begin())
+        {
+            os << ',';
+        }
+        os << *q << ':' << valueIdToString(spec.valueId) << ":pv" << valueIdToString(spec.peerValueId);
+    }
+    return os;
+}
+
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const DataStormContract::TopicInfo& info)
 {
-    return os << info.name << ':' << info.id;
+    os << "[" << info.ids << "]:" << info.name;
+    return os;
 }
 
 inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::TopicInfoAndContent& info)
+operator<<(LoggerOutputBase& os, const DataStormContract::TopicSpec& info)
 {
-    return os << info.name << ':' << info.id;
+    os << '[' << info.elements << "]@" << info.id << ':' << info.name;
+    return os;
 }
 
 inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::KeyInfo& info)
+operator<<(LoggerOutputBase& os, const DataStormContract::DataSamples& samples)
 {
-    return os << info.id;
-}
-
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::FilterInfo& info)
-{
-    return os << info.id;
-}
-
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::KeyInfoAndSamples& info)
-{
-    return os << info.info;
+    return os << 'e' << samples.id << ":sz" << samples.samples.size();
 }
 
 }

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <DataStorm/SampleType.ice>
+#include <DataStorm/Sample.ice>
 
 module DataStormContract
 {
@@ -31,62 +31,80 @@ sequence<DataSample> DataSampleSeq;
 
 struct DataSamples
 {
-    long key;
-    long subscriberId;
+    long id;
     DataSampleSeq samples;
 }
 sequence<DataSamples> DataSamplesSeq;
 
+struct ElementInfo
+{
+    long valueId;
+    ByteSeq value;
+}
+sequence<ElementInfo> ElementInfoSeq;
+
 struct TopicInfo
 {
-    long id;
     string name;
+    LongSeq ids;
 }
 sequence<TopicInfo> TopicInfoSeq;
 
-struct KeyInfo
-{
-    long id;
-    ByteSeq key;
-}
-sequence<KeyInfo> KeyInfoSeq;
-
-struct KeyInfoAndSamples
-{
-    KeyInfo info;
-    long subscriberId;
-    DataSampleSeq samples;
-}
-sequence<KeyInfoAndSamples> KeyInfoAndSamplesSeq;
-
-struct FilterInfo
-{
-    long id;
-    ByteSeq filter;
-}
-sequence<FilterInfo> FilterInfoSeq;
-
-struct TopicInfoAndContent
+struct TopicSpec
 {
     long id;
     string name;
-    long lastId;
-    KeyInfoSeq keys;
-    FilterInfoSeq filters;
+    ElementInfoSeq elements;
+};
+
+struct ElementData
+{
+    long id;
+    string facet;
+    ByteSeq sampleFilter;
 }
-sequence<TopicInfoAndContent> TopicInfoAndContentSeq;
+sequence<ElementData> ElementDataSeq;
+
+struct ElementSpec
+{
+    ElementDataSeq elements;
+    long valueId;
+    ByteSeq value;
+    long peerValueId;
+}
+sequence<ElementSpec> ElementSpecSeq;
+
+struct ElementDataAck
+{
+    long id;
+    string facet;
+    ByteSeq sampleFilter;
+    DataSampleSeq samples;
+    long peerId;
+}
+sequence<ElementDataAck> ElementDataAckSeq;
+
+struct ElementSpecAck
+{
+    ElementDataAckSeq elements;
+    long valueId;
+    ByteSeq value;
+    long peerValueId;
+}
+sequence<ElementSpecAck> ElementSpecAckSeq;
 
 interface Session
 {
     void announceTopics(TopicInfoSeq topics);
-    void attachTopics(TopicInfoAndContentSeq topics);
+    void attachTopic(TopicSpec topic);
     void detachTopic(long topic);
 
-    void announceKeys(long topic, KeyInfoSeq keys);
-    void announceFilter(long topic, FilterInfo filter);
-    void attachKeysAndFilters(long topic, long lastId, KeyInfoAndSamplesSeq keys, FilterInfoSeq filters);
-    void detachKeys(long topic, LongSeq keys);
-    void detachFilter(long topic, long filter);
+    void announceElements(long topic, ElementInfoSeq keys);
+    void attachElements(long topic, long lastId, ElementSpecSeq elements);
+    void attachElementsAck(long topic, long lastId, ElementSpecAckSeq elements);
+    void detachElements(long topic, LongSeq keys);
+
+    void initSamples(long topic, DataSamplesSeq samples);
 
     void destroy();
 }
@@ -97,9 +115,7 @@ interface PublisherSession extends Session
 
 interface SubscriberSession extends Session
 {
-    void i(long topic, DataSamplesSeq samples);
-    void s(long topic, long key, DataSample sample);
-    void f(long topic, long filter, DataSample sample);
+    void s(long topic, long element, DataSample sample);
 }
 
 interface Node

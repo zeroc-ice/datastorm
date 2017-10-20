@@ -12,8 +12,7 @@
 #include <Ice/Communicator.h>
 
 #include <DataStorm/Config.h>
-#include <DataStorm/SampleType.h>
-#include <DataStorm/Filter.h>
+#include <DataStorm/Sample.h>
 
 //
 // Private abstract API used by the template based API and the internal DataStorm implementation.
@@ -22,6 +21,10 @@ namespace DataStormInternal
 {
 
 class Instance;
+
+class Filterable
+{
+};
 
 class Element
 {
@@ -32,39 +35,44 @@ public:
     virtual long long int getId() const = 0;
 };
 
-class Key : virtual public Element
+class Key : public Filterable, virtual public Element
 {
 };
 
 class KeyFactory
 {
 public:
-
+    virtual std::shared_ptr<Key> get(long long int) const = 0;
     virtual std::shared_ptr<Key> decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
 };
 
-class Sample
+class Sample : public Filterable, public std::enable_shared_from_this<Sample>
 {
 public:
 
-    using FactoryType = std::function<std::shared_ptr<Sample>(long long int,
-                                                              DataStorm::SampleType,
-                                                              const std::shared_ptr<Key>&,
-                                                              std::vector<unsigned char>,
-                                                              long long int)>;
-
-    Sample(long long int id,
+    Sample(const std::string& session,
+           long long int topic,
+           long long int element,
+           long long int id,
            DataStorm::SampleType type,
            const std::shared_ptr<Key>& key,
            std::vector<unsigned char> value,
            long long int timestamp) :
-        id(id), type(type), key(key), timestamp(timestamp), _encodedValue(std::move(value))
+        session(session), topic(topic), element(element), id(id), type(type), key(key), timestamp(timestamp),
+        _encodedValue(std::move(value))
+    {
+    }
+
+    Sample(DataStorm::SampleType type) : type(type)
     {
     }
 
     virtual void decode(const std::shared_ptr<Ice::Communicator>&) = 0;
     virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>&) = 0;
 
+    std::string session;
+    long long int topic;
+    long long int element;
     long long int id;
     DataStorm::SampleType type;
     std::shared_ptr<Key> key;
@@ -75,23 +83,32 @@ protected:
     std::vector<unsigned char> _encodedValue;
 };
 
+class SampleFactory
+{
+public:
+
+    virtual std::shared_ptr<Sample> create(const std::string&,
+                                           long long int,
+                                           long long int,
+                                           long long int,
+                                           DataStorm::SampleType,
+                                           const std::shared_ptr<Key>&,
+                                           std::vector<unsigned char>,
+                                           long long int) = 0;
+};
+
 class Filter : virtual public Element
 {
 public:
 
-    virtual bool match(const std::shared_ptr<Key>&) const = 0;
-
-    virtual bool hasWriterMatch() const = 0;
-    virtual bool writerMatch(const std::shared_ptr<Sample>&) const = 0;
-
-    virtual bool hasReaderMatch() const = 0;
-    virtual bool readerMatch(const std::shared_ptr<Sample>&) const = 0;
+    virtual bool match(const std::shared_ptr<Filterable>&) const = 0;
 };
 
 class FilterFactory
 {
 public:
 
+    virtual std::shared_ptr<Filter> get(long long int) const = 0;
     virtual std::shared_ptr<Filter> decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
 };
 
@@ -143,8 +160,10 @@ class TopicReader : virtual public Topic
 {
 public:
 
-    virtual std::shared_ptr<DataReader> createFilteredDataReader(const std::shared_ptr<Filter>&) = 0;
-    virtual std::shared_ptr<DataReader> createDataReader(const std::vector<std::shared_ptr<Key>>&) = 0;
+    virtual std::shared_ptr<DataReader> createFiltered(const std::shared_ptr<Filter>&,
+                                                       std::vector<unsigned char> = {}) = 0;
+    virtual std::shared_ptr<DataReader> create(const std::vector<std::shared_ptr<Key>>&,
+                                               std::vector<unsigned char> = {}) = 0;
 
     virtual bool hasWriters() const = 0;
     virtual void waitForWriters(int) const = 0;
@@ -154,8 +173,10 @@ class TopicWriter : virtual public Topic
 {
 public:
 
-    virtual std::shared_ptr<DataWriter> createFilteredDataWriter(const std::shared_ptr<Filter>&) = 0;
-    virtual std::shared_ptr<DataWriter> createDataWriter(const std::vector<std::shared_ptr<Key>>&) = 0;
+    virtual std::shared_ptr<DataWriter> createFiltered(const std::shared_ptr<Filter>&,
+                                                       const std::shared_ptr<FilterFactory>& = nullptr) = 0;
+    virtual std::shared_ptr<DataWriter> create(const std::shared_ptr<Key>&,
+                                               const std::shared_ptr<FilterFactory>& = nullptr) = 0;
 
     virtual bool hasReaders() const = 0;
     virtual void waitForReaders(int) const = 0;
@@ -168,12 +189,12 @@ public:
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<FilterFactory>&,
-                                                           typename Sample::FactoryType) = 0;
+                                                           const std::shared_ptr<SampleFactory>&) = 0;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<FilterFactory>&,
-                                                           typename Sample::FactoryType) = 0;
+                                                           const std::shared_ptr<SampleFactory>&) = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };

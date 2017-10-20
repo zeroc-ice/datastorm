@@ -37,7 +37,7 @@ toSeq(const map<K, V>& map)
 TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
                const shared_ptr<KeyFactory>& keyFactory,
                const shared_ptr<FilterFactory>& filterFactory,
-               typename Sample::FactoryType sampleFactory,
+               const shared_ptr<SampleFactory>& sampleFactory,
                const string& name,
                long long int id) :
     _factory(factory),
@@ -52,7 +52,9 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
     _listenerCount(0),
     _waiters(0),
     _notified(0),
-   _nextSampleId(0)
+    _nextId(0),
+    _nextFilteredId(0),
+    _nextSampleId(0)
 {
 }
 
@@ -90,34 +92,80 @@ TopicI::destroy()
     disconnect();
 }
 
-KeyInfoSeq
-TopicI::getKeyInfoSeq() const
+TopicSpec
+TopicI::getTopicSpec() const
 {
-    KeyInfoSeq keys;
-    keys.reserve(_keyElements.size());
-    for(const auto& element : _keyElements)
+    TopicSpec spec;
+    spec.id = _id;
+    spec.name = _name;
+    spec.elements.reserve(_keyElements.size() + _filteredElements.size());
+    for(auto k : _keyElements)
     {
-        keys.push_back({ element.first->getId(), element.first->encode(_instance->getCommunicator()) });
+        spec.elements.push_back({ k.first->getId(), k.first->encode(_instance->getCommunicator()) });
     }
-    return keys;
+    for(auto f : _filteredElements)
+    {
+        spec.elements.push_back({ -f.first->getId(), f.first->encode(_instance->getCommunicator()) });
+    }
+    return spec;
 }
 
-FilterInfoSeq
-TopicI::getFilterInfoSeq() const
+ElementSpecSeq
+TopicI::getElementSpecs(const ElementInfoSeq& infos)
 {
-    FilterInfoSeq filters;
-    filters.reserve(_filteredElements.size());
-    for(const auto& element : _filteredElements)
+    ElementSpecSeq specs;
+    for(const auto& info : infos)
     {
-        filters.push_back({ element.first->getId(), element.first->encode(_instance->getCommunicator()) });
+        if(info.valueId > 0) // Key
+        {
+            auto key = _keyFactory->decode(_instance->getCommunicator(), info.value);
+            auto p = _keyElements.find(key);
+            if(p != _keyElements.end())
+            {
+                ElementDataSeq elements;
+                for(auto k : p->second)
+                {
+                    elements.push_back({ k->getId(), k->getFacet(), k->getSampleFilterCriteria() });
+                }
+                specs.push_back({ move(elements), key->getId(), {}, info.valueId });
+            }
+            for(auto e : _filteredElements)
+            {
+                if(e.first->match(key))
+                {
+                    ElementDataSeq elements;
+                    for(auto f : e.second)
+                    {
+                        elements.push_back({ f->getId(), f->getFacet(), f->getSampleFilterCriteria() });
+                    }
+                    specs.push_back({ move(elements),
+                                      -e.first->getId(),
+                                      e.first->encode(_instance->getCommunicator()),
+                                      info.valueId });
+                }
+            }
+        }
+        else if(_filterFactory) // Filter
+        {
+            auto filter = _filterFactory->decode(_instance->getCommunicator(), info.value);
+            for(auto e : _keyElements)
+            {
+                if(filter->match(e.first))
+                {
+                    ElementDataSeq elements;
+                    for(auto k : e.second)
+                    {
+                        elements.push_back({ k->getId(), k->getFacet(), k->getSampleFilterCriteria() });
+                    }
+                    specs.push_back({ move(elements),
+                                      e.first->getId(),
+                                      e.first->encode(_instance->getCommunicator()),
+                                      info.valueId });
+                }
+            }
+        }
     }
-    return filters;
-}
-
-TopicInfoAndContent
-TopicI::getTopicInfoAndContent(long long int lastId) const
-{
-    return { _id, _name, lastId, getKeyInfoSeq(), getFilterInfoSeq() };
+    return specs;
 }
 
 void
@@ -153,79 +201,224 @@ TopicI::detach(long long id, SessionI* session)
     }
 }
 
-KeyInfoAndSamplesSeq
-TopicI::attachKeysAndFilters(long long int id,
-                             const KeyInfoSeq& keys,
-                             const FilterInfoSeq& filters,
-                             long long int lastId,
-                             SessionI* session,
-                             const shared_ptr<SessionPrx>& prx)
+ElementSpecAckSeq
+TopicI::attachElements(long long int topicId,
+                       long long int lastId,
+                       const ElementSpecSeq& elements,
+                       SessionI* session,
+                       const shared_ptr<SessionPrx>& prx)
 {
-    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
-    map<shared_ptr<Filter>, FilterInfo> ackFilters;
-    for(const auto& info : keys)
+    ElementSpecAckSeq specs;
+    for(const auto& spec : elements)
     {
-        attachKeyImpl(id, info, lastId, session, prx, ackKeys, ackFilters);
+        if(spec.peerValueId > 0) // Key
+        {
+            auto key = _keyFactory->get(spec.peerValueId);
+            auto p = _keyElements.find(key);
+            if(p != _keyElements.end())
+            {
+                shared_ptr<Filter> filter;
+                if(spec.valueId < 0) // Filter
+                {
+                    if(!_filterFactory)
+                    {
+                        // TODO
+                    }
+                    filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
+                }
+                for(auto e : p->second)
+                {
+                    ElementDataAckSeq datas;
+                    for(const auto& data : spec.elements)
+                    {
+                        auto sampleFilter = e->createSampleFilter(data.sampleFilter);
+                        bool attached = false;
+                        if(spec.valueId > 0) // Key
+                        {
+                            attached = e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
+                        }
+                        else if(filter->match(key))
+                        {
+                            attached = e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
+                        }
+                        if(attached)
+                        {
+                            datas.push_back({ e->getId(),
+                                              e->getFacet(),
+                                              e->getSampleFilterCriteria(),
+                                              e->getSamples(lastId, sampleFilter),
+                                              data.id });
+                        }
+                    }
+                    if(!datas.empty())
+                    {
+                        specs.push_back({ move(datas),
+                                          key->getId(),
+                                          spec.valueId < 0 ? key->encode(_instance->getCommunicator()) : ByteSeq(),
+                                          spec.valueId });
+                    }
+                }
+            }
+        }
+        else if(_filterFactory) // Filter
+        {
+            auto filter = _filterFactory->get(-spec.peerValueId);
+            auto p = _filteredElements.find(filter);
+            if(p != _filteredElements.end())
+            {
+                shared_ptr<Key> key;
+                if(spec.valueId > 0) // Key
+                {
+                    key = _keyFactory->decode(_instance->getCommunicator(), spec.value);
+                }
+
+                for(auto e : p->second)
+                {
+                    ElementDataAckSeq datas;
+                    for(const auto& data : spec.elements)
+                    {
+                        auto sampleFilter = e->createSampleFilter(data.sampleFilter);
+                        bool attached = false;
+                        if(spec.valueId < 0) // Filter
+                        {
+                            attached = e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
+                        }
+                        else if(filter->match(key))
+                        {
+                            attached = e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
+                        }
+                        if(attached)
+                        {
+                            datas.push_back({ e->getId(),
+                                              e->getFacet(),
+                                              e->getSampleFilterCriteria(),
+                                              e->getSamples(lastId, sampleFilter),
+                                              data.id });
+                        }
+                    }
+                    if(!datas.empty())
+                    {
+                        specs.push_back({ move(datas),
+                                          -filter->getId(),
+                                          spec.valueId > 0 ? filter->encode(_instance->getCommunicator()) : ByteSeq(),
+                                          spec.valueId });
+                    }
+                }
+            }
+        }
     }
-    for(const auto& info : filters)
-    {
-        attachFilterImpl(id, info, lastId, session, prx, ackKeys);
-    }
-    return toSeq(ackKeys);
+    return specs;
 }
 
 DataSamplesSeq
-TopicI::attachKeysAndFilters(long long int id,
-                             const KeyInfoAndSamplesSeq& keys,
-                             const FilterInfoSeq& filters,
-                             long long int lastId,
-                             SessionI* session,
-                             const shared_ptr<SessionPrx>& prx)
+TopicI::attachElementsAck(long long int topicId,
+                          long long int lastId,
+                          const ElementSpecAckSeq& elements,
+                          SessionI* session,
+                          const shared_ptr<SessionPrx>& prx)
 {
-    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
-    map<shared_ptr<Filter>, FilterInfo> ackFilters;
-    for(const auto& info : keys)
-    {
-        attachKeyImpl(id, info.info, lastId, session, prx, ackKeys, ackFilters);
-    }
-    for(const auto& info : filters)
-    {
-        attachFilterImpl(id, info, lastId, session, prx, ackKeys);
-    }
     DataSamplesSeq samples;
-    for(const auto& k : ackKeys)
+    auto initSamples = [&](auto element, auto elementId, const auto& key, const auto& facet, const auto& samples, auto& samplesI)
     {
-        samples.push_back({ k.second.info.id, k.second.subscriberId, move(k.second.samples) });
+        if(samplesI.empty() && !samples.empty())
+        {
+            samplesI.reserve(samples.size());
+            for(auto& s : samples)
+            {
+                samplesI.push_back(_sampleFactory->create(session->getId(),
+                                                          topicId,
+                                                          elementId,
+                                                          s.id,
+                                                          s.type,
+                                                          key,
+                                                          s.value,
+                                                          s.timestamp));
+            }
+        }
+        element->initSamples(samplesI, session, topicId, elementId);
+    };
+
+    for(const auto& spec : elements)
+    {
+        if(spec.peerValueId > 0) // Key
+        {
+            auto key = _keyFactory->get(spec.peerValueId);
+            auto p = _keyElements.find(key);
+            if(p != _keyElements.end())
+            {
+                shared_ptr<Filter> filter;
+                if(spec.valueId < 0)
+                {
+                    if(!_filterFactory)
+                    {
+                        // TODO
+                    }
+                    filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
+                }
+
+                vector<std::shared_ptr<Sample>> samplesI;
+                for(auto e : p->second)
+                {
+                    for(const auto& data : spec.elements)
+                    {
+                        if(data.peerId == e->getId())
+                        {
+                            auto sampleFilter = e->createSampleFilter(data.sampleFilter);
+                            if(spec.valueId > 0) // Key
+                            {
+                                e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
+                                initSamples(e, data.id, key, data.facet, data.samples, samplesI);
+                            }
+                            else if(filter->match(key)) // Filter
+                            {
+                                e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
+                                initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
+                            }
+                            samples.push_back({ e->getId(), e->getSamples(lastId, sampleFilter) });
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        else // Filter
+        {
+            auto filter = _filterFactory->get(-spec.peerValueId);
+            auto p = _filteredElements.find(filter);
+            if(p != _filteredElements.end())
+            {
+                shared_ptr<Key> key;
+                if(spec.valueId > 0) // Key
+                {
+                    key = _keyFactory->decode(_instance->getCommunicator(), spec.value);
+                }
+
+                vector<std::shared_ptr<Sample>> samplesI;
+                for(auto e : p->second)
+                {
+                    for(const auto& data : spec.elements)
+                    {
+                        if(data.peerId == e->getId())
+                        {
+                            auto sampleFilter = e->createSampleFilter(data.sampleFilter);
+                            if(spec.valueId < 0) // Filter
+                            {
+                                e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
+                                initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
+                            }
+                            else if(filter->match(key))
+                            {
+                                e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
+                                initSamples(e, data.id, key, data.facet, data.samples, samplesI);
+                            }
+                            samples.push_back({ e->getId(), e->getSamples(lastId, sampleFilter) });
+                        }
+                    }
+                }
+            }
+        }
     }
     return samples;
-}
-
-pair<KeyInfoAndSamplesSeq, FilterInfoSeq>
-TopicI::attachKeys(long long int id,
-                   const KeyInfoSeq& infos,
-                   long long int lastId,
-                   SessionI* session,
-                   const shared_ptr<SessionPrx>& prx)
-{
-    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
-    map<shared_ptr<Filter>, FilterInfo> ackFilters;
-    for(const auto& info : infos)
-    {
-        attachKeyImpl(id, info, lastId, session, prx, ackKeys, ackFilters);
-    }
-    return { toSeq(ackKeys), toSeq(ackFilters) };
-}
-
-KeyInfoAndSamplesSeq
-TopicI::attachFilter(long long int id,
-                     const FilterInfo& info,
-                     long long int lastId,
-                     SessionI* session,
-                     const shared_ptr<SessionPrx>& prx)
-{
-    map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples> ackKeys;
-    attachFilterImpl(id, info, lastId, session, prx, ackKeys);
-    return toSeq(ackKeys);
 }
 
 void
@@ -288,124 +481,6 @@ TopicI::disconnect()
 }
 
 void
-TopicI::attachKeyImpl(long long int id,
-                      const KeyInfo& info,
-                      long long int lastId,
-                      SessionI* session,
-                      const shared_ptr<SessionPrx>& prx,
-                      map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples>& ackKeys,
-                      map<shared_ptr<Filter>, FilterInfo>& ackFilters)
-{
-    auto key = _keyFactory->decode(_instance->getCommunicator(), info.key);
-
-    auto p = _keyElements.find(key);
-    if(p != _keyElements.end())
-    {
-        DataSampleSeq samples;
-        bool ack = ackKeys.find({ key, -1 }) == ackKeys.end(); // Don't ack twice the same element
-        bool attached = false;
-        for(auto k : p->second)
-        {
-            if(k->attachKey(id, info.id, key, session, prx))
-            {
-                attached = true;
-                if(ack)
-                {
-                    auto s = k->getSamples(lastId, nullptr);
-                    samples.insert(samples.end(), s.begin(), s.end());
-                }
-            }
-        }
-        if(attached && ack)
-        {
-            sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
-            ackKeys.emplace(make_pair(key, -1),
-                            KeyInfoAndSamples
-                            {
-                                {
-                                    p->first->getId(),
-                                    p->first->encode(_instance->getCommunicator())
-                                },
-                                -1,
-                                samples
-                            });
-        }
-    }
-
-    for(const auto& element : _filteredElements)
-    {
-        if(element.first->match(key))
-        {
-            bool attached = false;
-            for(auto f : element.second)
-            {
-                if(f->attachKey(id, info.id, key, session, prx))
-                {
-                    attached = true;
-                }
-            }
-            if(attached && ackFilters.find(element.first) == ackFilters.end())
-            {
-                ackFilters.emplace(element.first,
-                                   FilterInfo
-                                   {
-                                       element.first->getId(),
-                                       element.first->encode(_instance->getCommunicator())
-                                   });
-            }
-        }
-    }
-}
-
-void
-TopicI::attachFilterImpl(long long int id,
-                         const FilterInfo& info,
-                         long long int lastId,
-                         SessionI* session,
-                         const shared_ptr<SessionPrx>& prx,
-                         map<pair<shared_ptr<Key>, long long int>, KeyInfoAndSamples>& ackKeys)
-{
-    auto filter = _filterFactory->decode(_instance->getCommunicator(), info.filter);
-
-    for(const auto& element : _keyElements)
-    {
-        if(filter->match(element.first))
-        {
-            DataSampleSeq samples;
-            long long int subscriberId = filter->hasWriterMatch() ? info.id : -1;
-            bool ack = ackKeys.find({ element.first, subscriberId }) == ackKeys.end();
-            bool attached = false;
-            for(auto k : element.second)
-            {
-                if(k->attachFilter(id, info.id, filter, session, prx))
-                {
-                    attached = true;
-                    if(ack)
-                    {
-                        auto s = k->getSamples(lastId, filter);
-                        samples.insert(samples.end(), s.begin(), s.end());
-                    }
-                }
-            }
-            if(attached && ack)
-            {
-                sort(samples.begin(), samples.end(), [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
-                ackKeys.emplace(make_pair(element.first, subscriberId),
-                                KeyInfoAndSamples
-                                {
-                                    {
-                                        element.first->getId(),
-                                        element.first->encode(_instance->getCommunicator())
-                                    },
-                                    subscriberId,
-                                    samples
-                                });
-            }
-        }
-    }
-}
-
-void
 TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 {
     // Forwarder proxy must be called with the mutex locked!
@@ -415,10 +490,44 @@ TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
     }
 }
 
+void
+TopicI::add(const shared_ptr<KeyDataElementI>& element, const vector<shared_ptr<Key>>& keys)
+{
+    ElementInfoSeq infos;
+    for(const auto& key : keys)
+    {
+        auto p = _keyElements.find(key);
+        if(p == _keyElements.end())
+        {
+            p = _keyElements.emplace(key, set<shared_ptr<KeyDataElementI>>()).first;
+        }
+        assert(element);
+        infos.push_back({ key->getId(), key->encode(_instance->getCommunicator()) });
+        p->second.insert(element);
+    }
+    if(!infos.empty())
+    {
+        _forwarder->announceElements(_id, infos);
+    }
+}
+
+void
+TopicI::addFiltered(const shared_ptr<FilteredDataElementI>& element, const shared_ptr<Filter>& filter)
+{
+    auto p = _filteredElements.find(filter);
+    if(p == _filteredElements.end())
+    {
+        p = _filteredElements.emplace(filter, set<shared_ptr<FilteredDataElementI>>()).first;
+    }
+    assert(element);
+    p->second.insert(element);
+    _forwarder->announceElements(_id, { { -filter->getId(), filter->encode(_instance->getCommunicator()) } });
+}
+
 TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<FilterFactory>& filterFactory,
-                           typename Sample::FactoryType sampleFactory,
+                           const shared_ptr<SampleFactory>& sampleFactory,
                            const string& name,
                            long long int id) :
     TopicI(factory, keyFactory, filterFactory, move(sampleFactory), name, id)
@@ -426,17 +535,21 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
 }
 
 shared_ptr<DataReader>
-TopicReaderI::createFilteredDataReader(const shared_ptr<Filter>& filter)
+TopicReaderI::createFiltered(const shared_ptr<Filter>& filter, vector<unsigned char> sampleFilter)
 {
     lock_guard<mutex> lock(_mutex);
-    return addFiltered(make_shared<FilteredDataReaderI>(this, filter), filter);
+    auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, move(sampleFilter));
+    addFiltered(element, filter);
+    return element;
 }
 
 shared_ptr<DataReader>
-TopicReaderI::createDataReader(const vector<shared_ptr<Key>>& keys)
+TopicReaderI::create(const vector<shared_ptr<Key>>& keys, vector<unsigned char> sampleFilter)
 {
     lock_guard<mutex> lock(_mutex);
-    return add(make_shared<KeyDataReaderI>(this, keys), keys);
+    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, move(sampleFilter));
+    add(element, keys);
+    return element;
 }
 
 void
@@ -497,7 +610,7 @@ TopicReaderI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<KeyDa
 TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<FilterFactory>& filterFactory,
-                           typename Sample::FactoryType sampleFactory,
+                           const shared_ptr<SampleFactory>& sampleFactory,
                            const string& name,
                            long long int id) :
     TopicI(factory, keyFactory, filterFactory, move(sampleFactory), name, id)
@@ -505,17 +618,21 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::createFilteredDataWriter(const shared_ptr<Filter>& filter)
+TopicWriterI::createFiltered(const shared_ptr<Filter>& filter, const shared_ptr<FilterFactory>& sampleFilterFactory)
 {
     lock_guard<mutex> lock(_mutex);
-    return addFiltered(make_shared<FilteredDataWriterI>(this, filter), filter);
+    auto element = make_shared<FilteredDataWriterI>(this, ++_nextFilteredId, filter, sampleFilterFactory);
+    addFiltered(element, filter);
+    return element;
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::createDataWriter(const vector<shared_ptr<Key>>& keys)
+TopicWriterI::create(const shared_ptr<Key>& key, const shared_ptr<FilterFactory>& sampleFilterFactory)
 {
     lock_guard<mutex> lock(_mutex);
-    return add(make_shared<KeyDataWriterI>(this, keys), keys);
+    auto element = make_shared<KeyDataWriterI>(this, ++_nextId, key, sampleFilterFactory);
+    add(element, { key });
+    return element;
 }
 
 void

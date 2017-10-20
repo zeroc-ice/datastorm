@@ -12,8 +12,6 @@
 #include <Ice/Communicator.h>
 
 #include <DataStorm/Config.h>
-#include <DataStorm/SampleType.h>
-#include <DataStorm/Filter.h>
 #include <DataStorm/InternalI.h>
 
 namespace DataStorm
@@ -73,16 +71,14 @@ public:
     {
     }
 
-    virtual std::string
-    toString() const override
+    virtual std::string toString() const override
     {
         std::ostringstream os;
-        os << DataStorm::Stringifier<T>::toString(_value) << ':' << _id;
+        os << _id << ':' << DataStorm::Stringifier<T>::toString(_value);
         return os.str();
     }
 
-    virtual std::vector<unsigned char>
-    encode(const std::shared_ptr<Ice::Communicator>& communicator) const override
+    virtual std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator) const override
     {
         return DataStorm::Encoder<T>::encode(communicator, _value);
     }
@@ -92,8 +88,7 @@ public:
         return _id;
     }
 
-    const T&
-    get() const
+    const T& get() const
     {
         return _value;
     }
@@ -104,11 +99,8 @@ protected:
     const long long int _id;
 };
 
-template<typename T> class AbstractFactoryT : public std::enable_shared_from_this<AbstractFactoryT<T>>
+template<typename K, typename V> class AbstractFactoryT : public std::enable_shared_from_this<AbstractFactoryT<K, V>>
 {
-    using K = typename T::CachedType;
-    using V = T;
-
     struct Deleter
     {
         void operator()(V* obj)
@@ -120,7 +112,7 @@ template<typename T> class AbstractFactoryT : public std::enable_shared_from_thi
             }
         }
 
-        std::weak_ptr<AbstractFactoryT<T>> _factory;
+        std::weak_ptr<AbstractFactoryT<K, V>> _factory;
 
     } _deleter;
 
@@ -133,7 +125,7 @@ public:
     void
     init()
     {
-        _deleter = { std::enable_shared_from_this<AbstractFactoryT<T>>::shared_from_this() };
+        _deleter = { std::enable_shared_from_this<AbstractFactoryT<K, V>>::shared_from_this() };
     }
 
     template<typename F> std::shared_ptr<typename V::ClassType>
@@ -144,15 +136,35 @@ public:
     }
 
     std::vector<std::shared_ptr<typename V::ClassType>>
-    create(const std::vector<K>& values)
+    create(std::vector<K> values)
     {
         std::lock_guard<std::mutex> lock(_mutex);
         std::vector<std::shared_ptr<typename V::ClassType>> seq;
-        for(const auto& v : values)
+        for(auto& v : values)
         {
-            seq.push_back(createImpl(v));
+            seq.push_back(createImpl(std::move(v)));
         }
         return seq;
+    }
+
+protected:
+
+    friend struct Deleter;
+
+    std::shared_ptr<typename V::ClassType>
+    getImpl(long long id) const
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto p = _elementsById.find(id);
+        if(p != _elementsById.end())
+        {
+            auto k = p->second.lock();
+            if(k)
+            {
+                return k;
+            }
+        }
+        return nullptr;
     }
 
     template<typename F> std::shared_ptr<V>
@@ -175,14 +187,11 @@ public:
             _elements.erase(p);
         }
 
-        auto k = std::shared_ptr<V>(new V(std::forward<F>(value), _nextId++), _deleter);
+        auto k = std::shared_ptr<V>(new V(std::forward<F>(value), ++_nextId), _deleter);
         _elements[k->get()] = k;
+        _elementsById[k->getId()] = k;
         return k;
     }
-
-protected:
-
-    friend struct Deleter;
 
     void remove(V* v)
     {
@@ -196,10 +205,12 @@ protected:
                 _elements.erase(p);
             }
         }
+        _elementsById.erase(v->getId());
     }
 
-    std::mutex _mutex;
+    mutable std::mutex _mutex;
     std::map<K, std::weak_ptr<V>> _elements;
+    std::map<long long int, std::weak_ptr<V>> _elementsById;
     long long int _nextId;
 };
 
@@ -207,21 +218,31 @@ template<typename K> class KeyT : public Key, public AbstractElementT<K>
 {
 public:
 
-    using CachedType = K;
+    virtual std::string toString() const override
+    {
+        return "k" + AbstractElementT<K>::toString();
+    }
+
     using AbstractElementT<K>::AbstractElementT;
     using ClassType = Key;
 };
 
-template<typename K> class KeyFactoryT : public KeyFactory, public AbstractFactoryT<KeyT<K>>
+template<typename K> class KeyFactoryT : public KeyFactory, public AbstractFactoryT<K, KeyT<K>>
 {
 public:
 
-    using AbstractFactoryT<KeyT<K>>::AbstractFactoryT;
+    using AbstractFactoryT<K, KeyT<K>>::AbstractFactoryT;
+
+    virtual std::shared_ptr<Key>
+    get(long long int id) const override
+    {
+        return AbstractFactoryT<K, KeyT<K>>::getImpl(id);
+    }
 
     virtual std::shared_ptr<Key>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<KeyT<K>>::create(DataStorm::Encoder<K>::decode(communicator, data));
+        return AbstractFactoryT<K, KeyT<K>>::create(DataStorm::Encoder<K>::decode(communicator, data));
     }
 
     static std::shared_ptr<KeyFactoryT<K>> createFactory()
@@ -236,26 +257,16 @@ template<typename Key, typename Value> class SampleT : public Sample
 {
 public:
 
-    SampleT(DataStorm::SampleType type, Value value) : Sample(0, type, nullptr, {}, 0), _value(std::move(value))
+    SampleT(DataStorm::SampleType type, Value value) : Sample(type), _value(std::move(value))
     {
     }
 
     using Sample::Sample;
 
-    static FactoryType factory()
+    DataStorm::Sample<Key, Value>
+    get()
     {
-        return [](long long int id,
-                  DataStorm::SampleType type,
-                  const std::shared_ptr<DataStormInternal::Key>& key,
-                  std::vector<unsigned char> value,
-                  long long int timestamp)
-        {
-            return std::shared_ptr<Sample>(std::make_shared<SampleT<Key, Value>>(id,
-                                                                                 type,
-                                                                                 key,
-                                                                                 std::move(value),
-                                                                                 timestamp));
-        };
+        return DataStorm::Sample<Key, Value>(shared_from_this());
     }
 
     Key getKey()
@@ -295,130 +306,51 @@ private:
     Value _value;
 };
 
-template<typename V, typename F>
-class has_key_filter
-{
-    template<typename VV, typename FF>
-    static auto test(int) -> decltype(std::declval<FF&>().match(std::declval<const VV&>()), std::true_type());
-
-    template<typename, typename>
-    static auto test(...) -> std::false_type;
-
-public:
-
-    static const bool value = decltype(test<V, F>(0))::value;
-};
-
-template<typename K, typename V, typename F>
-class has_rsample_filter
-{
-    template<typename VV, typename FF>
-    static auto test(int) -> decltype(std::declval<FF&>().readerMatch(std::declval<const VV&>()), std::true_type());
-
-    template<typename, typename>
-    static auto test(...) -> std::false_type;
-
-public:
-
-    static const bool value = decltype(test<DataStorm::Sample<K, V>, F>(0))::value;
-};
-
-template<typename K, typename V, typename F>
-class has_wsample_filter
-{
-    template<typename VV, typename FF>
-    static auto test(int) -> decltype(std::declval<FF&>().writerMatch(std::declval<const VV&>()), std::true_type());
-
-    template<typename, typename>
-    static auto test(...) -> std::false_type;
-
-public:
-
-    static const bool value = decltype(test<DataStorm::Sample<K, V>, F>(0))::value;
-};
-
-template<bool> struct FilterMatch;
-
-template<> struct FilterMatch<false>
-{
-    template<typename F, typename T>
-    static bool match(const F& f, T v)
-    {
-        return true;
-    }
-
-    template<typename F, typename T>
-    static bool readerMatch(const F& f, T v)
-    {
-        return true;
-    }
-
-    template<typename F, typename T>
-    static bool writerMatch(const F& f, T v)
-    {
-        return true;
-    }
-};
-
-template<> struct FilterMatch<true>
-{
-    template<typename F, typename T>
-    static bool match(const F& f, T v)
-    {
-        return f.match(v);
-    }
-
-    template<typename F, typename T>
-    static bool readerMatch(const F& f, T v)
-    {
-        return f.readerMatch(v);
-    }
-
-    template<typename F, typename T>
-    static bool writerMatch(const F& f, T v)
-    {
-        return f.writerMatch(v);
-    }
-};
-
-template<typename K, typename V, typename F> class FilterT :
-    public Filter, public AbstractElementT<typename F::FilterType>
+template<typename Key, typename Value> class SampleFactoryT : public SampleFactory
 {
 public:
 
-    using CachedType = typename F::FilterType;
+    virtual std::shared_ptr<Sample> create(const std::string& session,
+                                           long long int topic,
+                                           long long int element,
+                                           long long int id,
+                                           DataStorm::SampleType type,
+                                           const std::shared_ptr<DataStormInternal::Key>& key,
+                                           std::vector<unsigned char> value,
+                                           long long int timestamp)
+    {
+        return std::shared_ptr<Sample>(std::make_shared<SampleT<Key, Value>>(session,
+                                                                             topic,
+                                                                             element,
+                                                                             id,
+                                                                             type,
+                                                                             key,
+                                                                             std::move(value),
+                                                                             timestamp));
+    }
+};
+
+template<typename F, typename C, typename V> class FilterT : public Filter, public AbstractElementT<C>
+{
+public:
+
     using ClassType = Filter;
 
     template<typename FF>
     FilterT(FF&& v, long long int id) :
-        AbstractElementT<typename F::FilterType>::AbstractElementT(std::forward<FF>(v), id),
-        _filter(AbstractElementT<typename F::FilterType>::_value)
+        AbstractElementT<C>::AbstractElementT(std::forward<FF>(v), id),
+        _filter(AbstractElementT<C>::_value)
     {
     }
 
-    virtual bool match(const std::shared_ptr<Key>& key) const override
+    virtual std::string toString() const override
     {
-        return FilterMatch<has_key_filter<K, F>::value>::match(_filter, std::static_pointer_cast<KeyT<K>>(key)->get());
+        return "f" + AbstractElementT<C>::toString();
     }
 
-    virtual bool hasReaderMatch() const override
+    virtual bool match(const std::shared_ptr<Filterable>& value) const override
     {
-        return has_rsample_filter<K, V, F>::value;
-    }
-
-    virtual bool readerMatch(const std::shared_ptr<Sample>& sample) const override
-    {
-        return FilterMatch<has_rsample_filter<K, V, F>::value>::readerMatch(_filter, DataStorm::Sample<K, V>(sample));
-    }
-
-    virtual bool hasWriterMatch() const override
-    {
-        return has_wsample_filter<K, V, F>::value;
-    }
-
-    virtual bool writerMatch(const std::shared_ptr<Sample>& sample) const override
-    {
-        return FilterMatch<has_wsample_filter<K, V, F>::value>::writerMatch(_filter, DataStorm::Sample<K, V>(sample));
+        return _filter.match(std::static_pointer_cast<V>(value)->get());
     }
 
 private:
@@ -427,24 +359,47 @@ private:
 };
 
 
-template<typename K, typename V, typename F> class FilterFactoryT : public FilterFactory,
-                                                                    public AbstractFactoryT<FilterT<K, V, F>>
+template<typename F, typename C, typename V> class FilterFactoryT : public FilterFactory,
+                                                                    public AbstractFactoryT<C, FilterT<F, C, V>>
 {
 public:
 
-    using AbstractFactoryT<FilterT<K, V, F>>::AbstractFactoryT;
+    using AbstractFactoryT<C, FilterT<F, C, V>>::AbstractFactoryT;
+
+    virtual std::shared_ptr<Filter>
+    get(long long int id) const override
+    {
+        return AbstractFactoryT<C, FilterT<F, C, V>>::getImpl(id);
+    }
 
     virtual std::shared_ptr<Filter>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<FilterT<K, V, F>>::create(DataStorm::Encoder<typename F::FilterType>::decode(communicator, data));
+        return AbstractFactoryT<C, FilterT<F, C, V>>::create(DataStorm::Encoder<C>::decode(communicator, data));
     }
 
-    static std::shared_ptr<FilterFactoryT<K, V, F>> createFactory()
+    static std::shared_ptr<FilterFactoryT<F, C, V>> createFactory()
     {
-        auto f = std::make_shared<FilterFactoryT<K, V, F>>();
+        auto f = std::make_shared<FilterFactoryT<F, C, V>>();
         f->init();
         return f;
+    }
+};
+
+template<typename V> class FilterFactoryT<void, void, V> : public FilterFactory
+{
+public:
+
+    virtual std::shared_ptr<Filter>
+    decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
+    {
+        assert(false);
+        return nullptr;
+    }
+
+    static std::shared_ptr<FilterFactoryT<void, void, V>> createFactory()
+    {
+        return nullptr;
     }
 };
 

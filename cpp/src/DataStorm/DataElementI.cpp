@@ -28,11 +28,12 @@ toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& 
 
 }
 
-DataElementI::DataElementI(TopicI* parent) :
+DataElementI::DataElementI(TopicI* parent, long long int id) :
     _traceLevels(parent->getInstance()->getTraceLevels()),
     _forwarder(Ice::uncheckedCast<SessionPrx>(parent->getInstance()->getForwarderManager()->add(this))),
-    _parent(parent),
+    _id(id),
     _listenerCount(0),
+    _parent(parent),
     _waiters(0),
     _notified(0)
 {
@@ -55,22 +56,24 @@ DataElementI::destroy()
 }
 
 bool
-DataElementI::attachKey(long long int topic,
-                        long long int id,
+DataElementI::attachKey(long long int topicId,
+                        long long int elementId,
                         const shared_ptr<Key>& key,
+                        const shared_ptr<Filter>& sampleFilter,
                         SessionI* session,
-                        const shared_ptr<SessionPrx>& prx)
+                        const shared_ptr<SessionPrx>& prx,
+                        const string& facet)
 {
     // No locking necessary, called by the session with the mutex locked
-    auto p = _listeners.find({ session, prx->ice_getFacet() });
+    auto p = _listeners.find({ session, facet });
     if(p == _listeners.end())
     {
-        p = _listeners.emplace(ListenerKey { session, prx->ice_getFacet() }, Listener(prx)).first;
+        p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
-    if(p->second.keys.add(topic, id, key))
+    if(p->second.keys.add(topicId, elementId, sampleFilter))
     {
         ++_listenerCount;
-        session->subscribeToKey(topic, id, key, this, prx->ice_getFacet());
+        session->subscribeToKey(topicId, elementId, key, this, facet);
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -81,16 +84,20 @@ DataElementI::attachKey(long long int topic,
 }
 
 void
-DataElementI::detachKey(long long int topic, long long int id, SessionI* session, const string& facet, bool unsubscribe)
+DataElementI::detachKey(long long int topicId,
+                        long long int elementId,
+                        SessionI* session,
+                        const string& facet,
+                        bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    if(p != _listeners.end() && p->second.keys.remove(topic, id))
+    if(p != _listeners.end() && p->second.keys.remove(topicId, elementId))
     {
         --_listenerCount;
         if(unsubscribe)
         {
-            session->unsubscribeFromKey(topic, id, this);
+            session->unsubscribeFromKey(topicId, elementId, this);
         }
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.empty())
@@ -101,22 +108,24 @@ DataElementI::detachKey(long long int topic, long long int id, SessionI* session
 }
 
 bool
-DataElementI::attachFilter(long long int topic,
-                           long long int id,
+DataElementI::attachFilter(long long int topicId,
+                           long long int elementId,
                            const shared_ptr<Filter>& filter,
+                           const shared_ptr<Filter>& sampleFilter,
                            SessionI* session,
-                           const shared_ptr<SessionPrx>& prx)
+                           const shared_ptr<SessionPrx>& prx,
+                           const string& facet)
 {
     // No locking necessary, called by the session with the mutex locked
-    auto p = _listeners.find({ session, prx->ice_getFacet() });
+    auto p = _listeners.find({ session, facet });
     if(p == _listeners.end())
     {
-        p = _listeners.emplace(ListenerKey { session, prx->ice_getFacet() }, Listener(prx)).first;
+        p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
-    if(p->second.filters.add(topic, id, filter))
+    if(p->second.filters.add(topicId, elementId, sampleFilter))
     {
         ++_listenerCount;
-        session->subscribeToFilter(topic, id, filter, this, prx->ice_getFacet());
+        session->subscribeToFilter(topicId, elementId, filter, this, facet);
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -127,16 +136,20 @@ DataElementI::attachFilter(long long int topic,
 }
 
 void
-DataElementI::detachFilter(long long int topic, long long int id, SessionI* session, const string& facet, bool unsubscribe)
+DataElementI::detachFilter(long long int topicId,
+                           long long int elementId,
+                           SessionI* session,
+                           const string& facet,
+                           bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    if(p != _listeners.end() && p->second.filters.remove(topic, id))
+    if(p != _listeners.end() && p->second.filters.remove(topicId, elementId))
     {
         --_listenerCount;
         if(unsubscribe)
         {
-            session->unsubscribeFromFilter(topic, id, this);
+            session->unsubscribeFromFilter(topicId, elementId, this);
         }
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.empty())
@@ -147,14 +160,36 @@ DataElementI::detachFilter(long long int topic, long long int id, SessionI* sess
 }
 
 void
-DataElementI::initSamples(const vector<shared_ptr<Sample>>&)
+DataElementI::initSamples(const vector<shared_ptr<Sample>>&, SessionI* s, long long int topic, long long int element)
 {
+    if(s)
+    {
+        s->subscriberInitialized(topic, element, this);
+    }
+}
+
+DataSampleSeq
+DataElementI::getSamples(long long int, const std::shared_ptr<Filter>&) const
+{
+    return {};
+}
+
+vector<unsigned char>
+DataElementI::getSampleFilterCriteria() const
+{
+    return {};
 }
 
 void
 DataElementI::queue(const shared_ptr<Sample>&, const string&)
 {
     assert(false);
+}
+
+std::shared_ptr<Filter>
+DataElementI::createSampleFilter(vector<unsigned char>) const
+{
+    return nullptr;
 }
 
 void
@@ -184,12 +219,6 @@ DataElementI::hasListeners() const
 {
     unique_lock<mutex> lock(_parent->_mutex);
     return _listenerCount > 0;
-}
-
-long long int
-DataElementI::getSubscriberId() const
-{
-    return -1;
 }
 
 shared_ptr<Ice::Communicator>
@@ -244,9 +273,10 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
     }
 }
 
-DataReaderI::DataReaderI(TopicReaderI* topic) :
-    DataElementI(topic),
-    _parent(topic)
+DataReaderI::DataReaderI(TopicReaderI* topic, vector<unsigned char> sampleFilterCriteria) :
+    DataElementI(topic, 0),
+    _parent(topic),
+    _sampleFilterCriteria(move(sampleFilterCriteria))
 {
 }
 
@@ -310,19 +340,28 @@ DataReaderI::getNextUnread()
 }
 
 void
-DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples)
+DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
+                         SessionI* session,
+                         long long int topic,
+                         long long int element)
 {
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": initialized " << samples.size() << " samples";
-        if(!_facet.empty())
-        {
-            out << " (facet = " << _facet << ")";
-        }
+        out << this << ": initialized " << samples.size() << " samples from `" << element << '@' << topic << "'";
     }
     _unread.insert(_unread.end(), samples.begin(), samples.end());
+    if(session)
+    {
+        session->subscriberInitialized(topic, element, this);
+    }
     _parent->_cond.notify_all();
+}
+
+vector<unsigned char>
+DataReaderI::getSampleFilterCriteria() const
+{
+    return _sampleFilterCriteria;
 }
 
 void
@@ -331,42 +370,18 @@ DataReaderI::queue(const shared_ptr<Sample>& sample, const string&)
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": queued sample " << sample->id;
-        if(!_facet.empty())
-        {
-            out << " (facet = " << _facet << ")";
-        }
+        out << this << ": queued sample " << sample->id << " listeners=" << _listenerCount;
     }
     _unread.push_back(sample);
     _parent->_cond.notify_all();
 }
 
-DataWriterI::DataWriterI(TopicWriterI* topic) :
-    DataElementI(topic),
+DataWriterI::DataWriterI(TopicWriterI* topic, const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
+    DataElementI(topic, 0),
     _parent(topic),
+    _sampleFilterFactory(sampleFilterFactory),
     _subscribers(Ice::uncheckedCast<SubscriberSessionPrx>(_forwarder))
 {
-}
-
-bool
-DataWriterI::attachFilter(long long int topic,
-                          long long int id,
-                          const shared_ptr<Filter>& filter,
-                          SessionI* session,
-                          const shared_ptr<SessionPrx>& prx)
-{
-    //
-    // If writer sample filtering is enabled, ensure the updates are sent using a session
-    // facet specific to the reader.
-    //
-    auto p = prx;
-    if(filter->hasWriterMatch())
-    {
-        ostringstream os;
-        os << 'f' << id;
-        p = Ice::uncheckedCast<SessionPrx>(prx->ice_facet(os.str()));
-    }
-    return DataElementI::attachFilter(topic, id, filter, session, p);
 }
 
 void
@@ -379,24 +394,44 @@ DataWriterI::publish(const shared_ptr<Sample>& sample)
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": publishing sample " << sample->id;
-        if(!_facet.empty())
-        {
-            out << " (facet = " << _facet << ")";
-        }
+        out << this << ": publishing sample " << sample->id << " listeners=" << _listenerCount;
     }
     send(_all.back());
 }
 
-KeyDataReaderI::KeyDataReaderI(TopicReaderI* parent, const vector<shared_ptr<Key>>& keys) :
-    DataElementI(parent),
-    DataReaderI(parent),
+std::shared_ptr<Filter>
+DataWriterI::createSampleFilter(vector<unsigned char> sampleFilter) const
+{
+    if(_sampleFilterFactory && !sampleFilter.empty())
+    {
+        return _sampleFilterFactory->decode(_parent->getInstance()->getCommunicator(), move(sampleFilter));
+    }
+    return nullptr;
+}
+
+KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
+                               long long int id,
+                               const vector<shared_ptr<Key>>& keys,
+                               const vector<unsigned char> sampleFilterCriteria) :
+    DataElementI(topic, id),
+    DataReaderI(topic, sampleFilterCriteria),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": created key reader";
+    }
+
+    //
+    // If sample filtering is enabled, ensure the updates are received using a session
+    // facet specific to this reader.
+    //
+    if(!_sampleFilterCriteria.empty())
+    {
+        ostringstream os;
+        os << "fa" << _id;
+        _facet = os.str();
     }
 }
 
@@ -408,12 +443,7 @@ KeyDataReaderI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed key reader";
     }
-    LongSeq ids;
-    for(auto k : _keys)
-    {
-        ids.emplace_back(k->getId());
-    }
-    _forwarder->detachKeys(_parent->getId(), ids);
+    _forwarder->detachElements(_parent->getId(), { _id });
     _parent->remove(_keys, shared_from_this());
 }
 
@@ -433,7 +463,7 @@ string
 KeyDataReaderI::toString() const
 {
     ostringstream os;
-    os << '[';
+    os << 'e' << _id << ":[";
     for(auto q = _keys.begin(); q != _keys.end(); ++q)
     {
         if(q != _keys.begin())
@@ -442,20 +472,17 @@ KeyDataReaderI::toString() const
         }
         os << (*q)->toString();
     }
-    os << "]@" << _parent->getName();
+    os << "]@" << _parent->getId();
     return os.str();
 }
 
-DataSampleSeq
-KeyDataReaderI::getSamples(long long int, const shared_ptr<Filter>&) const
-{
-    return {};
-}
-
-KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic, const vector<shared_ptr<Key>>& keys) :
-    DataElementI(topic),
-    DataWriterI(topic),
-    _keys(keys)
+KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
+                               long long int id,
+                               const shared_ptr<Key>& key,
+                               const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
+    DataElementI(topic, id),
+    DataWriterI(topic, sampleFilterFactory),
+    _key(key)
 {
     if(_traceLevels->data > 0)
     {
@@ -472,13 +499,8 @@ KeyDataWriterI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed key writer";
     }
-    LongSeq ids;
-    for(auto k : _keys)
-    {
-        ids.emplace_back(k->getId());
-    }
-    _forwarder->detachKeys(_parent->getId(), ids);
-    _parent->remove(_keys, shared_from_this());
+    _forwarder->detachElements(_parent->getId(), { _id });
+    _parent->remove({ _key }, shared_from_this());
 }
 
 void
@@ -497,16 +519,7 @@ string
 KeyDataWriterI::toString() const
 {
     ostringstream os;
-    os << '[';
-    for(auto q = _keys.begin(); q != _keys.end(); ++q)
-    {
-        if(q != _keys.begin())
-        {
-            os << ",";
-        }
-        os << (*q)->toString();
-    }
-    os << "]@" << _parent->getName();
+    os << 'e' << _id << ":" << _key->toString() << "@" << _parent->getId();
     return os.str();
 }
 
@@ -522,13 +535,12 @@ KeyDataWriterI::getSamples(long long int lastId, const shared_ptr<Filter>& filte
     {
         if(p->id > lastId)
         {
-            if(!filter || filter->writerMatch(p))
+            if(!filter || filter->match(p))
             {
                 samples.push_back(toSample(p, nullptr)); // The sample should already be encoded
             }
         }
     }
-    Trace out(_traceLevels, _traceLevels->dataCat);
     return samples;
 }
 
@@ -536,18 +548,17 @@ void
 KeyDataWriterI::send(const shared_ptr<Sample>& sample) const
 {
     _sample = sample;
-    DataSample s = toSample(sample, getCommunicator());
-    for(auto k : _keys)
-    {
-        _sample->key = k;
-        _subscribers->s(_parent->getId(), k->getId(), s);
-    }
+    _sample->key = _key;
+    _subscribers->s(_parent->getId(), _id, toSample(sample, getCommunicator()));
     _sample = nullptr;
 }
 
-FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic, const shared_ptr<Filter>& filter) :
-    DataElementI(topic),
-    DataReaderI(topic),
+FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
+                                         long long int id,
+                                         const shared_ptr<Filter>& filter,
+                                         vector<unsigned char> sampleFilterCriteria) :
+    DataElementI(topic, id),
+    DataReaderI(topic, sampleFilterCriteria),
     _filter(filter)
 {
     if(_traceLevels->data > 0)
@@ -557,13 +568,13 @@ FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic, const shared_ptr<F
     }
 
     //
-    // If writer sample filtering is enabled, ensure the updates are received using a session
+    // If sample filtering is enabled, ensure the updates are received using a session
     // facet specific to this reader.
     //
-    if(_filter->hasWriterMatch())
+    if(!_sampleFilterCriteria.empty())
     {
         ostringstream os;
-        os << 'f' << _filter->getId();
+        os << "fa" << _id;
         _facet = os.str();
     }
 }
@@ -576,7 +587,7 @@ FilteredDataReaderI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed filter reader";
     }
-    _forwarder->detachFilter(_parent->getId(), _filter->getId());
+    _forwarder->detachElements(_parent->getId(), { -_id });
     _parent->removeFiltered(_filter, shared_from_this());
 }
 
@@ -592,66 +603,20 @@ FilteredDataReaderI::hasWriters()
      return hasListeners();
 }
 
-long long int
-FilteredDataReaderI::getSubscriberId() const
-{
-    return _filter->hasWriterMatch() ? _filter->getId() : -1;
-}
-
 string
 FilteredDataReaderI::toString() const
 {
     ostringstream os;
-    os << _filter->toString() << '@' << _parent->getName();
+    os << 'e' << _id << ":" << _filter->toString() << "@" << _parent->getId();
     return os.str();
 }
 
-void
-FilteredDataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples)
-{
-    if(_filter->hasReaderMatch())
-    {
-        for(auto s : samples)
-        {
-            s->decode(getCommunicator());
-            if(_filter->readerMatch(s))
-            {
-                _unread.push_back(s);
-            }
-        }
-        if(_traceLevels->data > 0)
-        {
-            Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": initialized samples";
-        }
-        _parent->_cond.notify_all();
-    }
-    else
-    {
-        DataReaderI::initSamples(samples);
-    }
-}
-
-void
-FilteredDataReaderI::queue(const shared_ptr<Sample>& sample, const string& facet)
-{
-    if(_filter->hasReaderMatch())
-    {
-        sample->decode(getCommunicator());
-        if(_filter->readerMatch(sample))
-        {
-            DataReaderI::queue(sample);
-        }
-    }
-    else
-    {
-        DataReaderI::queue(sample);
-    }
-}
-
-FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic, const shared_ptr<Filter>& filter) :
-    DataElementI(topic),
-    DataWriterI(topic),
+FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic,
+                                         long long int id,
+                                         const shared_ptr<Filter>& filter,
+                                         const shared_ptr<FilterFactory>& sampleFilterFactory) :
+    DataElementI(topic, id),
+    DataWriterI(topic, sampleFilterFactory),
     _filter(filter)
 {
     if(_traceLevels->data > 0)
@@ -669,7 +634,7 @@ FilteredDataWriterI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed filter writer";
     }
-    _forwarder->detachFilter(_parent->getId(), _filter->getId());
+    _forwarder->detachElements(_parent->getId(), { -_id });
     _parent->removeFiltered(_filter, shared_from_this());
 }
 
@@ -689,14 +654,14 @@ string
 FilteredDataWriterI::toString() const
 {
     ostringstream os;
-    os << _filter->toString() << '@' << _parent->getName();
+    os << 'e' << _id << ":" << _filter->toString() << "@" << _parent->getId();
     return os.str();
 }
 
 void
 FilteredDataWriterI::send(const shared_ptr<Sample>& sample) const
 {
-    _sample = sample;
-    _subscribers->f(_parent->getId(), _filter->getId(), toSample(sample, getCommunicator()));
-    _sample = nullptr;
+    // _sample = sample;
+    // _subscribers->f(_parent->getId(), _id, toSample(sample, getCommunicator()));
+    // _sample = nullptr;
 }

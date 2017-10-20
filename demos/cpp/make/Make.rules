@@ -1,0 +1,139 @@
+# **********************************************************************
+#
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+#
+# **********************************************************************
+
+#
+# Define ICE_HOME if Ice is not installed in /usr (Linux) or
+# /usr/local (macOS)
+#
+#ICE_HOME               ?= /opt/Ice-3.7.0
+
+#
+# Define DATASTORM_HOME if DataStorm is not installed in /usr (Linux) or
+# /usr/local (macOS)
+#
+#DATASTORM_HOME            ?= /opt/DataStorm-3.7.0
+
+#
+# Define OPTIMIZE as yes if you want to build with optimization.
+# Otherwise Ice is build with debug information.
+#
+#OPTIMIZE               = yes
+
+#
+# Define PLATFORMS to the list of platforms to build. This defaults
+# to the first supported platform for this system.
+#
+# Run `make print V=supported-platforms' to see the list of supported
+# platforms on this system.
+#
+PLATFORMS               ?= $(firstword $(supported-platforms))
+
+#
+# Configurations to build. This defaults to the first supported
+# configuration.
+#
+# Run `make print V=supported-configs` to see the list of supported
+# configurations.
+#
+CONFIGS                 ?= $(firstword $(supported-configs))
+
+# ----------------------------------------------------------------------
+# Don't change anything below this line!
+# ----------------------------------------------------------------------
+
+os                      ?= $(shell uname)
+embedded_runpath        := yes
+
+include $(top_srcdir)/config/Make.rules.$(os)
+include $(top_srcdir)/config/Make.project.rules
+
+#
+# Supported configurations
+#
+supported-configs       = shared
+
+#
+# Ice/DataStorm dependencies
+#
+$(eval $(call create-project-dependencies,ice,$(ICE_HOME),cpp,cpp,Ice++11))
+$(eval $(call create-project-dependencies,datastorm,$(DATASTORM_HOME),cpp,cpp,DataStorm))
+
+# Always use the C++11 mapping
+cppflags                += -std=c++14 -DICE_CPP11_MAPPING
+
+#
+# Support for Slice compilers
+#
+slice2cpp_targetext     = cpp
+slice2cpp_path          = $(ice_bindir)/slice2cpp
+
+#
+# $(call demo,[$1])
+#
+# Returns the demo project name (./demo/Ice/hello -> demo/Ice/hello)
+#
+demo = $(patsubst $(lang_srcdir)/%,%,$(if $1,$1,$(currentdir)))
+
+#
+# $(call demo-sources,$1=sources,$2=dir,$3=main-src extra-srcs)
+#
+# Returns sources if set, otherwise if main-src exists return main-src + extra-srcs, if it
+# doesn't exist, returns an empty value.
+#
+demo-sources = $(call unique,$(if $1,$(foreach f,$1,$(notdir $(wildcard $2/$f))),\
+                 $(if $(wildcard $2/$(firstword $3)),$(foreach f,$3,$(notdir $(wildcard $2/$f))))))
+
+#
+# $(call create-demo-project,demo)
+#
+# Defines a project for the given demo.
+#
+# The following variables can be defined to customize the build of the demo:
+#
+# <name>_cleandirs
+# <name>_clean
+# <name>_bindir
+# <name>_libdir
+# <name>_sliceflags
+# <name>_cppflags
+# <name>_dependencies
+# <name>_programs
+# <name>_libraries
+#
+# The following variables allows to specify per-target (program or library) configuration
+#
+# <name>_<target>_sources
+# <name>_<target>_sources
+#
+define create-demo-project
+
+$1_srcdir               := $1
+$1_targetdir            := $1
+
+$1_slicecompiler        := slice2cpp
+$1_sliceflags           := -I$(ice_slicedir) -I$1 $$($1_sliceflags)
+$1_cppflags             := -I$1 -I$1/generated $(ice_cppflags) $(datastorm_cppflags) $$($1_cppflags)
+$1_caninstall           := no
+$1_dependencies         := $$(or $$($1_dependencies),DataStorm Ice++11)
+
+$1_programs             := $$(or $$($1_programs),client server collocated)
+$1_client_sources       := $$(call demo-sources,$$($1_client_sources),$$($1_srcdir),Client.cpp *.ice)
+$1_server_sources       := $$(call demo-sources,$$($1_server_sources),$$($1_srcdir),Server.cpp *.ice *I.cpp)
+$1_collocated_sources   := $$(call demo-sources,$$($1_collocated_sources),$$($1_srcdir),Collocated.cpp *.ice)
+
+$1_programs             := $$(foreach p,$$($1_programs),$$(if $$($1_$$(p)_sources),$1_$$(p)))
+$1_libraries            := $$(foreach p,$$($1_libraries),$1_$$(p))
+
+$$(foreach m,$$($1_programs) $$($1_libraries),$$(eval $$m_sources := $$(addprefix $$($1_srcdir)/,$$($$m_sources))))
+
+projects += $(project)
+
+endef
+
+#
+# The demos variable is used to load demos in Makefile.mk fragments
+#
+demos :=

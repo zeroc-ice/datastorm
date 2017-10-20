@@ -88,3 +88,6 @@ passwords
 cpp/third-party-packages
 
 build
+html
+client
+server

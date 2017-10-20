@@ -25,7 +25,7 @@
 namespace DataStorm
 {
 
-template<typename K, typename V, typename F> class Topic;
+template<typename, typename, typename, typename> class Topic;
 
 /**
  * The Node class allows creating topic readers and writers.
@@ -73,7 +73,7 @@ private:
     std::shared_ptr<DataStormInternal::Instance> _instance;
     std::shared_ptr<DataStormInternal::TopicFactory> _factory;
 
-    template<typename, typename, typename> friend class Topic;
+    template<typename, typename, typename, typename> friend class Topic;
 
     const bool _ownsCommunicator;
 };

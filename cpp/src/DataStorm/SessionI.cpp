@@ -51,23 +51,21 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
         out << _id << ": announcing topics `" << topics << "'";
     }
 
-    TopicInfoAndContentSeq ack;
     for(const auto& info : topics)
     {
         runWithTopics(info.name, [&](auto topic)
         {
-            topic->attach(info.id, this, _session);
-            ack.emplace_back(topic->getTopicInfoAndContent(getLastId(info.id)));
+            for(auto id : info.ids)
+            {
+                topic->attach(id, this, _session);
+            }
+            _session->attachTopicAsync(topic->getTopicSpec());
         });
-    }
-    if(!ack.empty())
-    {
-        _session->attachTopicsAsync(ack);
     }
 }
 
 void
-SessionI::attachTopics(TopicInfoAndContentSeq topics, const Ice::Current& current)
+SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -75,25 +73,26 @@ SessionI::attachTopics(TopicInfoAndContentSeq topics, const Ice::Current& curren
         return;
     }
 
-    if(_traceLevels->session > 2)
+    runWithTopics(spec.name, [&](auto topic)
     {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": attaching topics `" << topics << "'";
-    }
-
-    for(const auto& info : topics)
-    {
-        runWithTopics(info.name, [&](auto topic)
+        if(_traceLevels->session > 2)
         {
-            topic->attach(info.id, this, _session);
-            auto keys = topic->attachKeysAndFilters(info.id, info.keys, info.filters, info.lastId, this, _session);
-            auto filters = topic->getFilterInfoSeq();
-            if(!keys.empty() || !filters.empty())
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": attaching topic `" << spec << "' to `" << topic.get() << "'";
+        }
+
+        topic->attach(spec.id, this, _session);
+        auto specs = topic->getElementSpecs(spec.elements);
+        if(!specs.empty())
+        {
+            if(_traceLevels->session > 2)
             {
-                _session->attachKeysAndFiltersAsync(topic->getId(), getLastId(info.id), keys, filters);
+                Trace out(_traceLevels, _traceLevels->sessionCat);
+                out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
             }
-        });
-    }
+            _session->attachElementsAsync(topic->getId(), getLastId(spec.id), specs);
+        }
+    });
 }
 
 void
@@ -105,20 +104,22 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
         return;
     }
 
-    if(_traceLevels->session > 2)
+    runWithTopics(id, [&](auto topic, auto& subscriber)
     {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": detaching topic `" << id << "'";
-    }
-
-    runWithTopics(id, [&](auto topic, auto& subscriber) { topic->detach(id, this); });
+        if(_traceLevels->session > 2)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": detaching topic `" << id << "' from `" << topic << "'";
+        }
+        topic->detach(id, this);
+    });
 
     // Erase the topic
     _topics.erase(id);
 }
 
 void
-SessionI::announceKeys(long long int id, KeyInfoSeq keys, const Ice::Current&)
+SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -126,24 +127,30 @@ SessionI::announceKeys(long long int id, KeyInfoSeq keys, const Ice::Current&)
         return;
     }
 
-    if(_traceLevels->session > 2)
-    {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": announcing key `[" << keys << "]@" << id << "'";
-    }
 
-    runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
+    runWithTopics(topicId, [&](auto topic, auto& subscriber, auto& subscribers)
     {
-        auto kAndF = topic->attachKeys(id, keys, 0, this, _session);
-        if(!kAndF.first.empty() || !kAndF.second.empty())
+        if(_traceLevels->session > 2)
         {
-            _session->attachKeysAndFiltersAsync(topic->getId(), subscribers.getLastId(), kAndF.first, kAndF.second);
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": announcing elements `[" << elements << "]@" << topicId << "' on topic `" << topic << "'";
+        }
+
+        auto specs = topic->getElementSpecs(elements);
+        if(!specs.empty())
+        {
+            if(_traceLevels->session > 2)
+            {
+                Trace out(_traceLevels, _traceLevels->sessionCat);
+                out << _id << ": matched elements `[" << specs << "]@" << topicId << "' on topic `" << topic << "'";
+            }
+            _session->attachElementsAsync(topic->getId(), getLastId(topicId), specs);
         }
     });
 }
 
 void
-SessionI::announceFilter(long long int id, FilterInfo filter, const Ice::Current&)
+SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq elements, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -151,28 +158,29 @@ SessionI::announceFilter(long long int id, FilterInfo filter, const Ice::Current
         return;
     }
 
-    if(_traceLevels->session > 2)
-    {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id <<  ": announcing filter `" << filter << '@' << id << "'";
-    }
-
     runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
     {
-        auto keys = topic->attachFilter(id, filter, 0, this, _session);
-        if(!keys.empty())
+        if(_traceLevels->session > 2)
         {
-            _session->attachKeysAndFiltersAsync(topic->getId(), subscribers.getLastId(), keys, {});
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": attaching elements `[" << elements << "]@" << id << "' on topic `" << topic << "'";
+        }
+
+        auto specAck = topic->attachElements(id, lastId, elements, this, _session);
+        if(!specAck.empty())
+        {
+            if(_traceLevels->session > 2)
+            {
+                Trace out(_traceLevels, _traceLevels->sessionCat);
+                out << _id << ": matched elements `[" << specAck << "]@" << id << "' on topic `" << topic << "'";
+            }
+            _session->attachElementsAckAsync(topic->getId(), getLastId(id), specAck);
         }
     });
 }
 
 void
-SessionI::attachKeysAndFilters(long long int id,
-                               long long int lastId,
-                               KeyInfoAndSamplesSeq keys,
-                               FilterInfoSeq filters,
-                               const Ice::Current&)
+SessionI::attachElementsAck(long long int id, long long int lastId, ElementSpecAckSeq elements, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -180,96 +188,178 @@ SessionI::attachKeysAndFilters(long long int id,
         return;
     }
 
-    if(_traceLevels->session > 2)
+    runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
     {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": attaching keys and filters `([" << keys << "];[" << filters << "])@" << id << "'";
+        if(_traceLevels->session > 2)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": attaching elements ack `[" << elements << "]@" << id << "' on topic `" << topic << "'";
+        }
+
+        auto samples = topic->attachElementsAck(id, lastId, elements, this, _session);
+        if(!samples.empty())
+        {
+            if(_traceLevels->session > 2)
+            {
+                Trace out(_traceLevels, _traceLevels->sessionCat);
+                out << _id << ": initializing elements `[" << samples << "]@" << id << "' on topic `" << topic << "'";
+            }
+            _session->initSamplesAsync(topic->getId(), samples);
+        }
+    });
+}
+
+void
+SessionI::detachElements(long long int id, LongSeq elements, const Ice::Current&)
+{
+    lock_guard<mutex> lock(_mutex);
+    if(!_session)
+    {
+        return;
     }
 
     runWithTopics(id, [&](auto topic, auto& subscriber)
     {
-        auto samples = topic->attachKeysAndFilters(id, keys, filters, lastId, this, _session);
-        for(const auto& kis : keys)
+        if(_traceLevels->session > 2)
         {
-            auto k = subscriber.keys.get(kis.info.id);
-            if(k)
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": detaching elements `[" << elements << "]@" << id << "' on topic `" << topic << "'";
+        }
+
+        for(auto e : elements)
+        {
+            if(e > 0)
             {
-                if(_traceLevels->session > 2)
+                auto k = subscriber.keys.remove(e);
+                for(auto& ks : k.getSubscribers())
                 {
-                    Trace out(_traceLevels, _traceLevels->sessionCat);
-                    out << _id << ": initializing samples for key `" << k->get() << "'";
+                    ks.first->detachKey(id, e, this, ks.second.facet);
                 }
-                vector<shared_ptr<Sample>> samplesI;
-                samplesI.reserve(kis.samples.size());
-                for(auto& s : kis.samples)
+            }
+            else
+            {
+                auto f = subscriber.filters.remove(-e);
+                for(auto& fs : f.getSubscribers())
                 {
-                    samplesI.push_back(topic->getSampleFactory()(s.id, s.type, k->get(), move(s.value), s.timestamp));
+                    fs.first->detachFilter(id, -e, this, fs.second.facet);
                 }
-                for(auto& ks : k->getSubscribers())
+            }
+        }
+    });
+}
+
+void
+SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ice::Current& current)
+{
+    lock_guard<mutex> lock(_mutex);
+    if(!_session)
+    {
+        return;
+    }
+
+    auto communicator = _instance->getCommunicator();
+    for(const auto& samples : samplesSeq)
+    {
+        runWithTopics(topicId, [&](auto topic, auto& subscriber)
+        {
+            if(samples.id > 0)
+            {
+                auto k = subscriber.keys.get(samples.id);
+                if(k)
                 {
-                    if(!ks.second.initialized && kis.subscriberId == ks.first->getSubscriberId())
+                    if(_traceLevels->session > 2)
                     {
-                        ks.second.initialized = true;
-                        ks.first->initSamples(samplesI);
+                        Trace out(_traceLevels, _traceLevels->sessionCat);
+                        out << _id << ": initializing samples from `" << samples.id << ":" << k->get() << "@" << topicId;
+                        out << " on ";
+                        for(auto q = k->getSubscribers().begin(); q != k->getSubscribers().end(); ++q)
+                        {
+                            if(q != k->getSubscribers().begin())
+                            {
+                                out << ", ";
+                            }
+                            out << q->first;
+                            if(!q->second.facet.empty())
+                            {
+                                out << ":" << q->second.facet;
+                            }
+                        }
+                        out << "]";
+                    }
+                    vector<shared_ptr<Sample>> samplesI;
+                    samplesI.reserve(samples.samples.size());
+                    auto sampleFactory = topic->getSampleFactory();
+                    for(auto& s : samples.samples)
+                    {
+                        samplesI.push_back(sampleFactory->create(_id,
+                                                                 topicId,
+                                                                 samples.id,
+                                                                 s.id,
+                                                                 s.type,
+                                                                 k->get(),
+                                                                 s.value,
+                                                                 s.timestamp));
+                    }
+                    for(auto& ks : k->getSubscribers())
+                    {
+                        if(!ks.second.initialized)
+                        {
+                            ks.second.initialized = true;
+                            ks.first->initSamples(samplesI, nullptr, 0, 0);
+                        }
                     }
                 }
             }
-        }
-        Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(_session)->iAsync(topic->getId(), samples);
-    });
-}
-
-void
-SessionI::detachKeys(long long int id, LongSeq keys, const Ice::Current&)
-{
-    lock_guard<mutex> lock(_mutex);
-    if(!_session)
-    {
-        return;
-    }
-
-    if(_traceLevels->session > 2)
-    {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": detaching key `[" << keys << "]@" << id << "'";
-    }
-
-    runWithTopics(id, [&](auto topic, auto& subscriber)
-    {
-        for(auto key : keys)
-        {
-            auto k = subscriber.keys.remove(key);
-            for(auto& ks : k.getSubscribers())
+            else
             {
-                ks.first->detachKey(id, key, this, ks.second.facet);
+                auto f = subscriber.filters.get(-samples.id);
+                if(f)
+                {
+                    if(_traceLevels->session > 2)
+                    {
+                        Trace out(_traceLevels, _traceLevels->sessionCat);
+                        out << _id << ": initializing samples from `" << samples.id << ":" << f->get() << "@" << topicId;
+                        out << " on ";
+                        for(auto q = f->getSubscribers().begin(); q != f->getSubscribers().end(); ++q)
+                        {
+                            if(q != f->getSubscribers().begin())
+                            {
+                                out << ", ";
+                            }
+                            out << q->first;
+                            if(!q->second.facet.empty())
+                            {
+                                out << ":" << q->second.facet;
+                            }
+                        }
+                        out << "]";
+                    }
+                    vector<shared_ptr<Sample>> samplesI;
+                    samplesI.reserve(samples.samples.size());
+                    auto sampleFactory = topic->getSampleFactory();
+                    for(auto& s : samples.samples)
+                    {
+                        samplesI.push_back(sampleFactory->create(_id,
+                                                                 topicId,
+                                                                 samples.id,
+                                                                 s.id,
+                                                                 s.type,
+                                                                 nullptr,
+                                                                 s.value,
+                                                                 s.timestamp));
+                    }
+                    for(auto& fs : f->getSubscribers())
+                    {
+                        if(!fs.second.initialized)
+                        {
+                            fs.second.initialized = true;
+                            fs.first->initSamples(samplesI, nullptr, 0, 0);
+                        }
+                    }
+                }
             }
-        }
-    });
-}
-
-void
-SessionI::detachFilter(long long int id, long long int filter, const Ice::Current&)
-{
-    lock_guard<mutex> lock(_mutex);
-    if(!_session)
-    {
-        return;
+        });
     }
-
-    if(_traceLevels->session > 2)
-    {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": detaching filter `" << filter << "@" << id << "'";
-    }
-
-    runWithTopics(id, [&](auto topic, auto& subscriber)
-    {
-        auto f = subscriber.filters.remove(filter);
-        for(auto& fs : f.getSubscribers())
-        {
-            fs.first->detachFilter(id, filter, this, fs.second.facet);
-        }
-    });
 }
 
 void
@@ -492,42 +582,42 @@ SessionI::disconnect(long long id, TopicI* topic)
 }
 
 void
-SessionI::subscribeToKey(long long topic, long long int id, const shared_ptr<Key>& key, DataElementI* element,
+SessionI::subscribeToKey(long long topicId, long long int elementId, const shared_ptr<Key>& key, DataElementI* element,
                          const string& facet)
 {
-    assert(_topics.find(topic) != _topics.end());
-    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
+    assert(_topics.find(topicId) != _topics.end());
+    auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": subscribed key `" << id << '@' << topic << "' to `" << element << "'";
+        out << _id << ": subscribed element `e" << elementId << '@' << topicId << "' to `" << element << "'";
         if(!facet.empty())
         {
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.keys.get(id, key)->add(element, facet);
+    subscriber.keys.get(elementId, key)->add(element, facet);
 }
 
 void
-SessionI::unsubscribeFromKey(long long topic, long long int id, DataElementI* element)
+SessionI::unsubscribeFromKey(long long topicId, long long int elementId, DataElementI* element)
 {
-    assert(_topics.find(topic) != _topics.end());
-    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
-    auto k = subscriber.keys.get(id);
+    assert(_topics.find(topicId) != _topics.end());
+    auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
+    auto k = subscriber.keys.get(elementId);
     if(k)
     {
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": unsubscribed key `" << id << '@' << topic << "' from `" << element << "'";
+            out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
         }
         k->remove(element);
     }
 }
 
 void
-SessionI::disconnectFromKey(long long topic, long long int id, DataElementI* element)
+SessionI::disconnectFromKey(long long topicId, long long int elementId, DataElementI* element)
 {
     lock_guard<mutex> lock(_mutex); // Called by DataElementI::destroy
     if(!_session)
@@ -535,46 +625,46 @@ SessionI::disconnectFromKey(long long topic, long long int id, DataElementI* ele
         return;
     }
 
-    runWithTopic(topic, element->getTopic(), [&](auto&) { unsubscribeFromKey(topic, id, element); });
+    runWithTopic(topicId, element->getTopic(), [&](auto&) { unsubscribeFromKey(topicId, elementId, element); });
 }
 
 void
-SessionI::subscribeToFilter(long long topic, long long int id, const shared_ptr<Filter>& filter, DataElementI* element,
-                            const string& facet)
+SessionI::subscribeToFilter(long long topicId, long long int elementId, const shared_ptr<Filter>& filter,
+                            DataElementI* element, const string& facet)
 {
-    assert(_topics.find(topic) != _topics.end());
-    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
+    assert(_topics.find(topicId) != _topics.end());
+    auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": subscribed filter `" << id << '@' << topic << "' to `" << element << "'";
+        out << _id << ": subscribed element `e" << elementId << '@' << topicId << "' to `" << element << "'";
         if(!facet.empty())
         {
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.filters.get(id, filter)->add(element, facet);
+    subscriber.filters.get(elementId, filter)->add(element, facet);
 }
 
 void
-SessionI::unsubscribeFromFilter(long long topic, long long int id, DataElementI* element)
+SessionI::unsubscribeFromFilter(long long topicId, long long int elementId, DataElementI* element)
 {
-    assert(_topics.find(topic) != _topics.end());
-    auto& subscriber = _topics.at(topic).getSubscriber(element->getTopic());
-    auto f = subscriber.filters.get(id);
+    assert(_topics.find(topicId) != _topics.end());
+    auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
+    auto f = subscriber.filters.get(elementId);
     if(f)
     {
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": unsubscribed filter `" << id << '@' << topic << "' from `" << element << "'";
+            out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
         }
         f->remove(element);
     }
 }
 
 void
-SessionI::disconnectFromFilter(long long topic, long long int id, DataElementI* element)
+SessionI::disconnectFromFilter(long long topicId, long long int elementId, DataElementI* element)
 {
     lock_guard<mutex> lock(_mutex); // Called by DataElementI::destroy
     if(!_session)
@@ -582,7 +672,48 @@ SessionI::disconnectFromFilter(long long topic, long long int id, DataElementI* 
         return;
     }
 
-    runWithTopic(topic, element->getTopic(), [&](auto&) { unsubscribeFromFilter(topic, id, element); });
+    runWithTopic(topicId, element->getTopic(), [&](auto&) { unsubscribeFromFilter(topicId, elementId, element); });
+}
+
+void
+SessionI::subscriberInitialized(long long topicId, long long int elementId, DataElementI* element)
+{
+    assert(_topics.find(topicId) != _topics.end());
+    auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
+    if(elementId > 0)
+    {
+        auto k = subscriber.keys.get(elementId);
+        if(k)
+        {
+            auto p = k->getSubscribers().find(element);
+            if(p != k->getSubscribers().end())
+            {
+                if(_traceLevels->session > 1)
+                {
+                    Trace out(_traceLevels, _traceLevels->sessionCat);
+                    out << _id << ": initialized `" << p->first << "' from `" << elementId << '@' << topicId << "'";
+                }
+                p->second.initialized = true;
+            }
+        }
+    }
+    else
+    {
+        auto f = subscriber.filters.get(-elementId);
+        if(f)
+        {
+            auto p = f->getSubscribers().find(element);
+            if(p != f->getSubscribers().end())
+            {
+                if(_traceLevels->session > 1)
+                {
+                    Trace out(_traceLevels, _traceLevels->sessionCat);
+                    out << _id << ": initialized `" << p->first << "' from `" << elementId << '@' << topicId << "'";
+                }
+                p->second.initialized = true;
+            }
+        }
+    }
 }
 
 void
@@ -665,7 +796,7 @@ SubscriberSessionI::getTopics(const string& name) const
 }
 
 void
-SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Current& current)
+SubscriberSessionI::s(long long int topicId, long long int element, DataSample s, const Ice::Current& current)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -673,113 +804,51 @@ SubscriberSessionI::i(long long int id, DataSamplesSeq samplesSeq, const Ice::Cu
         return;
     }
 
-    auto communicator = _instance->getCommunicator();
-    for(const auto& samples : samplesSeq)
+    runWithTopics(topicId, [&](auto topic, auto& subscriber, auto topicSubscribers)
     {
-        runWithTopics(id, [&](auto topic, auto& subscriber)
+        if(element <= 0)
         {
-            auto k = subscriber.keys.get(samples.key);
-            if(k)
+            return;
+        }
+        auto e = subscriber.keys.get(element);
+        if(e && topicSubscribers.setLastId(s.id))
+        {
+            if(_traceLevels->session > 2)
             {
-                if(_traceLevels->session > 2)
+                Trace out(_traceLevels, _traceLevels->sessionCat);
+                out << _id << ": queuing sample `" << s.id << "' from `" << element << '@' << topicId << "'";
+                if(!current.facet.empty())
                 {
-                    Trace out(_traceLevels, _traceLevels->sessionCat);
-                    out << _id << ": initializing samples for key `" << k->get() << "'";
+                    out << " facet=" << current.facet;
                 }
-                vector<shared_ptr<Sample>> samplesI;
-                samplesI.reserve(samples.samples.size());
-                for(auto& s : samples.samples)
+                out << " to [";
+                for(auto q = e->getSubscribers().begin(); q != e->getSubscribers().end(); ++q)
                 {
-                    samplesI.push_back(topic->getSampleFactory()(s.id, s.type, k->get(), move(s.value), s.timestamp));
-                }
-                for(auto& ks : k->getSubscribers())
-                {
-                    if(!ks.second.initialized && samples.subscriberId == ks.first->getSubscriberId())
+                    if(q != e->getSubscribers().begin())
                     {
-                        ks.second.initialized = true;
-                        ks.first->initSamples(samplesI);
+                        out << ", ";
+                    }
+                    out << q->first;
+                    if(!q->second.facet.empty())
+                    {
+                        out << ":" << q->second.facet;
                     }
                 }
+                out << "]";
             }
-        });
-    }
-}
-
-void
-SubscriberSessionI::s(long long int id, long long int key, DataSample s, const Ice::Current& current)
-{
-    lock_guard<mutex> lock(_mutex);
-    if(!_session)
-    {
-        return;
-    }
-
-    runWithTopics(id, [&](auto topic, auto& subscriber, auto topicSubscribers)
-    {
-        auto k = subscriber.keys.get(key);
-        if(k && topicSubscribers.setLastId(s.id))
-        {
-            if(_traceLevels->session > 2)
+            auto impl = topic->getSampleFactory()->create(_id,
+                                                          topicId,
+                                                          element,
+                                                          s.id,
+                                                          s.type,
+                                                          e->get(),
+                                                          s.value,
+                                                          s.timestamp);
+            for(auto& es : e->getSubscribers())
             {
-                Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": queuing sample `" << s.id << "' for key `" << k->get() << "'";
-                if(!current.facet.empty())
+                if(es.second.initialized && es.first->getFacet() == current.facet)
                 {
-                    out << " (facet = " << current.facet << ')';
-                }
-            }
-
-            auto impl = topic->getSampleFactory()(s.id, s.type, k->get(), move(s.value), s.timestamp);
-            for(auto& ks : k->getSubscribers())
-            {
-                if(ks.second.initialized && current.facet == ks.first->getFacet())
-                {
-                    ks.first->queue(impl);
-                }
-            }
-        }
-    });
-}
-
-void
-SubscriberSessionI::f(long long int id, long long int filter, DataSample s, const Ice::Current& current)
-{
-    lock_guard<mutex> lock(_mutex);
-    if(!_session)
-    {
-        return;
-    }
-
-    runWithTopics(id, [&](auto topic, auto& subscriber, auto topicSubscribers)
-    {
-        auto f = subscriber.filters.get(filter);
-        if(f && topicSubscribers.setLastId(s.id))
-        {
-            if(_traceLevels->session > 2)
-            {
-                Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": queuing sample `" << s.id << "' for filter `" << f->get() << "'";
-                if(!current.facet.empty())
-                {
-                    out << " (facet = " << current.facet << ')';
-                }
-            }
-
-            auto impl = topic->getSampleFactory()(s.id, s.type, nullptr, move(s.value), s.timestamp);
-            if(f->get()->hasReaderMatch())
-            {
-                impl->decode(_instance->getCommunicator());
-                if(!f->get()->readerMatch(impl))
-                {
-                    return;
-                }
-            }
-
-            for(auto& fs : f->getSubscribers())
-            {
-                if(fs.second.initialized && current.facet == fs.first->getFacet())
-                {
-                    fs.first->queue(impl);
+                    es.first->queue(impl);
                 }
             }
         }

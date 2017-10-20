@@ -12,8 +12,8 @@
 #include <Test.h>
 #include <TestCommon.h>
 
-using namespace std;
 using namespace DataStorm;
+using namespace std;
 
 int
 main(int argc, char* argv[])
@@ -34,6 +34,11 @@ main(int argc, char* argv[])
             writer.remove();
 
             writer.waitForNoReaders();
+
+            KeyWriter<string, string> writer2(topic, "elem2");
+            writer2.waitForReaders(2);
+            writer2.add("value");
+            writer2.waitForNoReaders();
         }
         {
             Topic<int, Test::StructValue> topic(node, "struct");
@@ -99,24 +104,29 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey1");
-            KeyWriter<string, string> writer(topic, vector<string> { "elem1", "elem2" });
+            KeyWriter<string, string> writer1(topic, "elem1");
+            KeyWriter<string, string> writer2(topic, "elem2");
 
-            writer.add("value1");
-            writer.update("value2");
-            writer.remove();
+            writer1.waitForReaders(1);
+            writer2.waitForReaders(1);
 
-            writer.waitForReaders(2);
-            writer.waitForNoReaders();
+            writer1.add("value1");
+            writer1.update("value2");
+            writer1.remove();
 
-            writer.waitForReaders(1);
-            writer.waitForNoReaders();
+            writer2.add("value1");
+            writer2.update("value2");
+            writer2.remove();
+
+            writer1.waitForNoReaders();
+            writer2.waitForNoReaders();
         }
     }
     cout << "ok" << endl;
 
     cout << "testing filtered reader... " << flush;
     {
-        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass3");
+        Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
         KeyWriter<string, shared_ptr<Test::Base>> writer1(topic, "elem1");
         writer1.waitForReaders(1);
@@ -139,16 +149,16 @@ main(int argc, char* argv[])
         writer4.waitForNoReaders();
     }
     {
-        Topic<string, string, RegexKeyValueFilter<string, string>> topic(node, "filtered reader key/value filter");
+        Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
 
-        KeyWriter<string, string> writer1(topic, "elem1");
+        KeyWriter<string, string, SampleTypeFilter<string, string>, SampleTypeSeq> writer1(topic, "elem1");
         writer1.waitForReaders(3);
         test(writer1.hasReaders());
         writer1.add("value1");
         writer1.update("value2");
         writer1.remove();
 
-        KeyWriter<string, string> writer2(topic, "elem2");
+        KeyWriter<string, string, RegexFilter<Sample<string, string>>, string> writer2(topic, "elem2");
         writer2.waitForReaders(1);
         writer2.update("value1");
         writer2.update("value2");
