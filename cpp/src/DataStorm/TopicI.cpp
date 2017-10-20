@@ -422,6 +422,29 @@ TopicI::attachElementsAck(long long int topicId,
 }
 
 void
+TopicI::queue(const shared_ptr<DataElementI>& element, function<void()> callback)
+{
+    _callbackQueue.push_back(make_pair(element, callback));
+}
+
+void
+TopicI::flushQueue()
+{
+    for(auto p : _callbackQueue)
+    {
+        try
+        {
+            p.second();
+        }
+        catch(...)
+        {
+            assert(false); // TODO: XXX
+        }
+    }
+    _callbackQueue.clear();
+}
+
+void
 TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -491,7 +514,7 @@ TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 }
 
 void
-TopicI::add(const shared_ptr<KeyDataElementI>& element, const vector<shared_ptr<Key>>& keys)
+TopicI::add(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key>>& keys)
 {
     ElementInfoSeq infos;
     for(const auto& key : keys)
@@ -499,7 +522,7 @@ TopicI::add(const shared_ptr<KeyDataElementI>& element, const vector<shared_ptr<
         auto p = _keyElements.find(key);
         if(p == _keyElements.end())
         {
-            p = _keyElements.emplace(key, set<shared_ptr<KeyDataElementI>>()).first;
+            p = _keyElements.emplace(key, set<shared_ptr<DataElementI>>()).first;
         }
         assert(element);
         infos.push_back({ key->getId(), key->encode(_instance->getCommunicator()) });
@@ -512,12 +535,12 @@ TopicI::add(const shared_ptr<KeyDataElementI>& element, const vector<shared_ptr<
 }
 
 void
-TopicI::addFiltered(const shared_ptr<FilteredDataElementI>& element, const shared_ptr<Filter>& filter)
+TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Filter>& filter)
 {
     auto p = _filteredElements.find(filter);
     if(p == _filteredElements.end())
     {
-        p = _filteredElements.emplace(filter, set<shared_ptr<FilteredDataElementI>>()).first;
+        p = _filteredElements.emplace(filter, set<shared_ptr<DataElementI>>()).first;
     }
     assert(element);
     p->second.insert(element);
@@ -577,7 +600,7 @@ TopicReaderI::destroy()
 }
 
 void
-TopicReaderI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<FilteredDataElementI>& element)
+TopicReaderI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<DataElementI>& element)
 {
     auto p = _filteredElements.find(filter);
     if(p != _filteredElements.end())
@@ -591,7 +614,7 @@ TopicReaderI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<
 }
 
 void
-TopicReaderI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<KeyDataElementI>& element)
+TopicReaderI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataElementI>& element)
 {
     for(auto key : keys)
     {
@@ -660,7 +683,7 @@ TopicWriterI::destroy()
 }
 
 void
-TopicWriterI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<FilteredDataElementI>& element)
+TopicWriterI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<DataElementI>& element)
 {
     auto p = _filteredElements.find(filter);
     if(p != _filteredElements.end())
@@ -674,7 +697,7 @@ TopicWriterI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<
 }
 
 void
-TopicWriterI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<KeyDataElementI>& element)
+TopicWriterI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataElementI>& element)
 {
     for(auto key : keys)
     {

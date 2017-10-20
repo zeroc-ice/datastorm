@@ -116,6 +116,9 @@ class DataElement
 {
 public:
 
+    virtual void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) = 0;
+    virtual void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) = 0;
+
     virtual void destroy() = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };
@@ -134,6 +137,8 @@ public:
     virtual void waitForUnread(unsigned int) const = 0;
     virtual bool hasUnread() const = 0;
     virtual std::shared_ptr<Sample> getNextUnread() = 0;
+
+    virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) = 0;
 };
 
 class DataWriter : virtual public DataElement

@@ -726,6 +726,8 @@ SessionI::runWithTopics(const std::string& name, function<void (const shared_ptr
         _topicLock = &l;
         fn(topic);
         _topicLock = nullptr;
+        l.unlock();
+        topic->flushQueue();
     }
 }
 
@@ -741,6 +743,8 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
             _topicLock = &l;
             fn(s.first, s.second);
             _topicLock = nullptr;
+            l.unlock();
+            s.first->flushQueue();
         }
     }
 }
@@ -757,6 +761,8 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
             _topicLock = &l;
             fn(s.first, s.second, t->second);
             _topicLock = nullptr;
+            l.unlock();
+            s.first->flushQueue();
         }
     }
 }
@@ -774,6 +780,8 @@ SessionI::runWithTopic(long long int id, TopicI* topic, function<void (TopicSubs
             _topicLock = &l;
             fn(p->second);
             _topicLock = nullptr;
+            l.unlock();
+            topic->flushQueue();
         }
     }
 }

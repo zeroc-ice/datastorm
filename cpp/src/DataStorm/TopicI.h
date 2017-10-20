@@ -81,6 +81,9 @@ public:
                                                         SessionI*,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&);
 
+    void queue(const std::shared_ptr<DataElementI>&, std::function<void()>);
+    void flushQueue();
+
     long long int getId() const
     {
         return _id;
@@ -108,8 +111,8 @@ protected:
 
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
-    void add(const std::shared_ptr<KeyDataElementI>&, const std::vector<std::shared_ptr<Key>>&);
-    void addFiltered(const std::shared_ptr<FilteredDataElementI>&, const std::shared_ptr<Filter>&);
+    void add(const std::shared_ptr<DataElementI>&, const std::vector<std::shared_ptr<Key>>&);
+    void addFiltered(const std::shared_ptr<DataElementI>&, const std::shared_ptr<Filter>&);
 
     friend class DataElementI;
     friend class DataReaderI;
@@ -128,8 +131,8 @@ protected:
 
     mutable std::mutex _mutex;
     mutable std::condition_variable _cond;
-    std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<KeyDataElementI>>> _keyElements;
-    std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<FilteredDataElementI>>> _filteredElements;
+    std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<DataElementI>>> _keyElements;
+    std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<DataElementI>>> _filteredElements;
     std::map<ListenerKey, Listener> _listeners;
     size_t _listenerCount;
     mutable size_t _waiters;
@@ -137,6 +140,7 @@ protected:
     long long int _nextId;
     long long int _nextFilteredId;
     long long int _nextSampleId;
+    std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _callbackQueue;
 };
 
 class TopicReaderI : public TopicReader, public TopicI
@@ -158,8 +162,8 @@ public:
     virtual bool hasWriters() const override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);
-    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<KeyDataElementI>&);
+    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<DataElementI>&);
+    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<DataElementI>&);
 };
 
 class TopicWriterI : public TopicWriter, public TopicI
@@ -181,8 +185,8 @@ public:
     virtual bool hasReaders() const override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<FilteredDataElementI>&);
-    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<KeyDataElementI>&);
+    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<DataElementI>&);
+    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<DataElementI>&);
 };
 
 }

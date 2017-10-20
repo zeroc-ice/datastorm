@@ -25,7 +25,7 @@ class TopicWriterI;
 
 class TraceLevels;
 
-class DataElementI : virtual public DataElement, private Forwarder
+class DataElementI : virtual public DataElement, private Forwarder, public std::enable_shared_from_this<DataElementI>
 {
     struct ListenerKey
     {
@@ -109,6 +109,9 @@ public:
                       SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&, const std::string&);
     void detachFilter(long long int, long long int, SessionI*, const std::string&, bool = true);
 
+    virtual void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
+    virtual void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
+
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, SessionI*, long long int, long long int);
     virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&) const;
     virtual std::vector<unsigned char> getSampleFilterCriteria() const;
@@ -156,21 +159,16 @@ private:
     std::map<ListenerKey, Listener> _listeners;
     mutable size_t _waiters;
     mutable size_t _notified;
+
+    std::function<void(std::tuple<std::string, long long int, long long int>)> _onConnect;
+    std::function<void(std::tuple<std::string, long long int, long long int>)> _onDisconnect;
 };
 
-class KeyDataElementI : virtual public DataElementI, public std::enable_shared_from_this<KeyDataElementI>
-{
-};
-
-class FilteredDataElementI : virtual public DataElementI, public std::enable_shared_from_this<FilteredDataElementI>
-{
-};
-
-class DataReaderI : virtual public DataElementI, public DataReader
+class DataReaderI : public DataElementI, public DataReader
 {
 public:
 
-    DataReaderI(TopicReaderI*, std::vector<unsigned char>);
+    DataReaderI(TopicReaderI*, long long int, std::vector<unsigned char>);
 
     virtual int getInstanceCount() const override;
 
@@ -184,6 +182,8 @@ public:
     virtual std::vector<unsigned char> getSampleFilterCriteria() const override;
     virtual void queue(const std::shared_ptr<Sample>&, const std::string& = std::string()) override;
 
+    virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) override;
+
 protected:
 
     TopicReaderI* _parent;
@@ -192,13 +192,14 @@ protected:
     std::deque<std::shared_ptr<Sample>> _all;
     std::deque<std::shared_ptr<Sample>> _unread;
     int _instanceCount;
+    std::function<void(const std::shared_ptr<Sample>&)> _onSample;
 };
 
-class DataWriterI : virtual public DataElementI, public DataWriter
+class DataWriterI : public DataElementI, public DataWriter
 {
 public:
 
-    DataWriterI(TopicWriterI*, const std::shared_ptr<FilterFactory>&);
+    DataWriterI(TopicWriterI*, long long int, const std::shared_ptr<FilterFactory>&);
 
     virtual void publish(const std::shared_ptr<Sample>&) override;
     virtual std::shared_ptr<Filter> createSampleFilter(std::vector<unsigned char>) const override;
@@ -214,7 +215,7 @@ protected:
     std::deque<std::shared_ptr<Sample>> _all;
 };
 
-class KeyDataReaderI : public DataReaderI, public KeyDataElementI
+class KeyDataReaderI : public DataReaderI
 {
 public:
 
@@ -232,7 +233,7 @@ private:
     const std::vector<std::shared_ptr<Key>> _keys;
 };
 
-class KeyDataWriterI : public DataWriterI, public KeyDataElementI
+class KeyDataWriterI : public DataWriterI
 {
 public:
 
@@ -253,7 +254,7 @@ private:
     const std::shared_ptr<Key> _key;
 };
 
-class FilteredDataReaderI : public DataReaderI, public FilteredDataElementI
+class FilteredDataReaderI : public DataReaderI
 {
 public:
 
@@ -271,7 +272,7 @@ private:
     const std::shared_ptr<Filter> _filter;
 };
 
-class FilteredDataWriterI : public DataWriterI, public FilteredDataElementI
+class FilteredDataWriterI : public DataWriterI
 {
 public:
 

@@ -75,6 +75,10 @@ DataElementI::attachKey(long long int topicId,
         ++_listenerCount;
         session->subscribeToKey(topicId, elementId, key, this, facet);
         notifyListenerWaiters(session->getTopicLock());
+        if(_onConnect)
+        {
+            _parent->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
+        }
         return true;
     }
     else
@@ -98,6 +102,10 @@ DataElementI::detachKey(long long int topicId,
         if(unsubscribe)
         {
             session->unsubscribeFromKey(topicId, elementId, this);
+        }
+        if(_onDisconnect)
+        {
+            _parent->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
         }
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.empty())
@@ -126,6 +134,10 @@ DataElementI::attachFilter(long long int topicId,
     {
         ++_listenerCount;
         session->subscribeToFilter(topicId, elementId, filter, this, facet);
+        if(_onConnect)
+        {
+            _parent->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
+        }
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -151,12 +163,30 @@ DataElementI::detachFilter(long long int topicId,
         {
             session->unsubscribeFromFilter(topicId, elementId, this);
         }
+        if(_onDisconnect)
+        {
+            _parent->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
+        }
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.empty())
         {
             _listeners.erase(p);
         }
     }
+}
+
+void
+DataElementI::onConnect(function<void(tuple<string, long long int, long long int>)> callback)
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    _onConnect = std::move(callback);
+}
+
+void
+DataElementI::onDisconnect(function<void(tuple<string, long long int, long long int>)> callback)
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    _onDisconnect = std::move(callback);
 }
 
 void
@@ -273,8 +303,8 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
     }
 }
 
-DataReaderI::DataReaderI(TopicReaderI* topic, vector<unsigned char> sampleFilterCriteria) :
-    DataElementI(topic, 0),
+DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, vector<unsigned char> sampleFilterCriteria) :
+    DataElementI(topic, id),
     _parent(topic),
     _sampleFilterCriteria(move(sampleFilterCriteria))
 {
@@ -373,11 +403,22 @@ DataReaderI::queue(const shared_ptr<Sample>& sample, const string&)
         out << this << ": queued sample " << sample->id << " listeners=" << _listenerCount;
     }
     _unread.push_back(sample);
+    if(_onSample)
+    {
+        _parent->queue(shared_from_this(), [this, sample] { _onSample(sample); });
+    }
     _parent->_cond.notify_all();
 }
 
-DataWriterI::DataWriterI(TopicWriterI* topic, const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
-    DataElementI(topic, 0),
+void
+DataReaderI::onSample(function<void(const shared_ptr<Sample>&)> callback)
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    _onSample = std::move(callback);
+}
+
+DataWriterI::DataWriterI(TopicWriterI* topic, long long int id, const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
+    DataElementI(topic, id),
     _parent(topic),
     _sampleFilterFactory(sampleFilterFactory),
     _subscribers(Ice::uncheckedCast<SubscriberSessionPrx>(_forwarder))
@@ -413,8 +454,7 @@ KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
                                const vector<unsigned char> sampleFilterCriteria) :
-    DataElementI(topic, id),
-    DataReaderI(topic, sampleFilterCriteria),
+    DataReaderI(topic, id, sampleFilterCriteria),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -480,8 +520,7 @@ KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
                                long long int id,
                                const shared_ptr<Key>& key,
                                const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
-    DataElementI(topic, id),
-    DataWriterI(topic, sampleFilterFactory),
+    DataWriterI(topic, id, sampleFilterFactory),
     _key(key)
 {
     if(_traceLevels->data > 0)
@@ -557,8 +596,7 @@ FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
                                          long long int id,
                                          const shared_ptr<Filter>& filter,
                                          vector<unsigned char> sampleFilterCriteria) :
-    DataElementI(topic, id),
-    DataReaderI(topic, sampleFilterCriteria),
+    DataReaderI(topic, id, sampleFilterCriteria),
     _filter(filter)
 {
     if(_traceLevels->data > 0)
@@ -615,8 +653,7 @@ FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic,
                                          long long int id,
                                          const shared_ptr<Filter>& filter,
                                          const shared_ptr<FilterFactory>& sampleFilterFactory) :
-    DataElementI(topic, id),
-    DataWriterI(topic, sampleFilterFactory),
+    DataWriterI(topic, id, sampleFilterFactory),
     _filter(filter)
 {
     if(_traceLevels->data > 0)

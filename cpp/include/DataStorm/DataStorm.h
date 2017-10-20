@@ -427,6 +427,37 @@ public:
      */
     Sample<Key, Value> getNextUnread();
 
+    /**
+     *
+     * Calls the given lambda when a new writer connects to this reader.
+     *
+     * @param callback The lambda to call when a new reader connects. The tuple
+     *                 provided to the lambda indentifies the writer.
+     *
+     * @see Sample<K, V>::getOrigin
+     **/
+    void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+
+    /**
+     *
+     * Calls the given lambda when a new writer disconnects from this reader.
+     *
+     * @param callback The lambda to call when a new reader disconnects. The tuple
+     *                 provided to the lambda indentifies the writer.
+
+     * @see Sample<K, V>::getOrigin
+     **/
+    void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+
+    /**
+     *
+     * Calls the given lambda when a sample is queued with this reader. If
+     * a lambda is already set, it will be replaced with this new lambda.
+     *
+     * @param callback The lambda to call when a sample is queued.
+     **/
+    void onSample(std::function<void(Sample<Key, Value>)>);
+
 protected:
 
     /** @private */
@@ -694,6 +725,28 @@ public:
      */
     void remove();
 
+    /**
+     *
+     * Calls the given lambda when a new reader connects to this writer.
+     *
+     * @param callback The lambda to call when a new writer connects. The tuple
+     *                 provided to the lambda indentifies the reader.
+     *
+     * @see Sample<K, V>::getOrigin
+     **/
+    void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+
+    /**
+     *
+     * Calls the given lambda when a new reader disconnects from this writer.
+     *
+     * @param callback The lambda to call when a new writer disconnects. The tuple
+     *                 provided to the lambda indentifies the reader.
+
+     * @see Sample<K, V>::getOrigin
+     **/
+    void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+
 protected:
 
     /** @private */
@@ -908,6 +961,27 @@ Reader<Key, Value>::getNextUnread()
     return Sample<Key, Value>(_impl->getNextUnread());
 }
 
+template<typename Key, typename Value> void
+Reader<Key, Value>::onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+{
+    _impl->onConnect(std::move(callback));
+}
+
+template<typename Key, typename Value> void
+Reader<Key, Value>::onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+{
+    _impl->onDisconnect(std::move(callback));
+}
+
+template<typename Key, typename Value> void
+Reader<Key, Value>::onSample(std::function<void(Sample<Key, Value>)> callback)
+{
+    _impl->onSample([callback](const std::shared_ptr<DataStormInternal::Sample>& sample)
+    {
+        callback(Sample<Key, Value>(sample));
+    });
+}
+
 template<typename Key, typename Value, typename SampleFilterCriteria>
 template<typename KeyFilter, typename KeyFilterCriteria>
 KeyReader<Key, Value, SampleFilterCriteria>::KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>& topic,
@@ -1060,6 +1134,18 @@ template<typename Key, typename Value> void
 Writer<Key, Value>::remove()
 {
     _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Remove, Value()));
+}
+
+template<typename Key, typename Value> void
+Writer<Key, Value>::onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+{
+    _impl->onConnect(std::move(callback));
+}
+
+template<typename Key, typename Value> void
+Writer<Key, Value>::onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+{
+    _impl->onDisconnect(std::move(callback));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria>
