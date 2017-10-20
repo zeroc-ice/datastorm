@@ -24,7 +24,7 @@ struct DataSample
 {
     long id;
     long timestamp;
-    DataStorm::SampleType type;
+    DataStorm::SampleEvent event;
     ByteSeq value;
 }
 sequence<DataSample> DataSampleSeq;

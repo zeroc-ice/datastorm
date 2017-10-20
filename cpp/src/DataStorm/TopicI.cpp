@@ -329,7 +329,7 @@ TopicI::attachElementsAck(long long int topicId,
                                                           topicId,
                                                           elementId,
                                                           s.id,
-                                                          s.type,
+                                                          s.event,
                                                           key,
                                                           s.value,
                                                           s.timestamp));

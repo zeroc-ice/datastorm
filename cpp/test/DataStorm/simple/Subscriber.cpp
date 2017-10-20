@@ -28,21 +28,21 @@ main(int argc, char* argv[])
             reader.waitForWriters(1);
             test(reader.hasWriters());
 
-            auto testSample = [&reader](SampleType type, string key, string value = "")
+            auto testSample = [&reader](SampleEvent event, string key, string value = "")
             {
                 reader.waitForUnread(1);
                 auto sample = reader.getNextUnread();
                 test(sample.getKey() == key);
-                test(sample.getType() == type);
-                if(type != SampleType::Remove)
+                test(sample.getEvent() == event);
+                if(event != SampleEvent::Remove)
                 {
                     test(sample.getValue() == value);
                 }
             };
 
-            testSample(SampleType::Add, "elem1", "value1");
-            testSample(SampleType::Update, "elem1", "value2");
-            testSample(SampleType::Remove, "elem1");
+            testSample(SampleEvent::Add, "elem1", "value1");
+            testSample(SampleEvent::Update, "elem1", "value2");
+            testSample(SampleEvent::Remove, "elem1");
 
             auto samples = reader.getAll();
             test(samples.size() == 3);
@@ -67,21 +67,21 @@ main(int argc, char* argv[])
         reader.waitForWriters(1);
         test(reader.hasWriters());
 
-        auto testSample = [&reader](SampleType type, Test::StructValue value = Test::StructValue())
+        auto testSample = [&reader](SampleEvent event, Test::StructValue value = Test::StructValue())
         {
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == 10);
-            test(sample.getType() == type);
-            if(type != SampleType::Remove)
+            test(sample.getEvent() == event);
+            if(event != SampleEvent::Remove)
             {
                 test(sample.getValue() == value);
             }
         };
 
-        testSample(SampleType::Add, Test::StructValue({"firstName", "lastName", 10}));
-        testSample(SampleType::Update, Test::StructValue({"firstName", "lastName", 11}));
-        testSample(SampleType::Remove);
+        testSample(SampleEvent::Add, Test::StructValue({"firstName", "lastName", 10}));
+        testSample(SampleEvent::Update, Test::StructValue({"firstName", "lastName", 11}));
+        testSample(SampleEvent::Remove);
     }
 
     {
@@ -91,27 +91,27 @@ main(int argc, char* argv[])
         reader.waitForWriters(1);
         test(reader.hasWriters());
 
-        auto testSample = [&reader](SampleType type, string value = "")
+        auto testSample = [&reader](SampleEvent event, string value = "")
         {
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == "elem1");
-            test(sample.getType() == type);
-            if(type != SampleType::Remove)
+            test(sample.getEvent() == event);
+            if(event != SampleEvent::Remove)
             {
                 test(sample.getValue()->b == value);
             }
         };
 
-        testSample(SampleType::Add, "value1");
-        testSample(SampleType::Update, "value2");
-        testSample(SampleType::Remove);
+        testSample(SampleEvent::Add, "value1");
+        testSample(SampleEvent::Update, "value2");
+        testSample(SampleEvent::Remove);
     }
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
 
-        auto testSample = [&topic](auto& reader, SampleType type, string key, string value = "")
+        auto testSample = [&topic](auto& reader, SampleEvent event, string key, string value = "")
         {
             reader.waitForWriters(1);
             test(reader.hasWriters());
@@ -119,8 +119,8 @@ main(int argc, char* argv[])
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == key);
-            test(sample.getType() == type);
-            if(type != SampleType::Remove)
+            test(sample.getEvent() == event);
+            if(event != SampleEvent::Remove)
             {
                 test(sample.getValue()->b == value);
             }
@@ -128,21 +128,21 @@ main(int argc, char* argv[])
 
         {
             KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem1");
-            testSample(reader, SampleType::Add, "elem1", "value1");
-            testSample(reader, SampleType::Update, "elem1", "value2");
-            testSample(reader, SampleType::Remove, "elem1");
+            testSample(reader, SampleEvent::Add, "elem1", "value1");
+            testSample(reader, SampleEvent::Update, "elem1", "value2");
+            testSample(reader, SampleEvent::Remove, "elem1");
         }
         {
             KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem2");
-            testSample(reader, SampleType::Update, "elem2", "value1");
+            testSample(reader, SampleEvent::Update, "elem2", "value1");
         }
         {
             KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem3");
-            testSample(reader, SampleType::Remove, "elem3");
+            testSample(reader, SampleEvent::Remove, "elem3");
         }
         {
             KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem4");
-            testSample(reader, SampleType::Add, "elem4", "value1");
+            testSample(reader, SampleEvent::Add, "elem4", "value1");
         }
     }
 
@@ -163,65 +163,65 @@ main(int argc, char* argv[])
         reader.waitForWriters(1);
         test(reader.hasWriters());
 
-        auto testSample = [&reader](SampleType type, string key, string value = "")
+        auto testSample = [&reader](SampleEvent event, string key, string value = "")
         {
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == key);
-            test(sample.getType() == type);
-            if(type != SampleType::Remove)
+            test(sample.getEvent() == event);
+            if(event != SampleEvent::Remove)
             {
                 test(sample.getValue()->b == value);
             }
         };
 
-        testSample(SampleType::Add, "elem1", "value1");
-        testSample(SampleType::Update, "elem1", "value2");
-        testSample(SampleType::Remove, "elem1");
+        testSample(SampleEvent::Add, "elem1", "value1");
+        testSample(SampleEvent::Update, "elem1", "value2");
+        testSample(SampleEvent::Remove, "elem1");
 
-        testSample(SampleType::Update, "elem2", "value1");
-        testSample(SampleType::Remove, "elem3");
-        testSample(SampleType::Add, "elem4", "value1");
+        testSample(SampleEvent::Update, "elem2", "value1");
+        testSample(SampleEvent::Remove, "elem3");
+        testSample(SampleEvent::Add, "elem4", "value1");
     }
     {
         Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
 
-        auto testSample = [](auto& reader, SampleType type, string key, string value = "")
+        auto testSample = [](auto& reader, SampleEvent event, string key, string value = "")
         {
             reader.waitForUnread(1);
             auto sample = reader.getNextUnread();
             test(sample.getKey() == key);
-            test(sample.getType() == type);
-            if(type != SampleType::Remove)
+            test(sample.getEvent() == event);
+            if(event != SampleEvent::Remove)
             {
                 test(sample.getValue() == value);
             }
         };
 
-        FilteredReader<string, string, SampleTypeSeq> reader11(topic, "elem[1]", { SampleType::Add });
-        FilteredReader<string, string, SampleTypeSeq> reader12(topic, "elem[1]", { SampleType::Update });
-        FilteredReader<string, string, SampleTypeSeq> reader13(topic, "elem[1]", { SampleType::Remove });
-        testSample(reader11, SampleType::Add, "elem1", "value1");
-        testSample(reader12, SampleType::Update, "elem1", "value2");
-        testSample(reader13, SampleType::Remove, "elem1");
+        FilteredReader<string, string, SampleEventSeq> reader11(topic, "elem[1]", { SampleEvent::Add });
+        FilteredReader<string, string, SampleEventSeq> reader12(topic, "elem[1]", { SampleEvent::Update });
+        FilteredReader<string, string, SampleEventSeq> reader13(topic, "elem[1]", { SampleEvent::Remove });
+        testSample(reader11, SampleEvent::Add, "elem1", "value1");
+        testSample(reader12, SampleEvent::Update, "elem1", "value2");
+        testSample(reader13, SampleEvent::Remove, "elem1");
 
         FilteredReader<string, string, string> reader2(topic, "elem[2]", "value[2-4]");
-        testSample(reader2, SampleType::Update, "elem2", "value2");
-        testSample(reader2, SampleType::Update, "elem2", "value3");
-        testSample(reader2, SampleType::Update, "elem2", "value4");
+        testSample(reader2, SampleEvent::Update, "elem2", "value2");
+        testSample(reader2, SampleEvent::Update, "elem2", "value3");
+        testSample(reader2, SampleEvent::Update, "elem2", "value4");
      }
 
     // {
     //     Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
 
-    //     auto testSample = [&topic](SampleType type, auto& reader, string key, string value = "")
+    //     auto testSample = [&topic](SampleEvent event, auto& reader, string key, string value = "")
     //     {
     //         reader.waitForUnread(1);
     //         auto sample = reader.getNextUnread();
     //         //test(sample.getKey() == key); No key set for filtered writer
     //         test(sample.getKey().empty());
-    //         test(sample.getType() == type);
-    //         if(type != SampleType::Remove)
+    //         test(sample.getEvent() == event);
+    //         if(event != SampleEvent::Remove)
     //         {
     //             test(sample.getValue()->b == value);
     //         }
@@ -231,27 +231,27 @@ main(int argc, char* argv[])
     //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elema1");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
-    //         testSample(SampleType::Add, reader, "elema1", "value1");
-    //         testSample(SampleType::Update, reader, "elema1", "value2");
-    //         testSample(SampleType::Remove, reader, "elema1");
+    //         testSample(SampleEvent::Add, reader, "elema1", "value1");
+    //         testSample(SampleEvent::Update, reader, "elema1", "value2");
+    //         testSample(SampleEvent::Remove, reader, "elema1");
     //     }
     //     {
     //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemb2");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
-    //         testSample(SampleType::Update, reader, "elemb2", "value1");
+    //         testSample(SampleEvent::Update, reader, "elemb2", "value1");
     //     }
     //     {
     //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemc3");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
-    //         testSample(SampleType::Remove, reader, "elemc3");
+    //         testSample(SampleEvent::Remove, reader, "elemc3");
     //     }
     //     {
     //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemd4");
     //         reader.waitForWriters(1);
     //         test(reader.hasWriters());
-    //         testSample(SampleType::Add, reader, "elemd4", "value1");
+    //         testSample(SampleEvent::Add, reader, "elemd4", "value1");
     //     }
 
     //     {
@@ -267,7 +267,7 @@ main(int argc, char* argv[])
     //         {
     //             ostringstream os;
     //             os << "elem" << i;
-    //             testSample(SampleType::Update, readers[i], os.str(), "value1");
+    //             testSample(SampleEvent::Update, readers[i], os.str(), "value1");
     //         }
     //     }
 

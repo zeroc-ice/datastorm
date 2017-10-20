@@ -257,7 +257,7 @@ template<typename Key, typename Value> class SampleT : public Sample
 {
 public:
 
-    SampleT(DataStorm::SampleType type, Value value) : Sample(type), _value(std::move(value))
+    SampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _value(std::move(value))
     {
     }
 
@@ -314,7 +314,7 @@ public:
                                            long long int topic,
                                            long long int element,
                                            long long int id,
-                                           DataStorm::SampleType type,
+                                           DataStorm::SampleEvent type,
                                            const std::shared_ptr<DataStormInternal::Key>& key,
                                            std::vector<unsigned char> value,
                                            long long int timestamp)

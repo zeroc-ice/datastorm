@@ -91,11 +91,11 @@ public:
     using ValueType = Value;
 
     /**
-     * The type of the sample.
+     * The event of the sample.
      *
-     * @return The sample type.
+     * @return The sample event.
      */
-    SampleType getType() const;
+    SampleEvent getEvent() const;
 
     /**
      * The key of the sample.
@@ -182,10 +182,10 @@ private:
 };
 
 /**
- * The SampleTypeFilter template filters samples based on a set of sample types.
+ * The SampleEventFilter template filters samples based on a set of sample types.
  **/
 template<typename Key, typename Value>
-struct SampleTypeFilter
+struct SampleEventFilter
 {
 public:
 
@@ -194,7 +194,7 @@ public:
      *
      * @param criteria The filter criteria.
      */
-    SampleTypeFilter(std::vector<SampleType> criteria) : _types(std::move(criteria))
+    SampleEventFilter(std::vector<SampleEvent> criteria) : _events(std::move(criteria))
     {
     }
 
@@ -206,26 +206,26 @@ public:
      */
     bool match(const Sample<Key, Value>& sample) const
     {
-        return std::find(_types.begin(), _types.end(), sample.getType()) != _types.end();
+        return std::find(_events.begin(), _events.end(), sample.getEvent()) != _events.end();
     }
 
 private:
 
-    const std::vector<SampleType> _types;
+    const std::vector<SampleEvent> _events;
 };
 
 std::ostream&
-operator<<(std::ostream& os, SampleType sampleType)
+operator<<(std::ostream& os, SampleEvent sampleType)
 {
     switch(sampleType)
     {
-    case SampleType::Add:
+    case SampleEvent::Add:
         os << "Add";
         break;
-    case SampleType::Update:
+    case SampleEvent::Update:
         os << "Update";
         break;
-    case SampleType::Remove:
+    case SampleEvent::Remove:
         os << "Remove";
         break;
     default:
@@ -236,7 +236,7 @@ operator<<(std::ostream& os, SampleType sampleType)
 }
 
 std::ostream&
-operator<<(std::ostream& os, const std::vector<SampleType>& types)
+operator<<(std::ostream& os, const std::vector<SampleEvent>& types)
 {
     os << "[";
     for(auto p = types.begin(); p != types.end(); ++p)
@@ -792,10 +792,10 @@ Encoder<T>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const
 //
 // Sample template implementation
 //
-template<typename Key, typename Value> SampleType
-Sample<Key, Value>::getType() const
+template<typename Key, typename Value> SampleEvent
+Sample<Key, Value>::getEvent() const
 {
-    return _impl->type;
+    return _impl->event;
 }
 
 template<typename Key, typename Value> Key
@@ -1047,19 +1047,19 @@ Writer<Key, Value>::waitForNoReaders() const
 template<typename Key, typename Value> void
 Writer<Key, Value>::add(const Value& value)
 {
-    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleType::Add, value));
+    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Add, value));
 }
 
 template<typename Key, typename Value> void
 Writer<Key, Value>::update(const Value& value)
 {
-    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleType::Update, value));
+    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Update, value));
 }
 
 template<typename Key, typename Value> void
 Writer<Key, Value>::remove()
 {
-    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleType::Remove, Value()));
+    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Remove, Value()));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria>

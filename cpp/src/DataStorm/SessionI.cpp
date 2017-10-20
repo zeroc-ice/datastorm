@@ -295,7 +295,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                                                                  topicId,
                                                                  samples.id,
                                                                  s.id,
-                                                                 s.type,
+                                                                 s.event,
                                                                  k->get(),
                                                                  s.value,
                                                                  s.timestamp));
@@ -343,7 +343,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                                                                  topicId,
                                                                  samples.id,
                                                                  s.id,
-                                                                 s.type,
+                                                                 s.event,
                                                                  nullptr,
                                                                  s.value,
                                                                  s.timestamp));
@@ -840,7 +840,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
                                                           topicId,
                                                           element,
                                                           s.id,
-                                                          s.type,
+                                                          s.event,
                                                           e->get(),
                                                           s.value,
                                                           s.timestamp);

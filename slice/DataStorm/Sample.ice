@@ -13,29 +13,29 @@ module DataStorm
 {
 
 /**
- * The sample type.
+ * The sample event.
  *
- * The sample type matches the operation used by the DataWriter to update
+ * The sample event matches the operation used by the DataWriter to update
  * the data element. It also provides information on what to expect from
- * the sample. A sample with the Add or Udpate type always provide a value
+ * the sample. A sample with the Add or Udpate event always provide a value
  * while a sample with the Remove type doesn't.
  *
  */
-enum SampleType
+enum SampleEvent
 {
-    /** The data element has been added. */
+    /** The element has been added. */
     Add,
 
-    /** The data element has been updated. */
+    /** The element has been updated. */
     Update,
 
-    /** The data element has been removed. */
+    /** The element has been removed. */
     Remove,
 }
 
 /**
  * A sequence of sample type enumeration.
  */
-sequence<SampleType> SampleTypeSeq;
+sequence<SampleEvent> SampleEventSeq;
 
 }

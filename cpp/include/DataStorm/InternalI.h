@@ -54,16 +54,16 @@ public:
            long long int topic,
            long long int element,
            long long int id,
-           DataStorm::SampleType type,
+           DataStorm::SampleEvent event,
            const std::shared_ptr<Key>& key,
            std::vector<unsigned char> value,
            long long int timestamp) :
-        session(session), topic(topic), element(element), id(id), type(type), key(key), timestamp(timestamp),
+        session(session), topic(topic), element(element), id(id), event(event), key(key), timestamp(timestamp),
         _encodedValue(std::move(value))
     {
     }
 
-    Sample(DataStorm::SampleType type) : type(type)
+    Sample(DataStorm::SampleEvent event) : event(event)
     {
     }
 
@@ -74,7 +74,7 @@ public:
     long long int topic;
     long long int element;
     long long int id;
-    DataStorm::SampleType type;
+    DataStorm::SampleEvent event;
     std::shared_ptr<Key> key;
     long long int timestamp;
 
@@ -91,7 +91,7 @@ public:
                                            long long int,
                                            long long int,
                                            long long int,
-                                           DataStorm::SampleType,
+                                           DataStorm::SampleEvent,
                                            const std::shared_ptr<Key>&,
                                            std::vector<unsigned char>,
                                            long long int) = 0;

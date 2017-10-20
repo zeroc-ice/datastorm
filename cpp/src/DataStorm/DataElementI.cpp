@@ -23,7 +23,7 @@ namespace
 DataSample
 toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator)
 {
-    return { sample->id, sample->timestamp, sample->type, sample->encode(communicator) };
+    return { sample->id, sample->timestamp, sample->event, sample->encode(communicator) };
 }
 
 }

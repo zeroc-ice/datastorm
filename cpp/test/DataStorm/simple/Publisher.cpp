@@ -151,7 +151,7 @@ main(int argc, char* argv[])
     {
         Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
 
-        KeyWriter<string, string, SampleTypeFilter<string, string>, SampleTypeSeq> writer1(topic, "elem1");
+        KeyWriter<string, string, SampleEventFilter<string, string>, SampleEventSeq> writer1(topic, "elem1");
         writer1.waitForReaders(3);
         test(writer1.hasReaders());
         writer1.add("value1");
