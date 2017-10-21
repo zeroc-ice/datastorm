@@ -47,13 +47,10 @@ main(int argc, char* argv[])
     DataStorm::Topic<string, chrono::system_clock::time_point, KeyFilter, string> topic(node, "time");
 
     //
-    // Instantiate a reader to read the time from all the topic cities.
+    // Instantiate a writer to writer the time from the given city.
     //
     auto writer = DataStorm::makeKeyWriter(topic, city);
 
-    //
-    // Prints out the received samples.
-    //
     writer.onConnect([](tuple<string, long long int, long long int> reader)
     {
         cout << "reader connected " << endl;
