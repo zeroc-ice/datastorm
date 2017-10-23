@@ -11,18 +11,12 @@ using namespace std;
 namespace DataStorm
 {
 
-template<> struct Encoder<chrono::system_clock::time_point>
+template<> struct Decoder<chrono::system_clock::time_point>
 {
-    static vector<unsigned char>
-    encode(const shared_ptr<Ice::Communicator>& com, const chrono::system_clock::time_point& time)
-    {
-        return Encoder<long long int>::encode(com, chrono::system_clock::to_time_t(time));
-    }
-
     static chrono::system_clock::time_point
     decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
     {
-        return chrono::system_clock::from_time_t(static_cast<time_t>(Encoder<long long int>::decode(com, data)));
+        return chrono::system_clock::from_time_t(static_cast<time_t>(Decoder<long long int>::decode(com, data)));
     }
 };
 
@@ -58,7 +52,6 @@ main(int argc, char* argv[])
     reader.onSample([](DataStorm::Sample<string, chrono::system_clock::time_point> sample)
     {
         auto time = chrono::system_clock::to_time_t(sample.getValue());
-        cout << time << endl;
         char timeString[100];
         if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
         {

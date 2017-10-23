@@ -38,20 +38,19 @@ template<typename K, typename V, typename SF, typename SFC> class KeyWriter;
 template<typename K, typename V, typename SFC> class FilteredReader;
 
 /**
- * The Encoder template provides methods to encode and decode user types.
+ * The Encoder template provides a method to encode decode user types.
  *
- * The encoder template can be specialized to provide encodeling and un-encodeling
- * methods for types that don't support being encodeled with Ice. By default, the
- * Ice encodeling is used if no Encoder template specialization is provided for the
- * type.
+ * The encoder template can be specialized to provide encoding for types that don't
+ * support being encoded with Ice. By default, the Ice encoding is used if no
+ * Encoder template specialization is provided for the type.
  */
 template<typename T>
 struct Encoder
 {
     /**
-     * Marshals the given value. This method encodes the given value and returns the
-     * resulting byte sequence. The factory parameter is provided to allow the implementation
-     * to retrieve configuration or any other information required by the marhsalling.
+     * Encode the given value. This method encodes the given value and returns the
+     * resulting byte sequence. The communicator parameter is provided to allow the
+     * implementation to eventually use the Ice encoding.
      *
      * @see decode
      *
@@ -60,11 +59,22 @@ struct Encoder
      * @return The resulting byte sequence
      */
     static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&, const T&);
+};
 
+/**
+ * The Decoder template provides a method to decode user types.
+ *
+ * The decoder template can be specialized to provide decoding for types that don't
+ * support being decoded with Ice. By default, the Ice decoding is used if no
+ * Decoder template specialization is provided for the type.
+ */
+template<typename T>
+struct Decoder
+{
     /**
      * Unencodes a value. This method decodes the given byte sequence and returns the
-     * resulting value. The factory parameter is provided to allow the implementation
-     * to retrieve configuration or any other information required by the un-encodeling.
+     * resulting value. The communicator parameter is provided to allow the
+     * implementation to eventually use the Ice encoding.
      *
      * @see encode
      *
@@ -143,7 +153,7 @@ public:
 
 private:
 
-    std::shared_ptr<DataStormInternal::SampleT<Key, Value>> _impl;
+    std::shared_ptr<DataStormInternal::RSampleT<Key, Value>> _impl;
 };
 
 /**
@@ -827,8 +837,11 @@ Encoder<T>::encode(const std::shared_ptr<Ice::Communicator>& communicator, const
     return v;
 }
 
+//
+// Decoder template implementation
+//
 template<typename T> T
-Encoder<T>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value)
+Decoder<T>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value)
 {
     T v;
     if(value.empty())
@@ -877,7 +890,7 @@ Sample<Key, Value>::getOrigin() const
 
 template<typename Key, typename Value>
 Sample<Key, Value>::Sample(const std::shared_ptr<DataStormInternal::Sample>& impl) :
-    _impl(std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(impl))
+    _impl(std::static_pointer_cast<DataStormInternal::RSampleT<Key, Value>>(impl))
 {
 }
 
@@ -1121,19 +1134,19 @@ Writer<Key, Value>::waitForNoReaders() const
 template<typename Key, typename Value> void
 Writer<Key, Value>::add(const Value& value)
 {
-    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Add, value));
+    _impl->publish(std::make_shared<DataStormInternal::WSampleT<Key, Value>>(SampleEvent::Add, value));
 }
 
 template<typename Key, typename Value> void
 Writer<Key, Value>::update(const Value& value)
 {
-    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Update, value));
+    _impl->publish(std::make_shared<DataStormInternal::WSampleT<Key, Value>>(SampleEvent::Update, value));
 }
 
 template<typename Key, typename Value> void
 Writer<Key, Value>::remove()
 {
-    _impl->publish(std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Remove, Value()));
+    _impl->publish(std::make_shared<DataStormInternal::WSampleT<Key, Value>>(SampleEvent::Remove, Value()));
 }
 
 template<typename Key, typename Value> void
@@ -1157,7 +1170,7 @@ KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria>::KeyWriter(
                                                  DataStormInternal::FilterFactoryT<
                                                      SampleFilter,
                                                      SampleFilterCriteria,
-                                                     DataStormInternal::SampleT<Key, Value>>::createFactory()))
+                                                     DataStormInternal::WSampleT<Key, Value>>::createFactory()))
 {
 }
 
@@ -1264,10 +1277,7 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria>::getWriter() const
     std::lock_guard<std::mutex> lock(_mutex);
     if(!_writer)
     {
-        _writer = _topicFactory->createTopicWriter(_name,
-                                                   _keyFactory,
-                                                   _filterFactory,
-                                                   std::make_shared<DataStormInternal::SampleFactoryT<Key, Value>>());
+        _writer = _topicFactory->createTopicWriter(_name, _keyFactory, _filterFactory, nullptr);
     }
     return _writer;
 }

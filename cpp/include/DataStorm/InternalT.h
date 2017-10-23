@@ -19,6 +19,7 @@ namespace DataStorm
 
 template<typename K, typename V> class Sample;
 template<typename T> struct Encoder;
+template<typename T> struct Decoder;
 template<typename T> struct Stringifier;
 
 }
@@ -242,7 +243,7 @@ public:
     virtual std::shared_ptr<Key>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<K, KeyT<K>>::create(DataStorm::Encoder<K>::decode(communicator, data));
+        return AbstractFactoryT<K, KeyT<K>>::create(DataStorm::Decoder<K>::decode(communicator, data));
     }
 
     static std::shared_ptr<KeyFactoryT<K>> createFactory()
@@ -253,21 +254,44 @@ public:
     }
 };
 
-template<typename Key, typename Value> class SampleT : public Sample
+template<typename Key, typename Value> class WSampleT : public Sample
 {
 public:
 
-    SampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _value(std::move(value))
+    WSampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _value(std::move(value))
     {
     }
-
-    using Sample::Sample;
 
     DataStorm::Sample<Key, Value>
     get()
     {
         return DataStorm::Sample<Key, Value>(shared_from_this());
     }
+
+    virtual void decode(const std::shared_ptr<Ice::Communicator>& communicator) override
+    {
+        assert(false);
+    }
+
+    virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>& communicator) override
+    {
+        if(_encodedValue.empty())
+        {
+            _encodedValue = DataStorm::Encoder<Value>::encode(communicator, _value);
+        }
+        return _encodedValue;
+    }
+
+private:
+
+    Value _value;
+};
+
+template<typename Key, typename Value> class RSampleT : public Sample
+{
+public:
+
+    using Sample::Sample;
 
     Key getKey()
     {
@@ -287,17 +311,14 @@ public:
     {
         if(!_encodedValue.empty())
         {
-            _value = DataStorm::Encoder<Value>::decode(communicator, _encodedValue);
+            _value = DataStorm::Decoder<Value>::decode(communicator, _encodedValue);
             _encodedValue.clear();
         }
     }
 
     virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>& communicator) override
     {
-        if(_encodedValue.empty())
-        {
-            _encodedValue = DataStorm::Encoder<Value>::encode(communicator, _value);
-        }
+        assert(false);
         return _encodedValue;
     }
 
@@ -319,14 +340,14 @@ public:
                                            std::vector<unsigned char> value,
                                            long long int timestamp)
     {
-        return std::shared_ptr<Sample>(std::make_shared<SampleT<Key, Value>>(session,
-                                                                             topic,
-                                                                             element,
-                                                                             id,
-                                                                             type,
-                                                                             key,
-                                                                             std::move(value),
-                                                                             timestamp));
+        return std::shared_ptr<Sample>(std::make_shared<RSampleT<Key, Value>>(session,
+                                                                              topic,
+                                                                              element,
+                                                                              id,
+                                                                              type,
+                                                                              key,
+                                                                              std::move(value),
+                                                                              timestamp));
     }
 };
 
@@ -375,7 +396,7 @@ public:
     virtual std::shared_ptr<Filter>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<C, FilterT<F, C, V>>::create(DataStorm::Encoder<C>::decode(communicator, data));
+        return AbstractFactoryT<C, FilterT<F, C, V>>::create(DataStorm::Decoder<C>::decode(communicator, data));
     }
 
     static std::shared_ptr<FilterFactoryT<F, C, V>> createFactory()

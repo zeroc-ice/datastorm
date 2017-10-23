@@ -18,12 +18,6 @@ template<> struct Encoder<chrono::system_clock::time_point>
     {
         return Encoder<long long int>::encode(com, chrono::system_clock::to_time_t(time));
     }
-
-    static chrono::system_clock::time_point
-    decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
-    {
-        return chrono::system_clock::from_time_t(static_cast<time_t>(Encoder<long long int>::decode(com, data)));
-    }
 };
 
 };

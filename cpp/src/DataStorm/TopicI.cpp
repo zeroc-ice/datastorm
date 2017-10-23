@@ -367,12 +367,18 @@ TopicI::attachElementsAck(long long int topicId,
                             if(spec.valueId > 0) // Key
                             {
                                 e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
-                                initSamples(e, data.id, key, data.facet, data.samples, samplesI);
+                                if(_sampleFactory)
+                                {
+                                    initSamples(e, data.id, key, data.facet, data.samples, samplesI);
+                                }
                             }
                             else if(filter->match(key)) // Filter
                             {
                                 e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
-                                initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
+                                if(_sampleFactory)
+                                {
+                                    initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
+                                }
                             }
                             samples.push_back({ e->getId(), e->getSamples(lastId, sampleFilter) });
                             break;
@@ -404,12 +410,18 @@ TopicI::attachElementsAck(long long int topicId,
                             if(spec.valueId < 0) // Filter
                             {
                                 e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
-                                initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
+                                if(_sampleFactory)
+                                {
+                                    initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
+                                }
                             }
                             else if(filter->match(key))
                             {
                                 e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
-                                initSamples(e, data.id, key, data.facet, data.samples, samplesI);
+                                if(_sampleFactory)
+                                {
+                                    initSamples(e, data.id, key, data.facet, data.samples, samplesI);
+                                }
                             }
                             samples.push_back({ e->getId(), e->getSamples(lastId, sampleFilter) });
                         }
