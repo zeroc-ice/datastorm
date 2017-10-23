@@ -405,6 +405,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample, const string&)
     _unread.push_back(sample);
     if(_onSample)
     {
+        sample->decode(getCommunicator());
         _parent->queue(shared_from_this(), [this, sample] { _onSample(sample); });
     }
     _parent->_cond.notify_all();

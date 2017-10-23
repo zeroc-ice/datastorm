@@ -547,7 +547,7 @@ SessionI::unsubscribe(long long id, TopicI* topic)
     {
         for(auto& e : f.second.getSubscribers())
         {
-            e.first->detachKey(id, f.first, this, e.second.facet, false);
+            e.first->detachFilter(id, f.first, this, e.second.facet, false);
         }
     }
     if(_traceLevels->session > 1)
