@@ -13,6 +13,7 @@
 
 #include <DataStorm/Config.h>
 #include <DataStorm/Sample.h>
+#include <DataStorm/Types.h>
 
 //
 // Private abstract API used by the template based API and the internal DataStorm implementation.
@@ -58,7 +59,8 @@ public:
            const std::shared_ptr<Key>& key,
            std::vector<unsigned char> value,
            long long int timestamp) :
-        session(session), topic(topic), element(element), id(id), event(event), key(key), timestamp(timestamp),
+        session(session), topic(topic), element(element), id(id), event(event), key(key),
+        timestamp(std::chrono::microseconds(timestamp)),
         _encodedValue(std::move(value))
     {
     }
@@ -76,7 +78,7 @@ public:
     long long int id;
     DataStorm::SampleEvent event;
     std::shared_ptr<Key> key;
-    long long int timestamp;
+    std::chrono::time_point<std::chrono::system_clock> timestamp;
 
 protected:
 
@@ -138,6 +140,7 @@ public:
     virtual bool hasUnread() const = 0;
     virtual std::shared_ptr<Sample> getNextUnread() = 0;
 
+    virtual void onInit(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) = 0;
     virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) = 0;
 };
 
@@ -166,10 +169,13 @@ class TopicReader : virtual public Topic
 public:
 
     virtual std::shared_ptr<DataReader> createFiltered(const std::shared_ptr<Filter>&,
+                                                       DataStorm::ReaderConfig,
                                                        std::vector<unsigned char> = {}) = 0;
     virtual std::shared_ptr<DataReader> create(const std::vector<std::shared_ptr<Key>>&,
+                                               DataStorm::ReaderConfig,
                                                std::vector<unsigned char> = {}) = 0;
 
+    virtual void setDefaultConfig(DataStorm::ReaderConfig) = 0;
     virtual bool hasWriters() const = 0;
     virtual void waitForWriters(int) const = 0;
 };
@@ -178,11 +184,11 @@ class TopicWriter : virtual public Topic
 {
 public:
 
-    virtual std::shared_ptr<DataWriter> createFiltered(const std::shared_ptr<Filter>&,
-                                                       const std::shared_ptr<FilterFactory>& = nullptr) = 0;
     virtual std::shared_ptr<DataWriter> create(const std::shared_ptr<Key>&,
+                                               DataStorm::WriterConfig,
                                                const std::shared_ptr<FilterFactory>& = nullptr) = 0;
 
+    virtual void setDefaultConfig(DataStorm::WriterConfig) = 0;
     virtual bool hasReaders() const = 0;
     virtual void waitForReaders(int) const = 0;
 };

@@ -13,6 +13,7 @@
 #include <DataStorm/DataElementI.h>
 #include <DataStorm/ForwarderManager.h>
 #include <DataStorm/Instance.h>
+#include <DataStorm/Types.h>
 
 namespace DataStormInternal
 {
@@ -73,13 +74,15 @@ public:
                                                         long long int,
                                                         const DataStormContract::ElementSpecSeq&,
                                                         SessionI*,
-                                                        const std::shared_ptr<DataStormContract::SessionPrx>&);
+                                                        const std::shared_ptr<DataStormContract::SessionPrx>&,
+                                                        const std::chrono::time_point<std::chrono::system_clock>&);
 
     DataStormContract::DataSamplesSeq attachElementsAck(long long int,
                                                         long long int,
                                                         const DataStormContract::ElementSpecAckSeq&,
                                                         SessionI*,
-                                                        const std::shared_ptr<DataStormContract::SessionPrx>&);
+                                                        const std::shared_ptr<DataStormContract::SessionPrx>&,
+                                                        const std::chrono::time_point<std::chrono::system_clock>&);
 
     void queue(const std::shared_ptr<DataElementI>&, std::function<void()>);
     void flushQueue();
@@ -155,15 +158,25 @@ public:
                  long long int);
 
     virtual std::shared_ptr<DataReader> createFiltered(const std::shared_ptr<Filter>&,
+                                                       DataStorm::ReaderConfig,
                                                        std::vector<unsigned char>) override;
     virtual std::shared_ptr<DataReader> create(const std::vector<std::shared_ptr<Key>>&,
+                                               DataStorm::ReaderConfig,
                                                std::vector<unsigned char>) override;
+
+    virtual void setDefaultConfig(DataStorm::ReaderConfig) override;
     virtual void waitForWriters(int) const override;
     virtual bool hasWriters() const override;
     virtual void destroy() override;
 
     void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<DataElementI>&);
     void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<DataElementI>&);
+
+private:
+
+    DataStorm::ReaderConfig mergeConfigs(DataStorm::ReaderConfig) const;
+
+    DataStorm::ReaderConfig _defaultConfig;
 };
 
 class TopicWriterI : public TopicWriter, public TopicI
@@ -177,16 +190,22 @@ public:
                  const std::string&,
                  long long int);
 
-    virtual std::shared_ptr<DataWriter> createFiltered(const std::shared_ptr<Filter>&,
-                                                       const std::shared_ptr<FilterFactory>&) override;
     virtual std::shared_ptr<DataWriter> create(const std::shared_ptr<Key>&,
+                                               DataStorm::WriterConfig,
                                                const std::shared_ptr<FilterFactory>&) override;
+
+    virtual void setDefaultConfig(DataStorm::WriterConfig) override;
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
     virtual void destroy() override;
 
-    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<DataElementI>&);
     void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<DataElementI>&);
+
+private:
+
+    DataStorm::WriterConfig mergeConfigs(DataStorm::WriterConfig) const;
+
+    DataStorm::WriterConfig _defaultConfig;
 };
 
 }

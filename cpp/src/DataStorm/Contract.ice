@@ -27,7 +27,7 @@ struct DataSample
     DataStorm::SampleEvent event;
     ByteSeq value;
 }
-sequence<DataSample> DataSampleSeq;
+["cpp:type:std::deque<DataSample>"] sequence<DataSample> DataSampleSeq;
 
 struct DataSamples
 {
@@ -57,11 +57,18 @@ struct TopicSpec
     ElementInfoSeq elements;
 };
 
+class ElementConfig(1)
+{
+    optional(1) string facet;
+    optional(2) ByteSeq sampleFilter;
+    optional(10) int sampleCount;
+    optional(11) int sampleLifetime;
+};
+
 struct ElementData
 {
     long id;
-    string facet;
-    ByteSeq sampleFilter;
+    ElementConfig config;
 }
 sequence<ElementData> ElementDataSeq;
 
@@ -77,8 +84,7 @@ sequence<ElementSpec> ElementSpecSeq;
 struct ElementDataAck
 {
     long id;
-    string facet;
-    ByteSeq sampleFilter;
+    ElementConfig config;
     DataSampleSeq samples;
     long peerId;
 }

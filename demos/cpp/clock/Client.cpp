@@ -16,7 +16,8 @@ template<> struct Decoder<chrono::system_clock::time_point>
     static chrono::system_clock::time_point
     decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
     {
-        return chrono::system_clock::from_time_t(static_cast<time_t>(Decoder<long long int>::decode(com, data)));
+        auto value = Decoder<long long int>::decode(com, data);
+        return std::chrono::time_point<std::chrono::system_clock>(std::chrono::seconds(value));
     }
 };
 
@@ -39,7 +40,9 @@ main(int argc, char* argv[])
     //
     // Instantiate a reader to read the time from all the topic cities.
     //
-    auto reader = DataStorm::makeFilteredReader(topic, ".*");
+    DataStorm::ReaderConfig config;
+    config.sampleCount = 0; // Don't keep sample history
+    auto reader = DataStorm::makeFilteredReader(topic, ".*", config);
 
     //
     // Wait for at least on writer to be online.
@@ -49,7 +52,7 @@ main(int argc, char* argv[])
     //
     // Prints out the received samples.
     //
-    reader.onSample([](DataStorm::Sample<string, chrono::system_clock::time_point> sample)
+    reader.onSample([](auto sample)
     {
         auto time = chrono::system_clock::to_time_t(sample.getValue());
         char timeString[100];

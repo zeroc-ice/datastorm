@@ -158,6 +158,7 @@ SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq 
         return;
     }
 
+    auto now = chrono::system_clock::now();
     runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
     {
         if(_traceLevels->session > 2)
@@ -166,7 +167,7 @@ SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq 
             out << _id << ": attaching elements `[" << elements << "]@" << id << "' on topic `" << topic << "'";
         }
 
-        auto specAck = topic->attachElements(id, lastId, elements, this, _session);
+        auto specAck = topic->attachElements(id, lastId, elements, this, _session, now);
         if(!specAck.empty())
         {
             if(_traceLevels->session > 2)
@@ -187,7 +188,7 @@ SessionI::attachElementsAck(long long int id, long long int lastId, ElementSpecA
     {
         return;
     }
-
+    auto now = chrono::system_clock::now();
     runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
     {
         if(_traceLevels->session > 2)
@@ -196,7 +197,7 @@ SessionI::attachElementsAck(long long int id, long long int lastId, ElementSpecA
             out << _id << ": attaching elements ack `[" << elements << "]@" << id << "' on topic `" << topic << "'";
         }
 
-        auto samples = topic->attachElementsAck(id, lastId, elements, this, _session);
+        auto samples = topic->attachElementsAck(id, lastId, elements, this, _session, now);
         if(!samples.empty())
         {
             if(_traceLevels->session > 2)
@@ -257,6 +258,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
         return;
     }
 
+    auto now = chrono::system_clock::now();
     auto communicator = _instance->getCommunicator();
     for(const auto& samples : samplesSeq)
     {
@@ -305,7 +307,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                         if(!ks.second.initialized)
                         {
                             ks.second.initialized = true;
-                            ks.first->initSamples(samplesI, nullptr, 0, 0);
+                            ks.first->initSamples(samplesI, topicId, samples.id, now);
                         }
                     }
                 }
@@ -353,7 +355,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                         if(!fs.second.initialized)
                         {
                             fs.second.initialized = true;
-                            fs.first->initSamples(samplesI, nullptr, 0, 0);
+                            fs.first->initSamples(samplesI, topicId, samples.id, now);
                         }
                     }
                 }
@@ -812,6 +814,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
         return;
     }
 
+    auto now = chrono::system_clock::now();
     runWithTopics(topicId, [&](auto topic, auto& subscriber, auto topicSubscribers)
     {
         if(element <= 0)
@@ -854,9 +857,9 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
                                                           s.timestamp);
             for(auto& es : e->getSubscribers())
             {
-                if(es.second.initialized && es.first->getFacet() == current.facet)
+                if(es.second.initialized)
                 {
-                    es.first->queue(impl);
+                    es.first->queue(impl, current.facet, now);
                 }
             }
         }

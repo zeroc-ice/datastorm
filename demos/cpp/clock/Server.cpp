@@ -16,7 +16,8 @@ template<> struct Encoder<chrono::system_clock::time_point>
     static vector<unsigned char>
     encode(const shared_ptr<Ice::Communicator>& com, const chrono::system_clock::time_point& time)
     {
-        return Encoder<long long int>::encode(com, chrono::system_clock::to_time_t(time));
+        auto value = chrono::time_point_cast<chrono::seconds>(time).time_since_epoch().count();
+        return Encoder<long long int>::encode(com, value);
     }
 };
 
@@ -43,8 +44,13 @@ main(int argc, char* argv[])
     //
     // Instantiate a writer to writer the time from the given city.
     //
-    auto writer = DataStorm::makeKeyWriter(topic, city);
+    DataStorm::WriterConfig config;
+    config.sampleCount = 0; // Don't keep sample history
+    auto writer = DataStorm::makeKeyWriter(topic, city, config);
 
+    //
+    // Print message when reader connects / disconnects
+    //
     writer.onConnect([](tuple<string, long long int, long long int> reader)
     {
         cout << "reader connected " << endl;

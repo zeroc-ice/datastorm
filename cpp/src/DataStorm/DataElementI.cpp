@@ -23,20 +23,45 @@ namespace
 DataSample
 toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator)
 {
-    return { sample->id, sample->timestamp, sample->event, sample->encode(communicator) };
+    return { sample->id,
+             chrono::time_point_cast<chrono::microseconds>(sample->timestamp).time_since_epoch().count(),
+             sample->event,
+             sample->encode(communicator) };
+}
+
+void
+cleanOldSamples(deque<shared_ptr<Sample>>& samples,
+                const chrono::time_point<chrono::system_clock>& now,
+                int lifetime)
+{
+    chrono::time_point<chrono::system_clock> staleTime = now - chrono::seconds(lifetime);
+    auto p = stable_partition(samples.begin(), samples.end(), [&](const auto& s) { return s->timestamp < staleTime; });
+    if(p != samples.begin())
+    {
+        samples.erase(samples.begin(), p);
+    }
 }
 
 }
 
-DataElementI::DataElementI(TopicI* parent, long long int id) :
+DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Config& config) :
     _traceLevels(parent->getInstance()->getTraceLevels()),
     _forwarder(Ice::uncheckedCast<SessionPrx>(parent->getInstance()->getForwarderManager()->add(this))),
     _id(id),
     _listenerCount(0),
+    _config(make_shared<ElementConfig>()),
     _parent(parent),
     _waiters(0),
     _notified(0)
 {
+    if(config.sampleCount)
+    {
+        _config->sampleCount = *config.sampleCount;
+    }
+    if(config.sampleLifetime)
+    {
+        _config->sampleLifetime = *config.sampleLifetime;
+    }
 }
 
 DataElementI::~DataElementI()
@@ -53,6 +78,65 @@ DataElementI::destroy()
         destroyImpl(); // Must be called first.
     }
     disconnect();
+}
+
+void
+DataElementI::attach(long long int topicId,
+                     const shared_ptr<Key>& key,
+                     const shared_ptr<Filter>& filter,
+                     SessionI* session,
+                     const shared_ptr<SessionPrx>& prx,
+                     const ElementData& data,
+                     long long int lastId,
+                     const chrono::time_point<chrono::system_clock>& now,
+                     ElementDataAckSeq& acks)
+{
+    auto sampleFilter = data.config->sampleFilter ? createSampleFilter(*data.config->sampleFilter) : nullptr;
+    string facet = data.config->facet ? *data.config->facet : string();
+    if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
+       (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
+    {
+        acks.push_back({ _id, _config, getSamples(lastId, sampleFilter, data.config, now), data.id });
+    }
+}
+
+void
+DataElementI::attach(long long int topicId,
+                     const shared_ptr<Key>& key,
+                     const shared_ptr<Filter>& filter,
+                     SessionI* session,
+                     const shared_ptr<SessionPrx>& prx,
+                     const ElementDataAck& data,
+                     long long int lastId,
+                     const chrono::time_point<chrono::system_clock>& now,
+                     DataSamplesSeq& samples)
+{
+    auto sampleFilter = data.config->sampleFilter ? createSampleFilter(*data.config->sampleFilter) : nullptr;
+    string facet = data.config->facet ? *data.config->facet : string();
+    if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
+       (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
+    {
+        samples.push_back({ _id, getSamples(lastId, sampleFilter, data.config, now) });
+    }
+
+    if(_parent->_sampleFactory && !data.samples.empty())
+    {
+        vector<shared_ptr<Sample>> samplesI;
+        samplesI.reserve(data.samples.size());
+        for(auto& s : data.samples)
+        {
+            samplesI.push_back(_parent->_sampleFactory->create(session->getId(),
+                                                               topicId,
+                                                               data.id,
+                                                               s.id,
+                                                               s.event,
+                                                               key,
+                                                               s.value,
+                                                               s.timestamp));
+        }
+        initSamples(samplesI, topicId, data.id, now);
+    }
+    session->subscriberInitialized(topicId, data.id, this);
 }
 
 bool
@@ -179,44 +263,40 @@ void
 DataElementI::onConnect(function<void(tuple<string, long long int, long long int>)> callback)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onConnect = std::move(callback);
+    _onConnect = move(callback);
 }
 
 void
 DataElementI::onDisconnect(function<void(tuple<string, long long int, long long int>)> callback)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onDisconnect = std::move(callback);
+    _onDisconnect = move(callback);
 }
 
 void
-DataElementI::initSamples(const vector<shared_ptr<Sample>>&, SessionI* s, long long int topic, long long int element)
+DataElementI::initSamples(const vector<shared_ptr<Sample>>&,
+                          long long int,
+                          long long int,
+                          const chrono::time_point<chrono::system_clock>&)
 {
-    if(s)
-    {
-        s->subscriberInitialized(topic, element, this);
-    }
 }
 
 DataSampleSeq
-DataElementI::getSamples(long long int, const std::shared_ptr<Filter>&) const
-{
-    return {};
-}
-
-vector<unsigned char>
-DataElementI::getSampleFilterCriteria() const
+DataElementI::getSamples(long long int,
+                         const shared_ptr<Filter>&,
+                         const shared_ptr<DataStormContract::ElementConfig>&,
+                         const chrono::time_point<chrono::system_clock>&) const
 {
     return {};
 }
 
 void
-DataElementI::queue(const shared_ptr<Sample>&, const string&)
+DataElementI::queue(const shared_ptr<Sample>&, const string&, const chrono::time_point<chrono::system_clock>&)
 {
     assert(false);
 }
 
-std::shared_ptr<Filter>
+shared_ptr<Filter>
 DataElementI::createSampleFilter(vector<unsigned char>) const
 {
     return nullptr;
@@ -303,11 +383,15 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
     }
 }
 
-DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, vector<unsigned char> sampleFilterCriteria) :
-    DataElementI(topic, id),
-    _parent(topic),
-    _sampleFilterCriteria(move(sampleFilterCriteria))
+DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, vector<unsigned char> sampleFilterCriteria,
+                         const DataStorm::ReaderConfig& config) :
+    DataElementI(topic, id, config),
+    _parent(topic)
 {
+    if(!sampleFilterCriteria.empty())
+    {
+        _config->sampleFilter = move(sampleFilterCriteria);
+    }
 }
 
 int
@@ -333,7 +417,6 @@ DataReaderI::getAllUnread()
     vector<shared_ptr<Sample>> unread(_unread.begin(), _unread.end());
     for(const auto& s : unread)
     {
-        s->decode(getCommunicator());
         _all.push_back(s);
     }
     _unread.clear();
@@ -365,61 +448,154 @@ DataReaderI::getNextUnread()
     shared_ptr<Sample> sample = _unread.front();
     _unread.pop_front();
     _all.push_back(sample);
-    sample->decode(getCommunicator());
     return sample;
 }
 
 void
 DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
-                         SessionI* session,
                          long long int topic,
-                         long long int element)
+                         long long int element,
+                         const chrono::time_point<chrono::system_clock>& now)
 {
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": initialized " << samples.size() << " samples from `" << element << '@' << topic << "'";
     }
-    _unread.insert(_unread.end(), samples.begin(), samples.end());
-    if(session)
+
+    if(_onInit)
     {
-        session->subscriberInitialized(topic, element, this);
+        _parent->queue(shared_from_this(), [this, samples] { _onInit(samples); });
+    }
+
+    if(_config->sampleLifetime)
+    {
+        cleanOldSamples(_all, now, *_config->sampleLifetime);
+        cleanOldSamples(_unread, now, *_config->sampleLifetime);
+    }
+
+    bool trimOnAdd = false;
+    if(_config->sampleCount)
+    {
+        if(*_config->sampleCount > 0)
+        {
+            size_t count = _all.size() + _unread.size();
+            size_t maxCount = static_cast<size_t>(*_config->sampleCount);
+            if(count + samples.size() > maxCount)
+            {
+                count = count + samples.size() - maxCount;
+                while(!_all.empty() && count-- > 0)
+                {
+                    _all.pop_front();
+                }
+                while(!_unread.empty() && count-- > 0)
+                {
+                    _unread.pop_front();
+                }
+                assert(_all.size() + _unread.size() + samples.size() == maxCount);
+            }
+        }
+        else if(*_config->sampleCount == -1)
+        {
+            trimOnAdd = true;
+        }
+        else if(*_config->sampleCount == 0)
+        {
+            return; // Don't keep history
+        }
+    }
+
+    for(const auto& s : samples)
+    {
+        if(trimOnAdd && s->event == DataStorm::SampleEvent::Add)
+        {
+            _all.clear();
+            _unread.clear();
+        }
+        _unread.push_back(s);
     }
     _parent->_cond.notify_all();
 }
 
-vector<unsigned char>
-DataReaderI::getSampleFilterCriteria() const
-{
-    return _sampleFilterCriteria;
-}
-
 void
-DataReaderI::queue(const shared_ptr<Sample>& sample, const string&)
+DataReaderI::queue(const shared_ptr<Sample>& sample,
+                   const string& facet,
+                   const chrono::time_point<chrono::system_clock>& now)
 {
+    if(_config->facet && *_config->facet != facet)
+    {
+        return;
+    }
+
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": queued sample " << sample->id << " listeners=" << _listenerCount;
     }
-    _unread.push_back(sample);
+
     if(_onSample)
     {
-        sample->decode(getCommunicator());
         _parent->queue(shared_from_this(), [this, sample] { _onSample(sample); });
     }
+
+    if(_config->sampleLifetime)
+    {
+        cleanOldSamples(_all, now, *_config->sampleLifetime);
+        cleanOldSamples(_unread, now, *_config->sampleLifetime);
+    }
+
+    if(_config->sampleCount)
+    {
+        if(*_config->sampleCount > 0)
+        {
+            size_t count = _all.size() + _unread.size();
+            size_t maxCount = static_cast<size_t>(*_config->sampleCount);
+            if(count + 1 > maxCount)
+            {
+                if(!_all.empty())
+                {
+                    _all.pop_front();
+                }
+                else if(!_unread.empty())
+                {
+                    _unread.pop_front();
+                }
+                assert(_all.size() + _unread.size() + 1 == maxCount);
+            }
+        }
+        else if(*_config->sampleCount == -1 && sample->event == DataStorm::SampleEvent::Add)
+        {
+            _all.clear();
+            _unread.clear();
+        }
+        else if(*_config->sampleCount == 0)
+        {
+            return; // Don't keep history
+        }
+    }
+
+    _unread.push_back(sample);
     _parent->_cond.notify_all();
+}
+
+void
+DataReaderI::onInit(function<void(const vector<shared_ptr<Sample>>&)> callback)
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    _onInit = move(callback);
 }
 
 void
 DataReaderI::onSample(function<void(const shared_ptr<Sample>&)> callback)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onSample = std::move(callback);
+    _onSample = move(callback);
 }
 
-DataWriterI::DataWriterI(TopicWriterI* topic, long long int id, const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
-    DataElementI(topic, id),
+DataWriterI::DataWriterI(TopicWriterI* topic, long long int id,
+                         const shared_ptr<FilterFactory>& sampleFilterFactory,
+                         const DataStorm::WriterConfig& config) :
+    DataElementI(topic, id, config),
     _parent(topic),
     _sampleFilterFactory(sampleFilterFactory),
     _subscribers(Ice::uncheckedCast<SubscriberSessionPrx>(_forwarder))
@@ -430,18 +606,43 @@ void
 DataWriterI::publish(const shared_ptr<Sample>& sample)
 {
     lock_guard<mutex> lock(_parent->_mutex);
-    sample->id = ++_parent->_nextSampleId;
-    sample->timestamp = IceUtil::Time::now().toMilliSeconds();
-    _all.push_back(sample);
+
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": publishing sample " << sample->id << " listeners=" << _listenerCount;
     }
-    send(_all.back());
+    sample->id = ++_parent->_nextSampleId;
+    sample->timestamp = chrono::system_clock::now();
+    send(sample);
+
+    if(_config->sampleLifetime)
+    {
+        cleanOldSamples(_all, sample->timestamp, *_config->sampleLifetime);
+    }
+
+    if(_config->sampleCount)
+    {
+        if(*_config->sampleCount > 0)
+        {
+            if(_all.size() + 1 > static_cast<size_t>(*_config->sampleCount))
+            {
+                _all.pop_front();
+            }
+        }
+        else if(*_config->sampleCount == -1 && sample->event == DataStorm::SampleEvent::Add)
+        {
+            _all.clear();
+        }
+        else if(*_config->sampleCount == 0)
+        {
+            return; // Don't keep history
+        }
+    }
+    _all.push_back(sample);
 }
 
-std::shared_ptr<Filter>
+shared_ptr<Filter>
 DataWriterI::createSampleFilter(vector<unsigned char> sampleFilter) const
 {
     if(_sampleFilterFactory && !sampleFilter.empty())
@@ -454,8 +655,9 @@ DataWriterI::createSampleFilter(vector<unsigned char> sampleFilter) const
 KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
-                               const vector<unsigned char> sampleFilterCriteria) :
-    DataReaderI(topic, id, sampleFilterCriteria),
+                               const vector<unsigned char> sampleFilterCriteria,
+                               const DataStorm::ReaderConfig& config) :
+    DataReaderI(topic, id, sampleFilterCriteria, config),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -468,11 +670,11 @@ KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
     // If sample filtering is enabled, ensure the updates are received using a session
     // facet specific to this reader.
     //
-    if(!_sampleFilterCriteria.empty())
+    if(_config->sampleFilter)
     {
         ostringstream os;
         os << "fa" << _id;
-        _facet = os.str();
+        _config->facet = os.str();
     }
 }
 
@@ -520,8 +722,9 @@ KeyDataReaderI::toString() const
 KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
                                long long int id,
                                const shared_ptr<Key>& key,
-                               const std::shared_ptr<FilterFactory>& sampleFilterFactory) :
-    DataWriterI(topic, id, sampleFilterFactory),
+                               const shared_ptr<FilterFactory>& sampleFilterFactory,
+                               const DataStorm::WriterConfig& config) :
+    DataWriterI(topic, id, sampleFilterFactory, config),
     _key(key)
 {
     if(_traceLevels->data > 0)
@@ -564,20 +767,32 @@ KeyDataWriterI::toString() const
 }
 
 DataSampleSeq
-KeyDataWriterI::getSamples(long long int lastId, const shared_ptr<Filter>& filter) const
+KeyDataWriterI::getSamples(long long int lastId,
+                           const shared_ptr<Filter>& filter,
+                           const shared_ptr<DataStormContract::ElementConfig>& config,
+                           const chrono::time_point<chrono::system_clock>& now) const
 {
     DataSampleSeq samples;
-    if(lastId < 0)
+    if(config->sampleCount && *config->sampleCount == 0)
     {
-        samples.reserve(_all.size());
+        return samples;
     }
-    for(const auto& p : _all)
+
+    for(auto p = _all.rbegin(); p != _all.rend(); ++p)
     {
-        if(p->id > lastId)
+        if((*p)->id <= lastId ||
+           (config->sampleLifetime && (now - (*p)->timestamp > chrono::seconds(*config->sampleLifetime))))
         {
-            if(!filter || filter->match(p))
+            break;
+        }
+        if(!filter || filter->match(*p))
+        {
+            samples.push_front(toSample(*p, nullptr)); // The sample should already be encoded
+            if(config->sampleCount &&
+               (*config->sampleCount == samples.size() ||
+               (*config->sampleCount == -1 && (*p)->event == DataStorm::SampleEvent::Add)))
             {
-                samples.push_back(toSample(p, nullptr)); // The sample should already be encoded
+                break;
             }
         }
     }
@@ -596,8 +811,9 @@ KeyDataWriterI::send(const shared_ptr<Sample>& sample) const
 FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
                                          long long int id,
                                          const shared_ptr<Filter>& filter,
-                                         vector<unsigned char> sampleFilterCriteria) :
-    DataReaderI(topic, id, sampleFilterCriteria),
+                                         vector<unsigned char> sampleFilterCriteria,
+                                         const DataStorm::ReaderConfig& config) :
+    DataReaderI(topic, id, sampleFilterCriteria, config),
     _filter(filter)
 {
     if(_traceLevels->data > 0)
@@ -610,11 +826,11 @@ FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
     // If sample filtering is enabled, ensure the updates are received using a session
     // facet specific to this reader.
     //
-    if(!_sampleFilterCriteria.empty())
+    if(_config->sampleFilter)
     {
         ostringstream os;
         os << "fa" << _id;
-        _facet = os.str();
+        _config->facet = os.str();
     }
 }
 
@@ -648,58 +864,4 @@ FilteredDataReaderI::toString() const
     ostringstream os;
     os << 'e' << _id << ":" << _filter->toString() << "@" << _parent->getId();
     return os.str();
-}
-
-FilteredDataWriterI::FilteredDataWriterI(TopicWriterI* topic,
-                                         long long int id,
-                                         const shared_ptr<Filter>& filter,
-                                         const shared_ptr<FilterFactory>& sampleFilterFactory) :
-    DataWriterI(topic, id, sampleFilterFactory),
-    _filter(filter)
-{
-    if(_traceLevels->data > 0)
-    {
-        Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": created filtered writer";
-    }
-}
-
-void
-FilteredDataWriterI::destroyImpl()
-{
-    if(_traceLevels->data > 0)
-    {
-        Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": destroyed filter writer";
-    }
-    _forwarder->detachElements(_parent->getId(), { -_id });
-    _parent->removeFiltered(_filter, shared_from_this());
-}
-
-void
-FilteredDataWriterI::waitForReaders(int count) const
-{
-    waitForListeners(count);
-}
-
-bool
-FilteredDataWriterI::hasReaders() const
-{
-    return hasListeners();
-}
-
-string
-FilteredDataWriterI::toString() const
-{
-    ostringstream os;
-    os << 'e' << _id << ":" << _filter->toString() << "@" << _parent->getId();
-    return os.str();
-}
-
-void
-FilteredDataWriterI::send(const shared_ptr<Sample>& sample) const
-{
-    // _sample = sample;
-    // _subscribers->f(_parent->getId(), _id, toSample(sample, getCommunicator()));
-    // _sample = nullptr;
 }

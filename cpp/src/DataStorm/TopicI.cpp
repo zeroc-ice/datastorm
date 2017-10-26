@@ -125,7 +125,7 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                 ElementDataSeq elements;
                 for(auto k : p->second)
                 {
-                    elements.push_back({ k->getId(), k->getFacet(), k->getSampleFilterCriteria() });
+                    elements.push_back({ k->getId(), k->getConfig() });
                 }
                 specs.push_back({ move(elements), key->getId(), {}, info.valueId });
             }
@@ -136,7 +136,7 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                     ElementDataSeq elements;
                     for(auto f : e.second)
                     {
-                        elements.push_back({ f->getId(), f->getFacet(), f->getSampleFilterCriteria() });
+                        elements.push_back({ f->getId(), f->getConfig() });
                     }
                     specs.push_back({ move(elements),
                                       -e.first->getId(),
@@ -155,7 +155,7 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                     ElementDataSeq elements;
                     for(auto k : e.second)
                     {
-                        elements.push_back({ k->getId(), k->getFacet(), k->getSampleFilterCriteria() });
+                        elements.push_back({ k->getId(), k->getConfig() });
                     }
                     specs.push_back({ move(elements),
                                       e.first->getId(),
@@ -206,7 +206,8 @@ TopicI::attachElements(long long int topicId,
                        long long int lastId,
                        const ElementSpecSeq& elements,
                        SessionI* session,
-                       const shared_ptr<SessionPrx>& prx)
+                       const shared_ptr<SessionPrx>& prx,
+                       const chrono::time_point<chrono::system_clock>& now)
 {
     ElementSpecAckSeq specs;
     for(const auto& spec : elements)
@@ -222,37 +223,27 @@ TopicI::attachElements(long long int topicId,
                 {
                     if(!_filterFactory)
                     {
-                        // TODO
+                        continue; // TODO: better handle this inconsistency? Warn?
                     }
                     filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
                 }
                 for(auto e : p->second)
                 {
-                    ElementDataAckSeq datas;
+                    ElementDataAckSeq acks;
                     for(const auto& data : spec.elements)
                     {
-                        auto sampleFilter = e->createSampleFilter(data.sampleFilter);
-                        bool attached = false;
                         if(spec.valueId > 0) // Key
                         {
-                            attached = e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
+                            e->attach(topicId, key, nullptr, session, prx, data, lastId, now, acks);
                         }
                         else if(filter->match(key))
                         {
-                            attached = e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
-                        }
-                        if(attached)
-                        {
-                            datas.push_back({ e->getId(),
-                                              e->getFacet(),
-                                              e->getSampleFilterCriteria(),
-                                              e->getSamples(lastId, sampleFilter),
-                                              data.id });
+                            e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, acks);
                         }
                     }
-                    if(!datas.empty())
+                    if(!acks.empty())
                     {
-                        specs.push_back({ move(datas),
+                        specs.push_back({ move(acks),
                                           key->getId(),
                                           spec.valueId < 0 ? key->encode(_instance->getCommunicator()) : ByteSeq(),
                                           spec.valueId });
@@ -274,31 +265,21 @@ TopicI::attachElements(long long int topicId,
 
                 for(auto e : p->second)
                 {
-                    ElementDataAckSeq datas;
+                    ElementDataAckSeq acks;
                     for(const auto& data : spec.elements)
                     {
-                        auto sampleFilter = e->createSampleFilter(data.sampleFilter);
-                        bool attached = false;
                         if(spec.valueId < 0) // Filter
                         {
-                            attached = e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
+                            e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, acks);
                         }
                         else if(filter->match(key))
                         {
-                            attached = e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
-                        }
-                        if(attached)
-                        {
-                            datas.push_back({ e->getId(),
-                                              e->getFacet(),
-                                              e->getSampleFilterCriteria(),
-                                              e->getSamples(lastId, sampleFilter),
-                                              data.id });
+                            e->attach(topicId, key, nullptr, session, prx, data, lastId, now, acks);
                         }
                     }
-                    if(!datas.empty())
+                    if(!acks.empty())
                     {
-                        specs.push_back({ move(datas),
+                        specs.push_back({ move(acks),
                                           -filter->getId(),
                                           spec.valueId > 0 ? filter->encode(_instance->getCommunicator()) : ByteSeq(),
                                           spec.valueId });
@@ -315,29 +296,10 @@ TopicI::attachElementsAck(long long int topicId,
                           long long int lastId,
                           const ElementSpecAckSeq& elements,
                           SessionI* session,
-                          const shared_ptr<SessionPrx>& prx)
+                          const shared_ptr<SessionPrx>& prx,
+                          const chrono::time_point<chrono::system_clock>& now)
 {
     DataSamplesSeq samples;
-    auto initSamples = [&](auto element, auto elementId, const auto& key, const auto& facet, const auto& samples, auto& samplesI)
-    {
-        if(samplesI.empty() && !samples.empty())
-        {
-            samplesI.reserve(samples.size());
-            for(auto& s : samples)
-            {
-                samplesI.push_back(_sampleFactory->create(session->getId(),
-                                                          topicId,
-                                                          elementId,
-                                                          s.id,
-                                                          s.event,
-                                                          key,
-                                                          s.value,
-                                                          s.timestamp));
-            }
-        }
-        element->initSamples(samplesI, session, topicId, elementId);
-    };
-
     for(const auto& spec : elements)
     {
         if(spec.peerValueId > 0) // Key
@@ -351,7 +313,7 @@ TopicI::attachElementsAck(long long int topicId,
                 {
                     if(!_filterFactory)
                     {
-                        // TODO
+                        continue; // TODO: better handle this inconsistency? Warn?
                     }
                     filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
                 }
@@ -363,24 +325,14 @@ TopicI::attachElementsAck(long long int topicId,
                     {
                         if(data.peerId == e->getId())
                         {
-                            auto sampleFilter = e->createSampleFilter(data.sampleFilter);
                             if(spec.valueId > 0) // Key
                             {
-                                e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
-                                if(_sampleFactory)
-                                {
-                                    initSamples(e, data.id, key, data.facet, data.samples, samplesI);
-                                }
+                                e->attach(topicId, key, nullptr, session, prx, data, lastId, now, samples);
                             }
                             else if(filter->match(key)) // Filter
                             {
-                                e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
-                                if(_sampleFactory)
-                                {
-                                    initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
-                                }
+                                e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, samples);
                             }
-                            samples.push_back({ e->getId(), e->getSamples(lastId, sampleFilter) });
                             break;
                         }
                     }
@@ -399,31 +351,21 @@ TopicI::attachElementsAck(long long int topicId,
                     key = _keyFactory->decode(_instance->getCommunicator(), spec.value);
                 }
 
-                vector<std::shared_ptr<Sample>> samplesI;
                 for(auto e : p->second)
                 {
                     for(const auto& data : spec.elements)
                     {
                         if(data.peerId == e->getId())
                         {
-                            auto sampleFilter = e->createSampleFilter(data.sampleFilter);
                             if(spec.valueId < 0) // Filter
                             {
-                                e->attachFilter(topicId, data.id, filter, sampleFilter, session, prx, data.facet);
-                                if(_sampleFactory)
-                                {
-                                    initSamples(e, data.id, nullptr, data.facet, data.samples, samplesI);
-                                }
+                                e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, samples);
                             }
                             else if(filter->match(key))
                             {
-                                e->attachKey(topicId, data.id, key, sampleFilter, session, prx, data.facet);
-                                if(_sampleFactory)
-                                {
-                                    initSamples(e, data.id, key, data.facet, data.samples, samplesI);
-                                }
+                                e->attach(topicId, key, nullptr, session, prx, data, lastId, now, samples);
                             }
-                            samples.push_back({ e->getId(), e->getSamples(lastId, sampleFilter) });
+                            break;
                         }
                     }
                 }
@@ -570,21 +512,33 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
 }
 
 shared_ptr<DataReader>
-TopicReaderI::createFiltered(const shared_ptr<Filter>& filter, vector<unsigned char> sampleFilter)
+TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
+                             DataStorm::ReaderConfig config,
+                             vector<unsigned char> sampleFilter)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, move(sampleFilter));
+    auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, move(sampleFilter),
+                                                    mergeConfigs(move(config)));
     addFiltered(element, filter);
     return element;
 }
 
 shared_ptr<DataReader>
-TopicReaderI::create(const vector<shared_ptr<Key>>& keys, vector<unsigned char> sampleFilter)
+TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
+                     DataStorm::ReaderConfig config,
+                     vector<unsigned char> sampleFilter)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, move(sampleFilter));
+    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, move(sampleFilter), mergeConfigs(move(config)));
     add(element, keys);
     return element;
+}
+
+void
+TopicReaderI::setDefaultConfig(DataStorm::ReaderConfig config)
+{
+    lock_guard<mutex> lock(_mutex);
+    _defaultConfig = move(config);
 }
 
 void
@@ -642,6 +596,24 @@ TopicReaderI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataE
     }
 }
 
+DataStorm::ReaderConfig
+TopicReaderI::mergeConfigs(DataStorm::ReaderConfig config) const
+{
+    if(!config.sampleCount && _defaultConfig.sampleCount)
+    {
+        config.sampleCount = _defaultConfig.sampleCount;
+    }
+    if(!config.sampleLifetime && _defaultConfig.sampleLifetime)
+    {
+        config.sampleLifetime = _defaultConfig.sampleLifetime;
+    }
+    if(!config.discardPolicy && _defaultConfig.discardPolicy)
+    {
+        config.discardPolicy = _defaultConfig.discardPolicy;
+    }
+    return config;
+}
+
 TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<FilterFactory>& filterFactory,
@@ -653,21 +625,21 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::createFiltered(const shared_ptr<Filter>& filter, const shared_ptr<FilterFactory>& sampleFilterFactory)
+TopicWriterI::create(const shared_ptr<Key>& key,
+                     DataStorm::WriterConfig config,
+                     const shared_ptr<FilterFactory>& sampleFilterFactory)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<FilteredDataWriterI>(this, ++_nextFilteredId, filter, sampleFilterFactory);
-    addFiltered(element, filter);
+    auto element = make_shared<KeyDataWriterI>(this, ++_nextId, key, sampleFilterFactory, mergeConfigs(move(config)));
+    add(element, { key });
     return element;
 }
 
-shared_ptr<DataWriter>
-TopicWriterI::create(const shared_ptr<Key>& key, const shared_ptr<FilterFactory>& sampleFilterFactory)
+void
+TopicWriterI::setDefaultConfig(DataStorm::WriterConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataWriterI>(this, ++_nextId, key, sampleFilterFactory);
-    add(element, { key });
-    return element;
+    _defaultConfig = move(config);
 }
 
 void
@@ -695,20 +667,6 @@ TopicWriterI::destroy()
 }
 
 void
-TopicWriterI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<DataElementI>& element)
-{
-    auto p = _filteredElements.find(filter);
-    if(p != _filteredElements.end())
-    {
-        p->second.erase(element);
-        if(p->second.empty())
-        {
-            _filteredElements.erase(p);
-        }
-    }
-}
-
-void
 TopicWriterI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataElementI>& element)
 {
     for(auto key : keys)
@@ -723,4 +681,22 @@ TopicWriterI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataE
             }
         }
     }
+}
+
+DataStorm::WriterConfig
+TopicWriterI::mergeConfigs(DataStorm::WriterConfig config) const
+{
+    if(!config.sampleCount && _defaultConfig.sampleCount)
+    {
+        config.sampleCount = _defaultConfig.sampleCount;
+    }
+    if(!config.sampleLifetime && _defaultConfig.sampleLifetime)
+    {
+        config.sampleLifetime = _defaultConfig.sampleLifetime;
+    }
+    if(!config.priority && _defaultConfig.priority)
+    {
+        config.priority = _defaultConfig.priority;
+    }
+    return config;
 }

@@ -135,9 +135,9 @@ inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const DataStormContract::ElementData& data)
 {
     os << 'e' << data.id;
-    if(!data.facet.empty())
+    if(data.config && data.config->facet)
     {
-        os << ':' << data.facet;
+        os << ':' << *data.config->facet;
     }
     return os;
 }
@@ -160,9 +160,9 @@ inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const DataStormContract::ElementDataAck& data)
 {
     os << 'e' << data.id << ":pe" << data.peerId;
-    if(!data.facet.empty())
+    if(data.config && data.config->facet)
     {
-        os << ':' << data.facet;
+        os << ':' << *data.config->facet;
     }
     if(!data.samples.empty())
     {
