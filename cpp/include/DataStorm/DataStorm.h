@@ -34,6 +34,8 @@
 namespace DataStorm
 {
 
+template<typename K, typename V> class Reader;
+template<typename K, typename V> class Writer;
 template<typename K, typename V, typename SFC> class KeyReader;
 template<typename K, typename V, typename SF, typename SFC> class KeyWriter;
 template<typename K, typename V, typename SFC> class FilteredReader;
@@ -282,6 +284,9 @@ public:
     using KeyFilterType = KeyFilter;
     using KeyFilterCriteriaType = KeyFilterCriteria;
 
+    using WriterType = Writer<Key, Value>;
+    using ReaderType = Reader<Key, Value>;
+
     /**
      * Construct a new Topic for the topic with the given name.
      *
@@ -388,6 +393,15 @@ public:
     using ValueType = Value;
 
     /**
+     * Transfers the given reader to this reader.
+     *
+     * @param reader The reader.
+     **/
+    Reader(Reader&& reader) : _impl(std::move(reader._impl))
+    {
+    }
+
+    /**
      * Destruct the reader. The destruction of the reader disconnects
      * the reader from the writers.
      */
@@ -452,7 +466,6 @@ public:
     Sample<Key, Value> getNextUnread();
 
     /**
-     *
      * Calls the given lambda when a new writer connects to this reader.
      *
      * @param callback The lambda to call when a new reader connects. The tuple
@@ -463,7 +476,6 @@ public:
     void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
 
     /**
-     *
      * Calls the given lambda when a new writer disconnects from this reader.
      *
      * @param callback The lambda to call when a new reader disconnects. The tuple
@@ -474,16 +486,15 @@ public:
     void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
 
     /**
-     *
      * Calls the given lambda when a writer connects and provides its initialization
      * samples. If a lambda is already set, it will be replaced with this new lambda.
      *
      * @param callback The lambda to call when initialization samples are received.
+     *
      **/
     void onInit(std::function<void(std::vector<Sample<Key, Value>>)>);
 
     /**
-     *
      * Calls the given lambda when a sample is queued with this reader. If
      * a lambda is already set, it will be replaced with this new lambda.
      *
@@ -495,11 +506,6 @@ protected:
 
     /** @private */
     Reader(const std::shared_ptr<DataStormInternal::DataReader>& impl) : _impl(impl)
-    {
-    }
-
-    /** @private */
-    Reader(Reader&& reader) : _impl(std::move(reader._impl))
     {
     }
 
@@ -572,6 +578,14 @@ public:
     KeyReader(KeyReader&&);
 };
 
+/**
+ * Creates a new reader for the given topic and key. This helper method deduces the
+ * topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param config The optional reader configuration.
+ */
 template<typename K, typename V, typename KF, typename KFC, typename SFC=void>
 KeyReader<K, V, SFC>
 makeKeyReader(Topic<K, V, KF, KFC>& topic,
@@ -581,6 +595,16 @@ makeKeyReader(Topic<K, V, KF, KFC>& topic,
     return KeyReader<K, V, SFC>(topic, key, config);
 }
 
+/**
+ * Creates a new reader for the given topic and key and using the given sample filter
+ * criteria type. This helper method deduces the topic Key and Value types from the
+ * topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param sampleFilterCriteria The sample filter criteria.
+ * @param config The optional reader configuration.
+ */
 template<typename K, typename V, typename KF, typename KFC, typename SFC>
 KeyReader<K, V, SFC>
 makeKeyReader(Topic<K, V, KF, KFC>& topic,
@@ -626,7 +650,7 @@ public:
      *
      * @param reader The reader.
      **/
-    KeyReader(KeyReader&&);
+    KeyReader(KeyReader<Key, Value, void>&&);
 };
 
 /**
@@ -674,6 +698,14 @@ public:
     FilteredReader(FilteredReader&&);
 };
 
+/**
+ * Creates a new reader for the given topic and key filter. This helper method deduces
+ * the topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param filter The key filter criteria.
+ * @param config The optional reader configuration.
+ */
 template<typename K, typename V, typename KF, typename KFC, typename SFC=void>
 FilteredReader<K, V, SFC>
 makeFilteredReader(Topic<K, V, KF, KFC>& topic,
@@ -683,6 +715,15 @@ makeFilteredReader(Topic<K, V, KF, KFC>& topic,
     return FilteredReader<K, V, SFC>(topic, filter, config);
 }
 
+/**
+ * Creates a new reader for the given topic, key filter and sample criteria. This helper
+ * method deduces the topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param filter The key filter criteria.
+ * @param sampleFilterCriteria The sample filter criteria.
+ * @param config The optional reader configuration.
+ */
 template<typename K, typename V, typename KF, typename KFC, typename SFC>
 FilteredReader<K, V, SFC>
 makeFilteredReader(Topic<K, V, KF, KFC>& topic,
@@ -696,7 +737,6 @@ makeFilteredReader(Topic<K, V, KF, KFC>& topic,
 /**
  * Filtered reader template specialization for filtered readers with no sample filter.
  */
-
 template<typename Key, typename Value>
 class FilteredReader<Key, Value, void> : public Reader<Key, Value>
 {
@@ -720,7 +760,7 @@ public:
      *
      * @param reader The reader.
      **/
-    FilteredReader(FilteredReader&&);
+    FilteredReader(FilteredReader<Key, Value, void>&&);
 };
 
 /**
@@ -733,6 +773,15 @@ public:
 
     using KeyType = Key;
     using ValueType = Value;
+
+    /**
+     * Transfers the given writer to this writer.
+     *
+     * @param writer The writer.
+     **/
+    Writer(Writer&& writer) : _impl(std::move(writer._impl))
+    {
+    }
 
     /**
      * Destruct the writer. The destruction of the writer disconnects
@@ -809,11 +858,6 @@ protected:
     {
     }
 
-    /** @private */
-    Writer(Writer&& writer) : _impl(std::move(writer._impl))
-    {
-    }
-
 private:
 
     std::shared_ptr<DataStormInternal::DataWriter> _impl;
@@ -846,15 +890,15 @@ public:
     KeyWriter(KeyWriter&&);
 };
 
-template<typename K, typename V, typename KF, typename KFC>
-KeyWriter<K, V, void, void>
-makeKeyWriter(Topic<K, V, KF, KFC>& topic,
-              typename Topic<K, V, KF, KFC>::KeyType key,
-              WriterConfig config = WriterConfig())
-{
-    return KeyWriter<K, V, void, void>(topic, key, config);
-}
-
+/**
+ * Creates a new writer for the given topic and key and using the given sample filter
+ * and criteria types. This helper method deduces the topic Key and Value types from
+ * the topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param config The optional writer configuration.
+ */
 template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC>
 KeyWriter<K, V, SF, SFC>
 makeKeyWriter(Topic<K, V, KF, KFC>& topic,
@@ -862,6 +906,23 @@ makeKeyWriter(Topic<K, V, KF, KFC>& topic,
               WriterConfig config = WriterConfig())
 {
     return KeyWriter<K, V, SF, SFC>(topic, key, config);
+}
+
+/**
+ * Creates a new writer for the given topic and key. This helper method deduces
+ * the topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param config The optional writer configuration.
+ */
+template<typename K, typename V, typename KF, typename KFC>
+KeyWriter<K, V, void, void>
+makeKeyWriter(Topic<K, V, KF, KFC>& topic,
+              typename Topic<K, V, KF, KFC>::KeyType key,
+              WriterConfig config = WriterConfig())
+{
+    return KeyWriter<K, V, void, void>(topic, key, config);
 }
 
 }
@@ -1288,10 +1349,10 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria>::Topic(Node& node, const std::st
 template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria>
 Topic<Key, Value, KeyFilter, KeyFilterCriteria>::Topic(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&& topic) :
     _topicFactory(topic._topicFactory),
-    _reader(std::move(topic._reader)),
-    _writer(std::move(topic._writer)),
     _keyFactory(std::move(topic._keyFactory)),
-    _filterFactory(std::move(topic._filterFactory))
+    _filterFactory(std::move(topic._filterFactory)),
+    _reader(std::move(topic._reader)),
+    _writer(std::move(topic._writer))
 {
 }
 
