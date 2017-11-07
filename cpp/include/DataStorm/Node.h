@@ -68,6 +68,13 @@ public:
      */
     std::shared_ptr<Ice::Communicator> getCommunicator() const;
 
+    /**
+     * Returns the Ice connection associated with a session.
+     *
+     * @param ident The session identifier.
+     */
+    std::shared_ptr<Ice::Connection> getSessionConnection(const std::string&) const;
+
 private:
 
     std::shared_ptr<DataStormInternal::Instance> _instance;

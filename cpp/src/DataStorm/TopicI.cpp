@@ -32,6 +32,14 @@ toSeq(const map<K, V>& map)
     return seq;
 }
 
+int
+toInt(const std::string& v, int value = 0)
+{
+    istringstream is(v);
+    is >> value;
+    return value;
+}
+
 }
 
 TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
@@ -501,6 +509,21 @@ TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Fi
     _forwarder->announceElements(_id, { { -filter->getId(), filter->encode(_instance->getCommunicator()) } });
 }
 
+void
+TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefix, DataStorm::Config& config) const
+{
+    auto p = properties.find(prefix + ".SampleLifetime");
+    if(p != properties.end())
+    {
+        config.sampleLifetime = toInt(p->second);
+    }
+    p = properties.find(prefix + ".SampleCount");
+    if(p != properties.end())
+    {
+        config.sampleCount = toInt(p->second);
+    }
+}
+
 TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<FilterFactory>& filterFactory,
@@ -509,6 +532,7 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
                            long long int id) :
     TopicI(factory, keyFactory, filterFactory, move(sampleFactory), name, id)
 {
+    _defaultConfig = parseConfig("DataStorm.Topic." + name);
 }
 
 shared_ptr<DataReader>
@@ -538,7 +562,7 @@ void
 TopicReaderI::setDefaultConfig(DataStorm::ReaderConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    _defaultConfig = move(config);
+    _defaultConfig = mergeConfigs(move(config));
 }
 
 void
@@ -597,6 +621,15 @@ TopicReaderI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataE
 }
 
 DataStorm::ReaderConfig
+TopicReaderI::parseConfig(const string& prefix) const
+{
+    DataStorm::ReaderConfig config;
+    auto properties = _instance->getCommunicator()->getProperties()->getPropertiesForPrefix(prefix);
+    parseConfigImpl(properties, prefix, config);
+    return config;
+}
+
+DataStorm::ReaderConfig
 TopicReaderI::mergeConfigs(DataStorm::ReaderConfig config) const
 {
     if(!config.sampleCount && _defaultConfig.sampleCount)
@@ -622,6 +655,7 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
                            long long int id) :
     TopicI(factory, keyFactory, filterFactory, move(sampleFactory), name, id)
 {
+    _defaultConfig = parseConfig("DataStorm.Topic." + name);
 }
 
 shared_ptr<DataWriter>
@@ -639,7 +673,7 @@ void
 TopicWriterI::setDefaultConfig(DataStorm::WriterConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    _defaultConfig = move(config);
+    _defaultConfig = mergeConfigs(move(config));
 }
 
 void
@@ -681,6 +715,15 @@ TopicWriterI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataE
             }
         }
     }
+}
+
+DataStorm::WriterConfig
+TopicWriterI::parseConfig(const string& prefix) const
+{
+    DataStorm::WriterConfig config;
+    auto properties = _instance->getCommunicator()->getProperties()->getPropertiesForPrefix(prefix);
+    parseConfigImpl(properties, prefix, config);
+    return config;
 }
 
 DataStorm::WriterConfig

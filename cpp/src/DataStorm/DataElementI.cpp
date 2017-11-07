@@ -34,7 +34,7 @@ cleanOldSamples(deque<shared_ptr<Sample>>& samples,
                 const chrono::time_point<chrono::system_clock>& now,
                 int lifetime)
 {
-    chrono::time_point<chrono::system_clock> staleTime = now - chrono::seconds(lifetime);
+    chrono::time_point<chrono::system_clock> staleTime = now - chrono::milliseconds(lifetime);
     auto p = stable_partition(samples.begin(), samples.end(), [&](const auto& s) { return s->timestamp < staleTime; });
     if(p != samples.begin())
     {
@@ -285,7 +285,7 @@ DataSampleSeq
 DataElementI::getSamples(long long int,
                          const shared_ptr<Filter>&,
                          const shared_ptr<DataStormContract::ElementConfig>&,
-                         const chrono::time_point<chrono::system_clock>&) const
+                         const chrono::time_point<chrono::system_clock>&)
 {
     return {};
 }
@@ -770,7 +770,7 @@ DataSampleSeq
 KeyDataWriterI::getSamples(long long int lastId,
                            const shared_ptr<Filter>& filter,
                            const shared_ptr<DataStormContract::ElementConfig>& config,
-                           const chrono::time_point<chrono::system_clock>& now) const
+                           const chrono::time_point<chrono::system_clock>& now)
 {
     DataSampleSeq samples;
     if(config->sampleCount && *config->sampleCount == 0)
@@ -778,10 +778,20 @@ KeyDataWriterI::getSamples(long long int lastId,
         return samples;
     }
 
+    if(_config->sampleLifetime)
+    {
+        cleanOldSamples(_all, now, *_config->sampleLifetime);
+    }
+
+    chrono::time_point<chrono::system_clock> staleTime;
+    if(config->sampleLifetime)
+    {
+        staleTime = now - chrono::milliseconds(*config->sampleLifetime);
+    }
+
     for(auto p = _all.rbegin(); p != _all.rend(); ++p)
     {
-        if((*p)->id <= lastId ||
-           (config->sampleLifetime && (now - (*p)->timestamp > chrono::seconds(*config->sampleLifetime))))
+        if((*p)->id <= lastId || (config->sampleLifetime && (*p)->timestamp < staleTime))
         {
             break;
         }

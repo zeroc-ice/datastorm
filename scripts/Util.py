@@ -1858,7 +1858,7 @@ class LocalProcessController(ProcessController):
             return self.p is None
 
         def teardown(self, current, success):
-            if self.traceFile:
+            if self.traceFile and os.path.exists(self.traceFile):
                 if success or current.driver.isInterrupted():
                     os.remove(self.traceFile)
                 else:

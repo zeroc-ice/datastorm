@@ -38,7 +38,6 @@ template<> struct Decoder<color>
     {
         return static_cast<color>(data[0]);
     }
-
 };
 
 template<> struct Encoder<color>
@@ -48,7 +47,6 @@ template<> struct Encoder<color>
     {
         return { static_cast<unsigned char>(value) };
     }
-
 };
 
 }

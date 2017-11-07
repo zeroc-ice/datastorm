@@ -28,7 +28,7 @@ void
 SessionI::init(const shared_ptr<SessionPrx>& prx)
 {
     _proxy = prx;
-    _id = prx->ice_getIdentity().category + "/" + prx->ice_getIdentity().name;
+    _id = Ice::identityToString(prx->ice_getIdentity());
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);

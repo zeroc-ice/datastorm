@@ -128,6 +128,11 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
+        KeyWriter<string, shared_ptr<Test::Base>> writer5(topic, "elem5");
+        writer5.add(make_shared<Test::Base>("value1"));
+        writer5.update(make_shared<Test::Base>("value2"));
+        writer5.remove();
+
         KeyWriter<string, shared_ptr<Test::Base>> writer1(topic, "elem1");
         writer1.waitForReaders(1);
         test(writer1.hasReaders());
@@ -148,6 +153,9 @@ main(int argc, char* argv[])
         writer4.add(make_shared<Test::Base>("value1"));
         writer4.waitForNoReaders();
     }
+    cout << "ok" << endl;
+
+    cout << "testing filtered sample reader... " << flush;
     {
         Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
 
@@ -170,45 +178,6 @@ main(int argc, char* argv[])
         writer2.waitForNoReaders();
     }
     cout << "ok" << endl;
-
-    // cout << "testing filtered writer... " << flush;
-    // {
-    //     Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
-    //     {
-    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elema[0-9]");
-    //         writer.waitForReaders(1);
-    //         test(writer.hasReaders());
-    //         writer.add(make_shared<Test::Base>("value1"));
-    //         writer.update(make_shared<Test::Base>("value2"));
-    //         writer.remove();
-    //         writer.waitForNoReaders();
-    //     }
-    //     {
-    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemb[0-9]");
-    //         writer.waitForReaders(1);
-    //         writer.update(make_shared<Test::Base>("value1"));
-    //         writer.waitForNoReaders();
-    //     }
-    //     {
-    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemc[0-9]");
-    //         writer.waitForReaders(1);
-    //         writer.remove();
-    //         writer.waitForNoReaders();
-    //     }
-    //     {
-    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elemd[0-9]");
-    //         writer.waitForReaders(1);
-    //         writer.add(make_shared<Test::Base>("value1"));
-    //         writer.waitForNoReaders();
-    //     }
-    //     {
-    //         FilteredWriter<string, shared_ptr<Test::Base>> writer(topic, "elem[0-9]");
-    //         writer.waitForReaders(5);
-    //         writer.update(make_shared<Test::Base>("value1"));
-    //         writer.waitForNoReaders();
-    //     }
-    // }
-    // cout << "ok" << endl;
 
     cout << "testing topic reader/writer... " << flush;
     {

@@ -15,8 +15,7 @@ namespace DataStorm
 {
 
 /**
- * The discard policy to specify how samples are discarded by receivers under certain
- * conditions.
+ * The discard policy to specify how samples are discarded by receivers upon receival.
  */
 enum struct DiscardPolicy
 {
@@ -55,7 +54,7 @@ public:
     /**
      * The sampleLifetime configuration specifies samples to keep in the writer
      * or reader history based on their age. Samples with a timestamp older than
-     * the sampleLifetime are discared from the history.
+     * the sampleLifetime value (in milliseconds) are discarded from the history.
      */
     Ice::optional<int> sampleLifetime;
 };

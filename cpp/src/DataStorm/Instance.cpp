@@ -24,15 +24,15 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
     shared_ptr<Ice::Properties> properties = _communicator->getProperties();
     if(properties->getProperty("DataStorm.Endpoints").empty())
     {
-        properties->setProperty("DataStorm.Endpoints", "tcp");
+        properties->setProperty("DataStormAdapter.Endpoints", "tcp");
     }
-    properties->setProperty("DataStorm.ThreadPool.SizeMax", "1");
+    properties->setProperty("DataStormAdapter.ThreadPool.SizeMax", "1");
     properties->setProperty("DataStormCollocated.AdapterId", IceUtil::generateUUID());
     properties->setProperty("DataStormMulticast.Endpoints", "udp -h 239.255.0.1 -p 12345");
     properties->setProperty("DataStormMulticast.ProxyOptions", "-d");
     properties->setProperty("DataStormMulticast.ThreadPool.SizeMax", "1");
 
-    _adapter = _communicator->createObjectAdapter("DataStorm");
+    _adapter = _communicator->createObjectAdapter("DataStormAdapter");
     _collocatedAdapter = _communicator->createObjectAdapter("DataStormCollocated");
     _multicastAdapter = _communicator->createObjectAdapter("DataStormMulticast");
 

@@ -212,6 +212,11 @@ public:
         return _id;
     }
 
+    std::shared_ptr<Ice::Connection> getConnection() const
+    {
+        return _connection;
+    }
+
     void addConnectedCallback(std::function<void(std::shared_ptr<DataStormContract::SessionPrx>)>);
 
     std::shared_ptr<DataStormContract::SessionPrx> getSession() const;

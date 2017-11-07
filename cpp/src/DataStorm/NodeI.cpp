@@ -269,6 +269,18 @@ NodeI::removePublisherSession(PublisherSessionI* session)
     }
 }
 
+shared_ptr<Ice::Connection>
+NodeI::getSessionConnection(const string& id) const
+{
+    unique_lock<mutex> lock(_mutex);
+    auto p = _sessions.find(Ice::stringToIdentity(id));
+    if(p != _sessions.end())
+    {
+        return p->second->getConnection();
+    }
+    return nullptr;
+}
+
 shared_ptr<SubscriberSessionI>
 NodeI::createSubscriberSessionServant(const shared_ptr<NodePrx>& node)
 {

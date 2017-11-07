@@ -158,7 +158,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
-        FilteredReader<string, shared_ptr<Test::Base>> reader(topic, "elem[0-9]");
+        FilteredReader<string, shared_ptr<Test::Base>> reader(topic, "elem[0-4]");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -211,70 +211,7 @@ main(int argc, char* argv[])
         testSample(reader2, SampleEvent::Update, "elem2", "value4");
      }
 
-    // {
-    //     Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass4");
-
-    //     auto testSample = [&topic](SampleEvent event, auto& reader, string key, string value = "")
-    //     {
-    //         reader.waitForUnread(1);
-    //         auto sample = reader.getNextUnread();
-    //         //test(sample.getKey() == key); No key set for filtered writer
-    //         test(sample.getKey().empty());
-    //         test(sample.getEvent() == event);
-    //         if(event != SampleEvent::Remove)
-    //         {
-    //             test(sample.getValue()->b == value);
-    //         }
-    //     };
-
-    //     {
-    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elema1");
-    //         reader.waitForWriters(1);
-    //         test(reader.hasWriters());
-    //         testSample(SampleEvent::Add, reader, "elema1", "value1");
-    //         testSample(SampleEvent::Update, reader, "elema1", "value2");
-    //         testSample(SampleEvent::Remove, reader, "elema1");
-    //     }
-    //     {
-    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemb2");
-    //         reader.waitForWriters(1);
-    //         test(reader.hasWriters());
-    //         testSample(SampleEvent::Update, reader, "elemb2", "value1");
-    //     }
-    //     {
-    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemc3");
-    //         reader.waitForWriters(1);
-    //         test(reader.hasWriters());
-    //         testSample(SampleEvent::Remove, reader, "elemc3");
-    //     }
-    //     {
-    //         KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elemd4");
-    //         reader.waitForWriters(1);
-    //         test(reader.hasWriters());
-    //         testSample(SampleEvent::Add, reader, "elemd4", "value1");
-    //     }
-
-    //     {
-    //         vector<KeyReader<string, shared_ptr<Test::Base>>> readers;
-    //         for(int i = 0; i < 5; ++i)
-    //         {
-    //             ostringstream os;
-    //             os << "elem" << i;
-    //             readers.push_back(KeyReader<string, shared_ptr<Test::Base>>(topic, os.str()));
-    //             readers.back().waitForWriters(1);
-    //         }
-    //         for(int i = 0; i < 5; ++i)
-    //         {
-    //             ostringstream os;
-    //             os << "elem" << i;
-    //             testSample(SampleEvent::Update, readers[i], os.str(), "value1");
-    //         }
-    //     }
-
-    //     topic.waitForNoWriters();
-    // }
-
-    {
+     {
         Topic<string, string> t1(node, "topic");
         Topic<string, string> t2(node, "topic");
         t1.hasWriters(); // Required to create the underlying topic reader

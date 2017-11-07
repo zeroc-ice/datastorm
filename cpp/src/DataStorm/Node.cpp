@@ -12,6 +12,7 @@
 #include <DataStorm/Node.h>
 #include <DataStorm/Instance.h>
 #include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/NodeI.h>
 
 using namespace std;
 using namespace DataStorm;
@@ -44,8 +45,14 @@ Node::~Node()
     _instance->destroy(_ownsCommunicator);
 }
 
-std::shared_ptr<Ice::Communicator>
+shared_ptr<Ice::Communicator>
 Node::getCommunicator() const
 {
     return _instance->getCommunicator();
+}
+
+shared_ptr<Ice::Connection>
+Node::getSessionConnection(const string& ident) const
+{
+    return _instance->getNode()->getSessionConnection(ident);
 }

@@ -144,7 +144,7 @@ public:
                              const std::chrono::time_point<std::chrono::system_clock>&);
     virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
-                                                        const std::chrono::time_point<std::chrono::system_clock>&) const;
+                                                        const std::chrono::time_point<std::chrono::system_clock>&);
     virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&);
     virtual std::shared_ptr<Filter> createSampleFilter(std::vector<unsigned char>) const;
@@ -282,7 +282,7 @@ public:
     virtual std::string toString() const override;
     virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
-                                                        const std::chrono::time_point<std::chrono::system_clock>&) const override;
+                                                        const std::chrono::time_point<std::chrono::system_clock>&) override;
 
 private:
 

@@ -117,6 +117,8 @@ protected:
     void add(const std::shared_ptr<DataElementI>&, const std::vector<std::shared_ptr<Key>>&);
     void addFiltered(const std::shared_ptr<DataElementI>&, const std::shared_ptr<Filter>&);
 
+    void parseConfigImpl(const Ice::PropertyDict&, const std::string&, DataStorm::Config&) const;
+
     friend class DataElementI;
     friend class DataReaderI;
     friend class FilteredDataReaderI;
@@ -174,6 +176,7 @@ public:
 
 private:
 
+    DataStorm::ReaderConfig parseConfig(const std::string&) const;
     DataStorm::ReaderConfig mergeConfigs(DataStorm::ReaderConfig) const;
 
     DataStorm::ReaderConfig _defaultConfig;
@@ -203,6 +206,7 @@ public:
 
 private:
 
+    DataStorm::WriterConfig parseConfig(const std::string&) const;
     DataStorm::WriterConfig mergeConfigs(DataStorm::WriterConfig) const;
 
     DataStorm::WriterConfig _defaultConfig;
