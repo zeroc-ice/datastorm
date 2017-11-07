@@ -96,11 +96,18 @@ main(int argc, char* argv[])
         ReaderConfig config;
         config.sampleLifetime = 3;
 
+        auto now = chrono::system_clock::now();
+
         // Reader wants 3ms worth of samples
         KeyReader<string, string> reader(topic, "elem1", config);
         test(reader.getNextUnread().getValue() == "value3");
         test(reader.getNextUnread().getValue() == "value4");
         test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
+
+        for(const auto& s : reader.getAll())
+        {
+            test(s.getTimeStamp() >= (now - chrono::milliseconds(3)));
+        }
     }
 
     return 0;
