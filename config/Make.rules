@@ -59,8 +59,8 @@ include $(top_srcdir)/config/Make.rules.$(os)
 include $(top_srcdir)/config/Make.project.rules
 include $(top_srcdir)/config/Make.tests.rules
 
-version                 = 3.7.0
-soversion               = 37
+version                 = 0.1.0
+soversion               = 01
 
 #
 # The compatversion is the lowest patch release with the same API.
@@ -87,6 +87,7 @@ install_bindir          ?= $(prefix)/bin
 install_libdir          ?= $(prefix)/lib
 install_includedir      ?= $(prefix)/include
 install_docdir          ?= $(prefix)$(if $(usr_dir_install),/share/doc/datastorm)
+install_slicedir        ?= $(prefix)$(if $(usr_dir_install),/share/datastorm)/slice
 install_mandir          ?= $(prefix)$(if $(usr_dir_install),/share)/man
 else
 $(eval $(call create-project-dependencies,datastorm,$(DATASTORM_HOME),cpp,cpp,DataStorm))

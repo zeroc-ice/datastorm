@@ -1293,7 +1293,7 @@ Writer<Key, Value>::update(const Value& value)
 template<typename Key, typename Value> void
 Writer<Key, Value>::remove()
 {
-    _impl->publish(std::make_shared<DataStormInternal::WSampleT<Key, Value>>(SampleEvent::Remove, Value()));
+    _impl->publish(std::make_shared<DataStormInternal::WSampleT<Key, Value>>(SampleEvent::Remove));
 }
 
 template<typename Key, typename Value> void

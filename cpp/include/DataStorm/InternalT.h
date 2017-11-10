@@ -258,6 +258,10 @@ template<typename Key, typename Value> class WSampleT : public Sample
 {
 public:
 
+    WSampleT(DataStorm::SampleEvent event) : Sample(event)
+    {
+    }
+
     WSampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _value(std::move(value))
     {
     }
