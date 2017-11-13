@@ -31,7 +31,7 @@ $(target-platform)_targetdir    = $(if $(filter %/build,$5),/$(target-platform))
 $(target-platform)_installdir   =
 $(target-platform)_objdir       = /$(target-platform)
 
-cppflags                        := $(if $(filter yes,$(OPTIMIZE)),-O2)
+cppflags                        := $(if $(filter yes,$(OPTIMIZE)),-O2) -std=c++1y
 
 # system install directory
 system-install-dir              := $(OECORE_TARGET_SYSROOT)/usr

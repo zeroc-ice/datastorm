@@ -144,7 +144,7 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": matched elements `[" << specs << "]@" << topicId << "' on topic `" << topic << "'";
             }
-            _session->attachElementsAsync(topic->getId(), getLastId(topicId), specs);
+            _session->attachElementsAsync(topic->getId(), this->getLastId(topicId), specs);
         }
     });
 }
@@ -175,7 +175,7 @@ SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq 
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": matched elements `[" << specAck << "]@" << id << "' on topic `" << topic << "'";
             }
-            _session->attachElementsAckAsync(topic->getId(), getLastId(id), specAck);
+            _session->attachElementsAckAsync(topic->getId(), this->getLastId(id), specAck);
         }
     });
 }
@@ -573,7 +573,7 @@ SessionI::disconnect(long long id, TopicI* topic)
         return; // Peer topic detached first.
     }
 
-    runWithTopic(id, topic, [&](auto&) { unsubscribe(id, topic); });
+    runWithTopic(id, topic, [&](auto&) { this->unsubscribe(id, topic); });
 
     auto& subscriber = _topics.at(id);
     subscriber.removeSubscriber(topic);
@@ -627,7 +627,7 @@ SessionI::disconnectFromKey(long long topicId, long long int elementId, DataElem
         return;
     }
 
-    runWithTopic(topicId, element->getTopic(), [&](auto&) { unsubscribeFromKey(topicId, elementId, element); });
+    runWithTopic(topicId, element->getTopic(), [&](auto&) { this->unsubscribeFromKey(topicId, elementId, element); });
 }
 
 void
@@ -674,7 +674,7 @@ SessionI::disconnectFromFilter(long long topicId, long long int elementId, DataE
         return;
     }
 
-    runWithTopic(topicId, element->getTopic(), [&](auto&) { unsubscribeFromFilter(topicId, elementId, element); });
+    runWithTopic(topicId, element->getTopic(), [&](auto&) { this->unsubscribeFromFilter(topicId, elementId, element); });
 }
 
 void

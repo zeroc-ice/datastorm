@@ -62,7 +62,7 @@ $(eval $(call create-project-dependencies,ice,$(ICE_HOME),cpp,cpp,Ice++11))
 $(eval $(call create-project-dependencies,datastorm,$(DATASTORM_HOME),cpp,cpp,DataStorm))
 
 # Always use the C++11 mapping
-cppflags                += -std=c++14 -DICE_CPP11_MAPPING
+cppflags                += -DICE_CPP11_MAPPING
 
 #
 # Support for Slice compilers

@@ -418,7 +418,7 @@ TopicI::waitForListeners(int count) const
             --_waiters;
             return;
         }
-        else if(count >= 0 && _listenerCount >= count)
+        else if(count >= 0 && _listenerCount >= static_cast<size_t>(count))
         {
             --_waiters;
             return;
