@@ -90,7 +90,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
             }
-            _session->attachElementsAsync(topic->getId(), getLastId(spec.id), specs);
+            _session->attachElementsAsync(topic->getId(), this->getLastId(spec.id), specs);
         }
     });
 }

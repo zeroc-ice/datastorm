@@ -315,7 +315,7 @@ DataElementI::waitForListeners(int count) const
             --_waiters;
             return;
         }
-        else if(count >= 0 && _listenerCount >= count)
+        else if(count >= 0 && _listenerCount >= static_cast<size_t>(count))
         {
             --_waiters;
             return;
@@ -496,7 +496,7 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
                 assert(_all.size() + _unread.size() + samples.size() == maxCount);
             }
         }
-        else if(*_config->sampleCount == -1)
+        else if(*_config->sampleCount < 0)
         {
             trimOnAdd = true;
         }
@@ -564,7 +564,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
                 assert(_all.size() + _unread.size() + 1 == maxCount);
             }
         }
-        else if(*_config->sampleCount == -1 && sample->event == DataStorm::SampleEvent::Add)
+        else if(*_config->sampleCount < 0 && sample->event == DataStorm::SampleEvent::Add)
         {
             _all.clear();
             _unread.clear();
@@ -631,7 +631,7 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
                 _all.pop_front();
             }
         }
-        else if(*_config->sampleCount == -1 && sample->event == DataStorm::SampleEvent::Add)
+        else if(*_config->sampleCount < 0 && sample->event == DataStorm::SampleEvent::Add)
         {
             _all.clear();
         }
@@ -810,8 +810,8 @@ KeyDataWriterI::getSamples(long long int lastId,
         {
             samples.push_front(toSample(*p, nullptr)); // The sample should already be encoded
             if(config->sampleCount &&
-               (*config->sampleCount == samples.size() ||
-               (*config->sampleCount == -1 && (*p)->event == DataStorm::SampleEvent::Add)))
+               ((*config->sampleCount < 0 && (*p)->event == DataStorm::SampleEvent::Add) ||
+                static_cast<size_t>(*config->sampleCount) == samples.size()))
             {
                 break;
             }

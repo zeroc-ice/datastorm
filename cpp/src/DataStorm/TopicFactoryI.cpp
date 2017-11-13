@@ -165,9 +165,9 @@ TopicFactoryI::getTopicReaders() const
         DataStormContract::TopicInfo info;
         info.name = p.first;
         info.ids.reserve(p.second.size());
-        for(const auto& p : p.second)
+        for(const auto& q : p.second)
         {
-            info.ids.push_back(p->getId());
+            info.ids.push_back(q->getId());
         }
         readers.push_back(move(info));
     }
@@ -185,9 +185,9 @@ TopicFactoryI::getTopicWriters() const
         DataStormContract::TopicInfo info;
         info.name = p.first;
         info.ids.reserve(p.second.size());
-        for(const auto& p : p.second)
+        for(const auto& q : p.second)
         {
-            info.ids.push_back(p->getId());
+            info.ids.push_back(q->getId());
         }
         writers.push_back(info);
     }
