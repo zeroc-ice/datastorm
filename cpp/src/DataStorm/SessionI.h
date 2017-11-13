@@ -26,6 +26,8 @@ class TraceLevels;
 
 class SessionI : virtual public DataStormContract::Session, public std::enable_shared_from_this<SessionI>
 {
+protected:
+
     struct Subscriber
     {
         Subscriber(const std::string& facet) : facet(facet), initialized(false)

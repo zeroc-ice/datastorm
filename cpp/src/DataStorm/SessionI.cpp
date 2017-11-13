@@ -53,7 +53,7 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
 
     for(const auto& info : topics)
     {
-        runWithTopics(info.name, [&](auto topic)
+        runWithTopics(info.name, [&](const shared_ptr<TopicI>& topic)
         {
             for(auto id : info.ids)
             {
@@ -73,7 +73,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
         return;
     }
 
-    runWithTopics(spec.name, [&](auto topic)
+    runWithTopics(spec.name, [&](const shared_ptr<TopicI>& topic)
     {
         if(_traceLevels->session > 2)
         {
@@ -104,7 +104,7 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
         return;
     }
 
-    runWithTopics(id, [&](auto topic, auto& subscriber)
+    runWithTopics(id, [&](TopicI* topic, TopicSubscriber& subscriber)
     {
         if(_traceLevels->session > 2)
         {
@@ -128,7 +128,7 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
     }
 
 
-    runWithTopics(topicId, [&](auto topic, auto& subscriber, auto& subscribers)
+    runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
     {
         if(_traceLevels->session > 2)
         {
@@ -159,7 +159,7 @@ SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq 
     }
 
     auto now = chrono::system_clock::now();
-    runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
+    runWithTopics(id, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
     {
         if(_traceLevels->session > 2)
         {
@@ -189,7 +189,7 @@ SessionI::attachElementsAck(long long int id, long long int lastId, ElementSpecA
         return;
     }
     auto now = chrono::system_clock::now();
-    runWithTopics(id, [&](auto topic, auto& subscriber, auto& subscribers)
+    runWithTopics(id, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
     {
         if(_traceLevels->session > 2)
         {
@@ -219,7 +219,7 @@ SessionI::detachElements(long long int id, LongSeq elements, const Ice::Current&
         return;
     }
 
-    runWithTopics(id, [&](auto topic, auto& subscriber)
+    runWithTopics(id, [&](TopicI* topic, TopicSubscriber& subscriber)
     {
         if(_traceLevels->session > 2)
         {
@@ -262,7 +262,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
     auto communicator = _instance->getCommunicator();
     for(const auto& samples : samplesSeq)
     {
-        runWithTopics(topicId, [&](auto topic, auto& subscriber)
+        runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber)
         {
             if(samples.id > 0)
             {
@@ -430,7 +430,7 @@ SessionI::disconnected(exception_ptr ex)
 
         for(auto& t : _topics)
         {
-            runWithTopics(t.first, [&](auto topic, auto& subscriber) { topic->detach(t.first, this); });
+            runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
 
             // Clear the subscribers but don't remove the topic in order to preserve lastId.
             t.second.clearSubscribers();
@@ -473,7 +473,7 @@ SessionI::destroyImpl()
 
     for(const auto& t : _topics)
     {
-        runWithTopics(t.first, [&](auto topic, auto& subscriber) { topic->detach(t.first, this); });
+        runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
     }
 
     for(auto c : _connectedCallbacks)
@@ -573,7 +573,7 @@ SessionI::disconnect(long long id, TopicI* topic)
         return; // Peer topic detached first.
     }
 
-    runWithTopic(id, topic, [&](auto&) { this->unsubscribe(id, topic); });
+    runWithTopic(id, topic, [&](TopicSubscriber&) { this->unsubscribe(id, topic); });
 
     auto& subscriber = _topics.at(id);
     subscriber.removeSubscriber(topic);
@@ -627,7 +627,7 @@ SessionI::disconnectFromKey(long long topicId, long long int elementId, DataElem
         return;
     }
 
-    runWithTopic(topicId, element->getTopic(), [&](auto&) { this->unsubscribeFromKey(topicId, elementId, element); });
+    runWithTopic(topicId, element->getTopic(), [&](TopicSubscriber&) { this->unsubscribeFromKey(topicId, elementId, element); });
 }
 
 void
@@ -674,7 +674,7 @@ SessionI::disconnectFromFilter(long long topicId, long long int elementId, DataE
         return;
     }
 
-    runWithTopic(topicId, element->getTopic(), [&](auto&) { this->unsubscribeFromFilter(topicId, elementId, element); });
+    runWithTopic(topicId, element->getTopic(), [&](TopicSubscriber&) { this->unsubscribeFromFilter(topicId, elementId, element); });
 }
 
 void
@@ -815,7 +815,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
     }
 
     auto now = chrono::system_clock::now();
-    runWithTopics(topicId, [&](auto topic, auto& subscriber, auto topicSubscribers)
+    runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& topicSubscribers)
     {
         if(element <= 0)
         {

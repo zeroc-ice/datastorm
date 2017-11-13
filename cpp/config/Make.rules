@@ -15,7 +15,7 @@ slice2cpp_targetext     = cpp
 slice2cpp_path          = $(ice_bindir)/slice2cpp
 
 # Always use the C++11 mapping
-cppflags                += -DICE_CPP11_MAPPING
+cppflags                += -std=c++11 -DICE_CPP11_MAPPING
 
 #
 # $(call make-cpp-src-project,$1=project)

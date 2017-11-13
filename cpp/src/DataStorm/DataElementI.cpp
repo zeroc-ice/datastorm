@@ -35,7 +35,8 @@ cleanOldSamples(deque<shared_ptr<Sample>>& samples,
                 int lifetime)
 {
     chrono::time_point<chrono::system_clock> staleTime = now - chrono::milliseconds(lifetime);
-    auto p = stable_partition(samples.begin(), samples.end(), [&](const auto& s) { return s->timestamp < staleTime; });
+    auto p = stable_partition(samples.begin(), samples.end(),
+                              [&](const shared_ptr<Sample>& s) { return s->timestamp < staleTime; });
     if(p != samples.begin())
     {
         samples.erase(samples.begin(), p);

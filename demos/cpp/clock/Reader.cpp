@@ -52,7 +52,7 @@ main(int argc, char* argv[])
     //
     // Prints out the received samples.
     //
-    reader.onSample([](auto sample)
+    reader.onSample([](const DataStorm::Sample<string, chrono::system_clock::time_point>& sample)
     {
         auto time = chrono::system_clock::to_time_t(sample.getValue());
         char timeString[100];

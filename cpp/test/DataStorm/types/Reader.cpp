@@ -35,6 +35,28 @@ template<typename T> bool compare(shared_ptr<T> v1, shared_ptr<T> v2)
     return *v1 == *v2;
 }
 
+template<typename T, typename A, typename U> void
+testReader(T topic, A add, U update)
+{
+    map<typename decltype(topic)::KeyType, typename decltype(topic)::ReaderType> readers;
+    for(auto p : add)
+    {
+        readers.emplace(p.first, makeSingleKeyReader(topic, p.first));
+        auto s = readers.at(p.first).getNextUnread();
+        test(s.getEvent() == SampleEvent::Add && compare(s.getValue(), p.second));
+    }
+    for(auto p : update)
+    {
+        auto s = readers.at(p.first).getNextUnread();
+        test(s.getEvent() == SampleEvent::Update && compare(s.getValue(), p.second));
+    }
+    for(auto p : add)
+    {
+        auto s = readers.at(p.first).getNextUnread();
+        test(s.getEvent() == SampleEvent::Remove);
+    }
+};
+
 }
 
 namespace DataStorm
@@ -66,27 +88,6 @@ int
 main(int argc, char* argv[])
 {
     Node node(argc, argv);
-
-    auto testReader = [](auto topic, auto add, auto update)
-    {
-        map<typename decltype(topic)::KeyType, typename decltype(topic)::ReaderType> readers;
-        for(auto p : add)
-        {
-            readers.emplace(p.first, makeSingleKeyReader(topic, p.first));
-            auto s = readers.at(p.first).getNextUnread();
-            test(s.getEvent() == SampleEvent::Add && compare(s.getValue(), p.second));
-        }
-        for(auto p : update)
-        {
-            auto s = readers.at(p.first).getNextUnread();
-            test(s.getEvent() == SampleEvent::Update && compare(s.getValue(), p.second));
-        }
-        for(auto p : add)
-        {
-            auto s = readers.at(p.first).getNextUnread();
-            test(s.getEvent() == SampleEvent::Remove);
-        }
-    };
 
     testReader(Topic<string, string>(node, "stringstring"),
                map<string, string> { { "k1", "v1" }, { "k2", "v2" } },
