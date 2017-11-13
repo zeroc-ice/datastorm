@@ -73,7 +73,7 @@ public:
      *
      * @param ident The session identifier.
      */
-    std::shared_ptr<Ice::Connection> getSessionConnection(const std::string&) const;
+    std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const;
 
 private:
 

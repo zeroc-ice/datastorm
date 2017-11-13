@@ -427,14 +427,6 @@ public:
     void waitForNoWriters() const;
 
     /**
-     * Returns the number of times the data element was instantiated.
-     *
-     * This returns the number of times {@link Writer::add} was called for the
-     * data element.
-     */
-    int getInstanceCount() const;
-
-    /**
      * Returns all the data samples available with this reader.
      *
      * @return The data samples.
@@ -490,7 +482,6 @@ public:
      * samples. If a lambda is already set, it will be replaced with this new lambda.
      *
      * @param callback The lambda to call when initialization samples are received.
-     *
      **/
     void onInit(std::function<void(std::vector<Sample<Key, Value>>)>);
 
@@ -532,17 +523,6 @@ public:
     KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&, Key, ReaderConfig = ReaderConfig());
 
     /**
-     * Construct a new reader for the given keys. The construction of the reader
-     * connects the reader to writers with matching keys.
-     *
-     * @param topic The topic.
-     * @param keys The keys of the data elements to read.
-     * @param config The reader configuration.
-     */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&, std::vector<Key>, ReaderConfig = ReaderConfig());
-
-    /**
      * Construct a new reader for the given key and sample filter criteria. The
      * construction of the reader connects the reader to writers with a matching key.
      *
@@ -553,19 +533,6 @@ public:
      */
     template<typename KeyFilter, typename KeyFilterCriteria>
     KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&, Key, SampleFilterCriteria,
-              ReaderConfig = ReaderConfig());
-
-    /**
-     * Construct a new reader for the given keys and sample filter criteria. The
-     * construction of the reader connects the reader to writers with matching keys.
-     *
-     * @param topic The topic reader.
-     * @param keys The keys of the data elements to read.
-     * @param criteria The sample filter criteria used by writers to filter the samples.
-     * @param config The reader configuration.
-     */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>&, std::vector<Key>, SampleFilterCriteria,
               ReaderConfig = ReaderConfig());
 
     /**
@@ -1282,12 +1249,6 @@ Reader<Key, Value>::waitForNoWriters() const
     _impl->waitForWriters(-1);
 }
 
-template<typename Key, typename Value> int
-Reader<Key, Value>::getInstanceCount() const
-{
-    return _impl->getInstanceCount();
-}
-
 template<typename Key, typename Value> std::vector<Sample<Key, Value>>
 Reader<Key, Value>::getAll() const
 {
@@ -1450,8 +1411,8 @@ KeyReader<Key, Value, void>::KeyReader(KeyReader<Key, Value, void>&& reader) :
 template<typename Key, typename Value>
 template<typename KeyFilter, typename KeyFilterCriteria>
 MultiKeyReader<Key, Value, void>::MultiKeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria>& topic,
-                                       std::vector<Key> keys,
-                                       ReaderConfig config) :
+                                                 std::vector<Key> keys,
+                                                 ReaderConfig config) :
     Reader<Key, Value>(topic.getReader()->create(topic._keyFactory->create(std::move(keys)), config))
 {
 }
