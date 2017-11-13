@@ -142,7 +142,9 @@ public:
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
                              const std::chrono::time_point<std::chrono::system_clock>&);
-    virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&,
+    virtual DataStormContract::DataSampleSeq getSamples(long long int,
+                                                        const std::shared_ptr<Key>&,
+                                                        const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
     virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
@@ -234,13 +236,13 @@ public:
 
     DataWriterI(TopicWriterI*, long long int, const std::shared_ptr<FilterFactory>&, const DataStorm::WriterConfig&);
 
-    virtual void publish(const std::shared_ptr<Sample>&) override;
+    virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) override;
     virtual std::shared_ptr<Filter> createSampleFilter(std::vector<unsigned char>) const override;
 
 protected:
 
 
-    virtual void send(const std::shared_ptr<Sample>&) const = 0;
+    virtual void send(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) const = 0;
 
     TopicWriterI* _parent;
     std::shared_ptr<FilterFactory> _sampleFilterFactory;
@@ -271,8 +273,8 @@ class KeyDataWriterI : public DataWriterI
 {
 public:
 
-    KeyDataWriterI(TopicWriterI*, long long int, const std::shared_ptr<Key>&, const std::shared_ptr<FilterFactory>&,
-                   const DataStorm::WriterConfig&);
+    KeyDataWriterI(TopicWriterI*, long long int, const std::vector<std::shared_ptr<Key>>&,
+                   const std::shared_ptr<FilterFactory>&, const DataStorm::WriterConfig&);
 
     virtual void destroyImpl() override;
 
@@ -280,15 +282,17 @@ public:
     virtual bool hasReaders() const override;
 
     virtual std::string toString() const override;
-    virtual DataStormContract::DataSampleSeq getSamples(long long int, const std::shared_ptr<Filter>&,
+    virtual DataStormContract::DataSampleSeq getSamples(long long int,
+                                                        const std::shared_ptr<Key>&,
+                                                        const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&) override;
 
 private:
 
-    virtual void send(const std::shared_ptr<Sample>&) const override;
+    virtual void send(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) const override;
 
-    const std::shared_ptr<Key> _key;
+    const std::vector<std::shared_ptr<Key>> _keys;
 };
 
 class FilteredDataReaderI : public DataReaderI

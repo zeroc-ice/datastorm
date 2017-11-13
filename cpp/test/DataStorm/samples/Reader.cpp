@@ -22,7 +22,7 @@ main(int argc, char* argv[])
     Topic<string, string> topic(node, "topic");
     Topic<string, bool> controllerTopic(node, "controller");
 
-    auto controller = makeKeyReader(controllerTopic, "elem1");
+    auto controller = makeSingleKeyReader(controllerTopic, "elem1");
     controller.waitForWriters();
 
     // Writer sample count

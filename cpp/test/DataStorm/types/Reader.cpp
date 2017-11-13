@@ -72,7 +72,7 @@ main(int argc, char* argv[])
         map<typename decltype(topic)::KeyType, typename decltype(topic)::ReaderType> readers;
         for(auto p : add)
         {
-            readers.emplace(p.first, makeKeyReader(topic, p.first));
+            readers.emplace(p.first, makeSingleKeyReader(topic, p.first));
             auto s = readers.at(p.first).getNextUnread();
             test(s.getEvent() == SampleEvent::Add && compare(s.getValue(), p.second));
         }

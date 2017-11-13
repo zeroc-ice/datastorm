@@ -58,10 +58,11 @@ main(int argc, char* argv[])
 
     auto testWriter = [](auto topic, auto add, auto update)
     {
-        map<typename decltype(topic)::KeyType, typename decltype(topic)::WriterType> writers;
+        using WriterType = decltype(makeSingleKeyWriter(topic, typename decltype(add)::key_type()));
+        map<typename decltype(topic)::KeyType, WriterType> writers;
         for(auto p : add)
         {
-            writers.emplace(p.first, makeKeyWriter(topic, p.first));
+            writers.emplace(p.first, makeSingleKeyWriter(topic, p.first));
             writers.at(p.first).waitForReaders();
             writers.at(p.first).add(p.second);
         }

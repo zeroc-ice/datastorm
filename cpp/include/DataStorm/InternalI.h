@@ -151,7 +151,7 @@ public:
     virtual bool hasReaders() const = 0;
     virtual void waitForReaders(int) const = 0;
 
-    virtual void publish(const std::shared_ptr<Sample>&) = 0;
+    virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) = 0;
 };
 
 class Topic
@@ -184,7 +184,7 @@ class TopicWriter : virtual public Topic
 {
 public:
 
-    virtual std::shared_ptr<DataWriter> create(const std::shared_ptr<Key>&,
+    virtual std::shared_ptr<DataWriter> create(const std::vector<std::shared_ptr<Key>>&,
                                                DataStorm::WriterConfig,
                                                const std::shared_ptr<FilterFactory>& = nullptr) = 0;
 

@@ -24,7 +24,7 @@ main(int argc, char* argv[])
 
     WriterConfig controllerConfig;
     controllerConfig.sampleCount = 1;
-    auto controller = makeKeyWriter(controllerTopic, "elem1", controllerConfig);
+    auto controller = makeSingleKeyWriter(controllerTopic, "elem1", controllerConfig);
     controller.waitForReaders();
 
     cout << "testing writer sampleCount... " << flush;

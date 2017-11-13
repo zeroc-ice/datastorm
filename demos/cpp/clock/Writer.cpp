@@ -46,7 +46,7 @@ main(int argc, char* argv[])
     //
     DataStorm::WriterConfig config;
     config.sampleCount = 0; // Don't keep sample history
-    auto writer = DataStorm::makeKeyWriter(topic, city, config);
+    auto writer = DataStorm::makeSingleKeyWriter(topic, city, config);
 
     //
     // Print message when reader connects / disconnects

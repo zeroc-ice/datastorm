@@ -2875,10 +2875,18 @@ class CppMapping(Mapping):
 
     def getDefaultSource(self, processType):
         return {
-            "client" : "Client.cpp",
-            "server" : "Server.cpp",
+            "client" : "Writer.cpp",
+            "server" : "Reader.cpp",
             "serveramd" : "ServerAMD.cpp",
             "collocated" : "Collocated.cpp",
+        }[processType]
+
+    def getDefaultExe(self, processType, config):
+        return {
+            "client" : "writer",
+            "server" : "reader",
+            "serveramd" : "readeramd",
+            "collocated" : "collocated",
         }[processType]
 
 class JavaMapping(Mapping):

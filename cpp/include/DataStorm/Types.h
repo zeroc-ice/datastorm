@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <Ice/optional.h>
+#include <Ice/Optional.h>
 
 namespace DataStorm
 {

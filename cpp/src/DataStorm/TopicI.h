@@ -193,7 +193,7 @@ public:
                  const std::string&,
                  long long int);
 
-    virtual std::shared_ptr<DataWriter> create(const std::shared_ptr<Key>&,
+    virtual std::shared_ptr<DataWriter> create(const std::vector<std::shared_ptr<Key>>&,
                                                DataStorm::WriterConfig,
                                                const std::shared_ptr<FilterFactory>&) override;
 

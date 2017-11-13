@@ -659,13 +659,13 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::create(const shared_ptr<Key>& key,
+TopicWriterI::create(const vector<shared_ptr<Key>>& keys,
                      DataStorm::WriterConfig config,
                      const shared_ptr<FilterFactory>& sampleFilterFactory)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataWriterI>(this, ++_nextId, key, sampleFilterFactory, mergeConfigs(move(config)));
-    add(element, { key });
+    auto element = make_shared<KeyDataWriterI>(this, ++_nextId, keys, sampleFilterFactory, mergeConfigs(move(config)));
+    add(element, keys);
     return element;
 }
 

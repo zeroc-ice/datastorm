@@ -24,7 +24,7 @@ main(int argc, char* argv[])
     //
     // Instantiate a writer with the key "foo".
     //
-    auto writer = DataStorm::makeKeyWriter(topic, "foo");
+    auto writer = DataStorm::makeSingleKeyWriter(topic, "foo");
 
     //
     // Publish a sample.

@@ -26,11 +26,11 @@ main(int argc, char* argv[])
     //
     // Instantiate writers
     //
-    auto writera = DataStorm::makeKeyWriter(topic, "fooa");
-    auto writerb = DataStorm::makeKeyWriter(topic, "foob");
-    auto writerc = DataStorm::makeKeyWriter(topic, "fooc");
-    auto writerd = DataStorm::makeKeyWriter(topic, "food");
-    auto writere = DataStorm::makeKeyWriter(topic, "fooe");
+    auto writera = DataStorm::makeSingleKeyWriter(topic, "fooa");
+    auto writerb = DataStorm::makeSingleKeyWriter(topic, "foob");
+    auto writerc = DataStorm::makeSingleKeyWriter(topic, "fooc");
+    auto writerd = DataStorm::makeSingleKeyWriter(topic, "food");
+    auto writere = DataStorm::makeSingleKeyWriter(topic, "fooe");
 
     //
     // Publish a sample on each writer.

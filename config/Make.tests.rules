@@ -26,13 +26,13 @@ test-sources = $(call unique,$(if $1,$(foreach f,$1,$(notdir $(wildcard $2/$f)))
 #
 # The test executables to try to build in each test directory
 #
-test-programs           = client server
+test-programs           = writer reader
 
 #
 # The default test sources for each test executable.
 #
-test-client-sources     = Publisher.$1 Client.$1 *Test.ice AllTests.$1
-test-server-sources     = Subscriber.$1 Server.$1 *Test.ice TestI.$1
+test-writer-sources     = Writer.$1 Client.$1 *Test.ice AllTests.$1
+test-reader-sources     = Reader.$1 Server.$1 *Test.ice TestI.$1
 
 #
 # $(call create-test-project,test)
@@ -62,11 +62,11 @@ $1_srcdir       := $1
 $1_programs     := $$(or $$($1_programs),$(test-programs))
 $1_caninstall   := no
 
-$1_client_sources       := $$(call test-sources,$$(call $1_client_sources,$$($1_srcext)),$$($1_srcdir),\
-                                $$(call test-client-sources,$$($1_srcext)))
+$1_writer_sources       := $$(call test-sources,$$(call $1_writer_sources,$$($1_srcext)),$$($1_srcdir),\
+                                $$(call test-writer-sources,$$($1_srcext)))
 
-$1_server_sources       := $$(call test-sources,$$(call $1_server_sources,$$($1_srcext)),$$($1_srcdir),\
-                                $$(call test-server-sources,$$($1_srcext)))
+$1_reader_sources       := $$(call test-sources,$$(call $1_reader_sources,$$($1_srcext)),$$($1_srcdir),\
+                                $$(call test-reader-sources,$$($1_srcext)))
 
 
 $1_programs     := $$(foreach p,$$($1_programs),$$(if $$($1_$$(p)_sources),$1_$$(p)))

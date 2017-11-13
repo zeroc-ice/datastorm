@@ -96,7 +96,7 @@ DataElementI::attach(long long int topicId,
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        acks.push_back({ _id, _config, getSamples(lastId, sampleFilter, data.config, now), data.id });
+        acks.push_back({ _id, _config, getSamples(lastId, key, sampleFilter, data.config, now), data.id });
     }
 }
 
@@ -116,7 +116,7 @@ DataElementI::attach(long long int topicId,
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        samples.push_back({ _id, getSamples(lastId, sampleFilter, data.config, now) });
+        samples.push_back({ _id, getSamples(lastId, key, sampleFilter, data.config, now) });
     }
 
     if(_parent->_sampleFactory && !data.samples.empty())
@@ -283,6 +283,7 @@ DataElementI::initSamples(const vector<shared_ptr<Sample>>&,
 
 DataSampleSeq
 DataElementI::getSamples(long long int,
+                         const shared_ptr<Key>&,
                          const shared_ptr<Filter>&,
                          const shared_ptr<DataStormContract::ElementConfig>&,
                          const chrono::time_point<chrono::system_clock>&)
@@ -603,7 +604,7 @@ DataWriterI::DataWriterI(TopicWriterI* topic, long long int id,
 }
 
 void
-DataWriterI::publish(const shared_ptr<Sample>& sample)
+DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sample)
 {
     lock_guard<mutex> lock(_parent->_mutex);
 
@@ -614,7 +615,7 @@ DataWriterI::publish(const shared_ptr<Sample>& sample)
     }
     sample->id = ++_parent->_nextSampleId;
     sample->timestamp = chrono::system_clock::now();
-    send(sample);
+    send(key, sample);
 
     if(_config->sampleLifetime)
     {
@@ -721,11 +722,11 @@ KeyDataReaderI::toString() const
 
 KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
                                long long int id,
-                               const shared_ptr<Key>& key,
+                               const vector<shared_ptr<Key>>& keys,
                                const shared_ptr<FilterFactory>& sampleFilterFactory,
                                const DataStorm::WriterConfig& config) :
     DataWriterI(topic, id, sampleFilterFactory, config),
-    _key(key)
+    _keys(keys)
 {
     if(_traceLevels->data > 0)
     {
@@ -743,7 +744,7 @@ KeyDataWriterI::destroyImpl()
         out << this << ": destroyed key writer";
     }
     _forwarder->detachElements(_parent->getId(), { _id });
-    _parent->remove({ _key }, shared_from_this());
+    _parent->remove(_keys, shared_from_this());
 }
 
 void
@@ -762,12 +763,22 @@ string
 KeyDataWriterI::toString() const
 {
     ostringstream os;
-    os << 'e' << _id << ":" << _key->toString() << "@" << _parent->getId();
+    os << 'e' << _id << ":[";
+    for(auto q = _keys.begin(); q != _keys.end(); ++q)
+    {
+        if(q != _keys.begin())
+        {
+            os << ",";
+        }
+        os << (*q)->toString();
+    }
+    os << "]@" << _parent->getId();
     return os.str();
 }
 
 DataSampleSeq
 KeyDataWriterI::getSamples(long long int lastId,
+                           const shared_ptr<Key>& key,
                            const shared_ptr<Filter>& filter,
                            const shared_ptr<DataStormContract::ElementConfig>& config,
                            const chrono::time_point<chrono::system_clock>& now)
@@ -795,7 +806,7 @@ KeyDataWriterI::getSamples(long long int lastId,
         {
             break;
         }
-        if(!filter || filter->match(*p))
+        if((!key || key == (*p)->key) && (!filter || filter->match(*p)))
         {
             samples.push_front(toSample(*p, nullptr)); // The sample should already be encoded
             if(config->sampleCount &&
@@ -810,10 +821,10 @@ KeyDataWriterI::getSamples(long long int lastId,
 }
 
 void
-KeyDataWriterI::send(const shared_ptr<Sample>& sample) const
+KeyDataWriterI::send(const shared_ptr<Key>& key, const shared_ptr<Sample>& sample) const
 {
     _sample = sample;
-    _sample->key = _key;
+    _sample->key = key ? key : _keys[0];
     _subscribers->s(_parent->getId(), _id, toSample(sample, getCommunicator()));
     _sample = nullptr;
 }

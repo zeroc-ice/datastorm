@@ -27,14 +27,21 @@ main(int argc, char* argv[])
     topic.waitForWriters();
 
     //
-    // Instantiate a reader with the key "foo".
+    // Instantiate reader, the reader sample filter criteria type must match the
+    // criteria type specified for the writer.
     //
-    auto reader = DataStorm::makeKeyReader(topic, "foo");
+    // Here, the criteria is the string "good.*". This string is provided to writers
+    // to perform the sample filtering.
+    //
+    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "good.*");
 
     //
-    // Get sample.
+    // Get the 2 samples published by the writer which starts with good
     //
     auto sample = reader.getNextUnread();
+    cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
+
+    sample = reader.getNextUnread();
     cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
 
     return 0;
