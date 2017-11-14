@@ -159,6 +159,48 @@ private:
 /**
  * The RegexKeyFilter template filters keys matching a regular expression.
  **/
+#if defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
+
+#include <regex.h>
+
+template<typename T>
+class RegexFilter
+{
+public:
+
+    /**
+     * Construct the filter with the given filter criteria.
+     *
+     * @param criteria The filter criteria.
+     */
+    RegexFilter(const std::string& criteria)
+    {
+        if(regcomp(&_regex, criteria.c_str(), REG_EXTENDED) != 0)
+        {
+            throw std::invalid_argument(criteria);
+        }
+    }
+
+    /**
+     * Returns wether or not the value matches the regular expression.
+     *
+     * @param value The value to match against the regular expression.
+     * @return True if the value matches the regular expression, false otherwise.
+     */
+    bool match(const T& value) const
+    {
+        std::ostringstream os;
+        os << value;
+        return regexec(&_regex, os.str().c_str(), 0, 0, 0) == 0;
+    }
+
+private:
+
+    regex_t _regex;
+};
+
+#else
+
 template<typename T>
 class RegexFilter
 {
@@ -190,6 +232,9 @@ private:
 
     std::regex _regex;
 };
+
+#endif
+
 
 /**
  * The SampleEventFilter template filters samples based on a set of sample types.
