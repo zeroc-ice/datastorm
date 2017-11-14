@@ -20,18 +20,18 @@ main(int argc, char* argv[])
     Node node(argc, argv);
 
     Topic<string, string> topic(node, "topic");
-    Topic<string, bool> controllerTopic(node, "controller");
+    Topic<string, bool> controller(node, "controller");
 
-    WriterConfig controllerConfig;
-    controllerConfig.sampleCount = 1;
-    auto controller = makeSingleKeyWriter(controllerTopic, "elem1", controllerConfig);
-    controller.waitForReaders();
+    WriterConfig config;
+    config.sampleCount = 1;
+    auto writers = makeSingleKeyWriter(controller, "writers", config);
+    auto readers = makeSingleKeyReader(controller, "readers");
 
     cout << "testing writer sampleCount... " << flush;
     {
-        auto write = [&topic, &controller](WriterConfig config)
+        auto write = [&topic, &writers, &readers](WriterConfig config)
         {
-            controller.update(false); // Not ready
+            writers.update(false); // Not ready
             KeyWriter<string, string> writer(topic, "elem1", config);
             writer.add("value1");
             writer.update("value2");
@@ -39,11 +39,9 @@ main(int argc, char* argv[])
             writer.add("value3");
             writer.update("value4");
             writer.remove();
-            controller.update(true); // Ready
+            writers.update(true); // Ready
 
-            // Exit only once a reader read the samples
-            writer.waitForReaders();
-            writer.waitForNoReaders();
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
         };
 
         // Keep all the samples in the history.
@@ -67,9 +65,9 @@ main(int argc, char* argv[])
 
     cout << "testing reader sampleCount... " << flush;
     {
-        auto write = [&topic, &controller]()
+        auto write = [&topic, &writers, &readers]()
         {
-            controller.update(false); // Not ready
+            writers.update(false); // Not ready
             KeyWriter<string, string> writer(topic, "elem1");
             writer.add("value1");
             writer.update("value2");
@@ -77,11 +75,9 @@ main(int argc, char* argv[])
             writer.add("value3");
             writer.update("value4");
             writer.remove();
-            controller.update(true); // Ready
+            writers.update(true); // Ready
 
-            // Exit only once a reader read the samples
-            writer.waitForReaders();
-            writer.waitForNoReaders();
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
         };
 
         write(); // Reader keeps all the samples in the history.
@@ -92,7 +88,7 @@ main(int argc, char* argv[])
 
     cout << "testing writer sampleLifetime... " << flush;
     {
-        controller.update(false); // Not ready
+        writers.update(false); // Not ready
 
         // Keep 3ms worth of samples in the history
         WriterConfig config;
@@ -105,18 +101,16 @@ main(int argc, char* argv[])
         writer.add("value3");
         writer.update("value4");
         writer.remove();
-        controller.update(true); // Ready
+        writers.update(true); // Ready
 
-        // Exit only once a reader read the samples
-        writer.waitForReaders();
-        writer.waitForNoReaders();
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
     }
     cout << "ok" << endl;
 
     cout << "testing reader sampleLifetime... " << flush;
     {
 
-        controller.update(false); // Not ready
+        writers.update(false); // Not ready
         KeyWriter<string, string> writer(topic, "elem1");
         writer.add("value1");
         writer.update("value2");
@@ -125,11 +119,9 @@ main(int argc, char* argv[])
         writer.add("value3");
         writer.update("value4");
         writer.remove();
-        controller.update(true); // Ready
+        writers.update(true); // Ready
 
-        // Exit only once a reader read the samples
-        writer.waitForReaders();
-        writer.waitForNoReaders();
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
     }
     cout << "ok" << endl;
 

@@ -136,7 +136,7 @@ NodeI::createSubscriberSessionAsync(shared_ptr<NodePrx> publisher,
         return; // Shutting down.
     }
 
-    if(!c.con->getAdapter())
+    if(c.con && !c.con->getAdapter())
     {
         // Setup the bi-dir connection before sending the reply, the node calls initTopics as
         // it got the reply.
@@ -225,7 +225,7 @@ NodeI::createPublisherSessionAsync(shared_ptr<NodePrx> t,
         return; // Shutting down.
     }
 
-    if(!c.con->getAdapter())
+    if(c.con && !c.con->getAdapter())
     {
         // Setup the bi-dir connection before sending the reply, the node calls initTopics as
         // it got the reply.

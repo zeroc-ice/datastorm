@@ -20,7 +20,7 @@ main(int argc, char* argv[])
 {
     Node node(argc, argv);
 
-    cout << "testing key reader/writer... " << flush;
+    cout << "testing single key reader/writer... " << flush;
     {
         {
             Topic<string, string> topic(node, "string");
@@ -104,6 +104,30 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey1");
+            KeyWriter<string, string> writer1(topic, "elem1");
+            KeyWriter<string, string> writer2(topic, "elem2");
+
+            writer1.waitForReaders(1);
+            writer2.waitForReaders(1);
+
+            writer1.add("value1");
+            writer1.update("value2");
+            writer1.remove();
+
+            writer2.add("value1");
+            writer2.update("value2");
+            writer2.remove();
+
+            writer1.waitForNoReaders();
+            writer2.waitForNoReaders();
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing any-key reader/writer... " << flush;
+    {
+        {
+            Topic<string, string> topic(node, "anykey");
             KeyWriter<string, string> writer1(topic, "elem1");
             KeyWriter<string, string> writer2(topic, "elem2");
 

@@ -38,8 +38,7 @@ main(int argc, char* argv[])
     //
     // Instantiates the "time" topic.
     //
-    using KeyFilter = DataStorm::RegexFilter<string>;
-    DataStorm::Topic<string, chrono::system_clock::time_point, KeyFilter, string> topic(node, "time");
+    DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
 
     //
     // Instantiate a writer to writer the time from the given city.

@@ -150,7 +150,16 @@ main(int argc, char* argv[])
     {
         Topic<string, string> topic(node, "multikey1");
 
-        MultiKeyReader<string, string> reader(topic, { "elem1", "elem2" });
+        auto reader = makeMultiKeyReader(topic, { "elem1", "elem2" });
+        reader.waitForWriters(2);
+        reader.waitForUnread(6);
+        test(reader.getAll().size() == 6);
+    }
+
+    {
+        Topic<string, string> topic(node, "anykey");
+
+        auto reader = makeAnyKeyReader(topic);
         reader.waitForWriters(2);
         reader.waitForUnread(6);
         test(reader.getAll().size() == 6);

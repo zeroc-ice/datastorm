@@ -40,6 +40,33 @@ toInt(const std::string& v, int value = 0)
     return value;
 }
 
+// The always match filter always matches the value, it's used by the any key reader/writer.
+class AlwaysMatchFilter : public Filter
+{
+public:
+
+    virtual std::string toString() const
+    {
+        return "f1:alwaysmatch";
+    }
+
+    virtual std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&) const
+    {
+        return std::vector<unsigned char>();
+    }
+
+    virtual long long int getId() const
+    {
+        return 1; // 1 is reserved for the match all filter.
+    }
+
+    virtual bool match(const std::shared_ptr<Filterable>&) const
+    {
+        return true;
+    }
+};
+const auto alwaysMatchFilter = make_shared<AlwaysMatchFilter>();
+
 }
 
 TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
@@ -76,18 +103,6 @@ string
 TopicI::getName() const
 {
     return _name;
-}
-
-shared_ptr<KeyFactory>
-TopicI::getKeyFactory() const
-{
-    return _keyFactory;
-}
-
-shared_ptr<FilterFactory>
-TopicI::getFilterFactory() const
-{
-    return _filterFactory;
 }
 
 void
@@ -153,9 +168,22 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                 }
             }
         }
-        else if(_filterFactory) // Filter
+        else
         {
-            auto filter = _filterFactory->decode(_instance->getCommunicator(), info.value);
+            shared_ptr<Filter> filter;
+            if(info.value.empty())
+            {
+                filter = alwaysMatchFilter;
+            }
+            else if(!_filterFactory)
+            {
+                return specs;
+            }
+            else
+            {
+                filter = _filterFactory->decode(_instance->getCommunicator(), info.value);
+            }
+
             for(auto e : _keyElements)
             {
                 if(filter->match(e.first))
@@ -229,11 +257,18 @@ TopicI::attachElements(long long int topicId,
                 shared_ptr<Filter> filter;
                 if(spec.valueId < 0) // Filter
                 {
-                    if(!_filterFactory)
+                    if(spec.value.empty())
+                    {
+                        filter = alwaysMatchFilter;
+                    }
+                    else if(!_filterFactory)
                     {
                         continue; // TODO: better handle this inconsistency? Warn?
                     }
-                    filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
+                    else
+                    {
+                        filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
+                    }
                 }
                 for(auto e : p->second)
                 {
@@ -259,9 +294,22 @@ TopicI::attachElements(long long int topicId,
                 }
             }
         }
-        else if(_filterFactory) // Filter
+        else
         {
-            auto filter = _filterFactory->get(-spec.peerValueId);
+            shared_ptr<Filter> filter;
+            if(spec.peerValueId == -1)
+            {
+                filter = alwaysMatchFilter;
+            }
+            else if(!_filterFactory)
+            {
+                return specs;
+            }
+            else
+            {
+                filter = _filterFactory->get(-spec.peerValueId);
+            }
+
             auto p = _filteredElements.find(filter);
             if(p != _filteredElements.end())
             {
@@ -319,11 +367,18 @@ TopicI::attachElementsAck(long long int topicId,
                 shared_ptr<Filter> filter;
                 if(spec.valueId < 0)
                 {
-                    if(!_filterFactory)
+                    if(spec.value.empty())
+                    {
+                        filter = alwaysMatchFilter;
+                    }
+                    else if(!_filterFactory)
                     {
                         continue; // TODO: better handle this inconsistency? Warn?
                     }
-                    filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
+                    else
+                    {
+                        filter = _filterFactory->decode(_instance->getCommunicator(), spec.value);
+                    }
                 }
 
                 vector<std::shared_ptr<Sample>> samplesI;
@@ -349,7 +404,20 @@ TopicI::attachElementsAck(long long int topicId,
         }
         else // Filter
         {
-            auto filter = _filterFactory->get(-spec.peerValueId);
+            shared_ptr<Filter> filter;
+            if(spec.peerValueId == -1)
+            {
+                filter = alwaysMatchFilter;
+            }
+            else if(!_filterFactory)
+            {
+                return samples;
+            }
+            else
+            {
+                filter = _filterFactory->get(-spec.peerValueId);
+            }
+
             auto p = _filteredElements.find(filter);
             if(p != _filteredElements.end())
             {
@@ -554,7 +622,14 @@ TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
 {
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, move(sampleFilter), mergeConfigs(move(config)));
-    add(element, keys);
+    if(keys.empty())
+    {
+        addFiltered(element, alwaysMatchFilter);
+    }
+    else
+    {
+        add(element, keys);
+    }
     return element;
 }
 
@@ -665,7 +740,14 @@ TopicWriterI::create(const vector<shared_ptr<Key>>& keys,
 {
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<KeyDataWriterI>(this, ++_nextId, keys, sampleFilterFactory, mergeConfigs(move(config)));
-    add(element, keys);
+    if(keys.empty())
+    {
+        addFiltered(element, alwaysMatchFilter);
+    }
+    else
+    {
+        add(element, keys);
+    }
     return element;
 }
 

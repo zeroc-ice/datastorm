@@ -824,6 +824,7 @@ KeyDataWriterI::getSamples(long long int lastId,
 void
 KeyDataWriterI::send(const shared_ptr<Key>& key, const shared_ptr<Sample>& sample) const
 {
+    assert(key || _keys.size() == 1);
     _sample = sample;
     _sample->key = key ? key : _keys[0];
     _subscribers->s(_parent->getId(), _id, toSample(sample, getCommunicator()));

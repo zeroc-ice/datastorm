@@ -55,8 +55,6 @@ public:
     virtual ~TopicI();
 
     virtual std::string getName() const override;
-    virtual std::shared_ptr<KeyFactory> getKeyFactory() const override;
-    virtual std::shared_ptr<FilterFactory> getFilterFactory() const override;
     virtual void destroy() override;
 
     const std::shared_ptr<Instance>& getInstance() const

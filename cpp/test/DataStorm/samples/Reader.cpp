@@ -20,17 +20,22 @@ main(int argc, char* argv[])
     Node node(argc, argv);
 
     Topic<string, string> topic(node, "topic");
-    Topic<string, bool> controllerTopic(node, "controller");
+    Topic<string, bool> controller(node, "controller");
 
-    auto controller = makeSingleKeyReader(controllerTopic, "elem1");
-    controller.waitForWriters();
+    WriterConfig config;
+    config.sampleCount = 1;
+    auto readers = makeSingleKeyWriter(controller, "readers", config);
+    auto writers = makeSingleKeyReader(controller, "writers");
+
+    writers.waitForWriters();
 
     // Writer sample count
     {
-        auto read = [&topic, &controller](int count)
+        auto read = [&topic, &writers, &readers](int count)
         {
-            while(!controller.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
+            readers.update(false);
             KeyReader<string, string> reader(topic, "elem1");
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
@@ -38,6 +43,7 @@ main(int argc, char* argv[])
             test(count < 3 || reader.getNextUnread().getValue() == "value3");
             test(count < 2 || reader.getNextUnread().getValue() == "value4");
             test(count < 1 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
+            readers.update(true); // Reader is done
         };
 
         read(6); // Writer keeps all the samples
@@ -47,10 +53,11 @@ main(int argc, char* argv[])
 
     // Reader sample count
     {
-        auto read = [&topic, &controller](int count, ReaderConfig config)
+        auto read = [&topic, &writers, &readers](int count, ReaderConfig config)
         {
-            while(!controller.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
+            readers.update(false);
             KeyReader<string, string> reader(topic, "elem1", config);
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
@@ -58,7 +65,8 @@ main(int argc, char* argv[])
             test(count < 3 || reader.getNextUnread().getValue() == "value3");
             test(count < 2 || reader.getNextUnread().getValue() == "value4");
             test(count < 1 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
-        };
+            readers.update(true); // Reader is done
+       };
 
         // Keep all the samples in the history.
         read(6, ReaderConfig());
@@ -80,18 +88,20 @@ main(int argc, char* argv[])
 
     // Writer sample lifetime
     {
-        while(!controller.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
         // Writer keeps 3ms worth of samples
+        readers.update(false);
         KeyReader<string, string> reader(topic, "elem1");
         test(reader.getNextUnread().getValue() == "value3");
         test(reader.getNextUnread().getValue() == "value4");
         test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
+        readers.update(true); // Reader is done
     }
 
     // Reader sample lifetime
     {
-        while(!controller.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
         ReaderConfig config;
         config.sampleLifetime = 3;
@@ -99,10 +109,12 @@ main(int argc, char* argv[])
         auto now = chrono::system_clock::now();
 
         // Reader wants 3ms worth of samples
+        readers.update(false);
         KeyReader<string, string> reader(topic, "elem1", config);
         test(reader.getNextUnread().getValue() == "value3");
         test(reader.getNextUnread().getValue() == "value4");
         test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
+        readers.update(true); // Reader is done
 
         for(const auto& s : reader.getAll())
         {

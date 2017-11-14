@@ -422,7 +422,7 @@ public:
     void waitForWriters(unsigned int = 1) const;
 
     /**
-     * Wait for writers to be offline.
+     * Wait for readers to be offline.
      */
     void waitForNoWriters() const;
 
@@ -631,7 +631,7 @@ makeSingleKeyReader(Topic<K, V, KF, KFC>& topic,
  * @param config The optional reader configuration.
  */
 template<typename K, typename V, typename KF, typename KFC, typename SFC=void>
-KeyReader<K, V, SFC>
+MultiKeyReader<K, V, SFC>
 makeMultiKeyReader(Topic<K, V, KF, KFC>& topic,
                    std::vector<typename Topic<K, V, KF, KFC>::KeyType> keys,
                    ReaderConfig config = ReaderConfig())
@@ -652,7 +652,7 @@ makeMultiKeyReader(Topic<K, V, KF, KFC>& topic,
  * @param config The optional reader configuration.
  */
 template<typename K, typename V, typename KF, typename KFC, typename SFC>
-KeyReader<K, V, SFC>
+MultiKeyReader<K, V, SFC>
 makeMultiKeyReader(Topic<K, V, KF, KFC>& topic,
                    std::vector<typename Topic<K, V, KF, KFC>::KeyType> keys,
                    SFC sampleFilterCriteria,
@@ -671,7 +671,7 @@ makeMultiKeyReader(Topic<K, V, KF, KFC>& topic,
  * @param config The optional reader configuration.
  */
 template<typename K, typename V, typename KF, typename KFC, typename SFC=void>
-KeyReader<K, V, SFC>
+MultiKeyReader<K, V, SFC>
 makeAnyKeyReader(Topic<K, V, KF, KFC>& topic, ReaderConfig config = ReaderConfig())
 {
     return MultiKeyReader<K, V, SFC>(topic, {}, config);
@@ -689,7 +689,7 @@ makeAnyKeyReader(Topic<K, V, KF, KFC>& topic, ReaderConfig config = ReaderConfig
  * @param config The optional reader configuration.
  */
 template<typename K, typename V, typename KF, typename KFC, typename SFC>
-KeyReader<K, V, SFC>
+MultiKeyReader<K, V, SFC>
 makeAnyKeyReader(Topic<K, V, KF, KFC>& topic, SFC sampleFilterCriteria, ReaderConfig config = ReaderConfig())
 {
     return MultiKeyReader<K, V, SFC>(topic, {}, sampleFilterCriteria, config);

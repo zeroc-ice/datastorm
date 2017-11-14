@@ -34,15 +34,14 @@ main(int argc, char* argv[])
     //
     // Instantiates the "time" topic.
     //
-    using KeyFilter = DataStorm::RegexFilter<string>;
-    DataStorm::Topic<string, chrono::system_clock::time_point, KeyFilter, string> topic(node, "time");
+    DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
 
     //
     // Instantiate a reader to read the time from all the topic cities.
     //
     DataStorm::ReaderConfig config;
     config.sampleCount = 0; // Don't keep sample history
-    auto reader = DataStorm::makeFilteredReader(topic, ".*", config);
+    auto reader = DataStorm::makeAnyKeyReader(topic, config);
 
     //
     // Wait for at least on writer to be online.

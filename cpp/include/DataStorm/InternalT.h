@@ -119,7 +119,7 @@ template<typename K, typename V> class AbstractFactoryT : public std::enable_sha
 
 public:
 
-    AbstractFactoryT() : _nextId(0)
+    AbstractFactoryT() : _nextId(1)
     {
     }
 
@@ -389,7 +389,9 @@ template<typename F, typename C, typename V> class FilterFactoryT : public Filte
 {
 public:
 
-    using AbstractFactoryT<C, FilterT<F, C, V>>::AbstractFactoryT;
+    FilterFactoryT()
+    {
+    }
 
     virtual std::shared_ptr<Filter>
     get(long long int id) const override

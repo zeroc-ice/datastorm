@@ -159,8 +159,6 @@ class Topic
 public:
 
     virtual std::string getName() const = 0;
-    virtual std::shared_ptr<KeyFactory> getKeyFactory() const = 0;
-    virtual std::shared_ptr<FilterFactory> getFilterFactory() const = 0;
     virtual void destroy() = 0;
 };
 

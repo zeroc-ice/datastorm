@@ -376,19 +376,30 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
     }
 
     _connection = connection;
-    if(!_connection->getAdapter())
+    if(_connection)
     {
-        _connection->setAdapter(_instance->getObjectAdapter());
+        if(!_connection->getAdapter())
+        {
+            _connection->setAdapter(_instance->getObjectAdapter());
+        }
+        _instance->getSessionManager()->add(this, _connection);
+        _session = Ice::uncheckedCast<SessionPrx>(
+            connection->createProxy(session->ice_getIdentity())->ice_oneway());
     }
-    _instance->getSessionManager()->add(this, connection);
-
-    auto prx = connection->createProxy(session->ice_getIdentity())->ice_oneway();
-    _session = Ice::uncheckedCast<SessionPrx>(prx);
+    else
+    {
+        _session = Ice::uncheckedCast<SessionPrx>(
+            _instance->getObjectAdapter()->createProxy(session->ice_getIdentity())->ice_oneway());
+    }
 
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": session `" << _session->ice_getIdentity() << "' connected\n" << connection->toString();
+        out << _id << ": session `" << _session->ice_getIdentity() << "' connected\n";
+        if(_connection)
+        {
+            out << _connection->toString();
+        }
     }
 
     if(!topics.empty())
@@ -408,6 +419,7 @@ SessionI::disconnected(exception_ptr ex)
 {
     {
         lock_guard<mutex> lock(_mutex);
+        assert(_connection);
         if(!_session)
         {
             return;
@@ -466,7 +478,10 @@ SessionI::destroyImpl()
         out << _id << ": destroyed session";
     }
 
-    _instance->getSessionManager()->remove(this, _connection);
+    if(_connection)
+    {
+        _instance->getSessionManager()->remove(this, _connection);
+    }
 
     _session = nullptr;
     _connection = nullptr;
