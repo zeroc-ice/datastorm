@@ -48,6 +48,7 @@ public:
     TopicI(const std::weak_ptr<TopicFactoryI>&,
            const std::shared_ptr<KeyFactory>&,
            const std::shared_ptr<FilterFactory>&,
+           const std::shared_ptr<TagFactory>&,
            const std::shared_ptr<SampleFactory>&,
            const std::string&,
            long long int);
@@ -63,6 +64,7 @@ public:
     }
 
     DataStormContract::TopicSpec getTopicSpec() const;
+    DataStormContract::ElementInfoSeq getTags() const;
     DataStormContract::ElementSpecSeq getElementSpecs(const DataStormContract::ElementInfoSeq&);
 
     void attach(long long int, SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&);
@@ -85,6 +87,12 @@ public:
     void queue(const std::shared_ptr<DataElementI>&, std::function<void()>);
     void flushQueue();
 
+    virtual void setUpdater(const std::shared_ptr<Tag>&, Updater) override;
+    const Updater& getUpdater(const std::shared_ptr<Tag>&) const;
+
+    virtual void setUpdaters(std::map<std::shared_ptr<Tag>, Updater>) override;
+    virtual std::map<std::shared_ptr<Tag>, Updater> getUpdaters() const override;
+
     long long int getId() const
     {
         return _id;
@@ -94,6 +102,12 @@ public:
     getMutex()
     {
         return _mutex;
+    }
+
+    const std::shared_ptr<TagFactory>&
+    getTagFactory() const
+    {
+        return _tagFactory;
     }
 
     const std::shared_ptr<SampleFactory>&
@@ -125,6 +139,7 @@ protected:
     const std::weak_ptr<TopicFactoryI> _factory;
     const std::shared_ptr<KeyFactory> _keyFactory;
     const std::shared_ptr<FilterFactory> _filterFactory;
+    const std::shared_ptr<TagFactory> _tagFactory;
     const std::shared_ptr<SampleFactory> _sampleFactory;
     const std::string _name;
     const std::shared_ptr<Instance> _instance;
@@ -137,6 +152,7 @@ protected:
     std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<DataElementI>>> _keyElements;
     std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<DataElementI>>> _filteredElements;
     std::map<ListenerKey, Listener> _listeners;
+    std::map<std::shared_ptr<Tag>, Updater> _updaters;
     size_t _listenerCount;
     mutable size_t _waiters;
     mutable size_t _notified;
@@ -153,6 +169,7 @@ public:
     TopicReaderI(const std::shared_ptr<TopicFactoryI>&,
                  const std::shared_ptr<KeyFactory>&,
                  const std::shared_ptr<FilterFactory>&,
+                 const std::shared_ptr<TagFactory>&,
                  const std::shared_ptr<SampleFactory>&,
                  const std::string&,
                  long long int);
@@ -187,6 +204,7 @@ public:
     TopicWriterI(const std::shared_ptr<TopicFactoryI>&,
                  const std::shared_ptr<KeyFactory>&,
                  const std::shared_ptr<FilterFactory>&,
+                 const std::shared_ptr<TagFactory>&,
                  const std::shared_ptr<SampleFactory>&,
                  const std::string&,
                  long long int);

@@ -32,7 +32,7 @@ main(int argc, char* argv[])
         auto write = [&topic, &writers, &readers](WriterConfig config)
         {
             writers.update(false); // Not ready
-            KeyWriter<string, string> writer(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
@@ -68,7 +68,7 @@ main(int argc, char* argv[])
         auto write = [&topic, &writers, &readers]()
         {
             writers.update(false); // Not ready
-            KeyWriter<string, string> writer(topic, "elem1");
+            auto writer = makeSingleKeyWriter(topic, "elem1");
             writer.add("value1");
             writer.update("value2");
             writer.remove();
@@ -93,7 +93,7 @@ main(int argc, char* argv[])
         // Keep 3ms worth of samples in the history
         WriterConfig config;
         config.sampleLifetime = 3;
-        KeyWriter<string, string> writer(topic, "elem1", config);
+        auto writer = makeSingleKeyWriter(topic, "elem1", config);
         writer.add("value1");
         writer.update("value2");
         writer.remove();
@@ -111,7 +111,7 @@ main(int argc, char* argv[])
     {
 
         writers.update(false); // Not ready
-        KeyWriter<string, string> writer(topic, "elem1");
+        auto writer = makeSingleKeyWriter(topic, "elem1");
         writer.add("value1");
         writer.update("value2");
         writer.remove();

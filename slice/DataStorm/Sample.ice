@@ -29,6 +29,9 @@ enum SampleEvent
     /** The element has been updated. */
     Update,
 
+    /** The element has been partially updated. */
+    PartialUpdate,
+
     /** The element has been removed. */
     Remove,
 }

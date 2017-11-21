@@ -254,48 +254,45 @@ public:
     }
 };
 
-template<typename Key, typename Value> class WSampleT : public Sample
+template<typename Key, typename Value> class SampleT : public Sample,
+                                                       public std::enable_shared_from_this<SampleT<Key, Value>>
 {
 public:
 
-    WSampleT(DataStorm::SampleEvent event) : Sample(event)
+    SampleT(const std::string& session,
+            long long int topic,
+            long long int element,
+            long long int id,
+            DataStorm::SampleEvent event,
+            const std::shared_ptr<DataStormInternal::Key>& key,
+            const std::shared_ptr<DataStormInternal::Tag>& tag,
+            std::vector<unsigned char> value,
+            long long int timestamp) :
+        Sample(session, topic, element, id, event, key, tag, value, timestamp), _hasValue(false)
     {
     }
 
-    WSampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _value(std::move(value))
+
+    SampleT(DataStorm::SampleEvent event) : Sample(event), _hasValue(false)
     {
+    }
+
+    SampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _hasValue(true), _value(std::move(value))
+    {
+    }
+
+    SampleT(std::vector<unsigned char> value, const std::shared_ptr<Tag>& tag) :
+        Sample(DataStorm::SampleEvent::PartialUpdate, tag),
+        _hasValue(false)
+    {
+        _encodedValue = std::move(value);
     }
 
     DataStorm::Sample<Key, Value>
     get()
     {
-        return DataStorm::Sample<Key, Value>(shared_from_this());
+        return DataStorm::Sample<Key, Value>(std::enable_shared_from_this<SampleT<Key, Value>>::shared_from_this());
     }
-
-    virtual void decode(const std::shared_ptr<Ice::Communicator>& communicator) override
-    {
-        assert(false);
-    }
-
-    virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>& communicator) override
-    {
-        if(_encodedValue.empty())
-        {
-            _encodedValue = DataStorm::Encoder<Value>::encode(communicator, _value);
-        }
-        return _encodedValue;
-    }
-
-private:
-
-    Value _value;
-};
-
-template<typename Key, typename Value> class RSampleT : public Sample
-{
-public:
-
-    using Sample::Sample;
 
     Key getKey()
     {
@@ -308,26 +305,50 @@ public:
 
     Value getValue() const
     {
+        assert(_hasValue);
         return _value;
+    }
+
+    void setValue(Value value)
+    {
+        _value = std::move(value);
+        _hasValue = true;
+    }
+
+    virtual bool hasValue() const override
+    {
+        return _hasValue;
+    }
+
+    virtual void setValue(const std::shared_ptr<Sample>& sample) override
+    {
+        _value = sample ? std::static_pointer_cast<SampleT<Key, Value>>(sample)->getValue() : Value();
+        _hasValue = true;
+    }
+
+    virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>& communicator) override
+    {
+        if(_encodedValue.empty())
+        {
+            assert(_hasValue || event == DataStorm::SampleEvent::Remove);
+            _encodedValue = DataStorm::Encoder<Value>::encode(communicator, _value);
+        }
+        return _encodedValue;
     }
 
     virtual void decode(const std::shared_ptr<Ice::Communicator>& communicator) override
     {
         if(!_encodedValue.empty())
         {
+            _hasValue = true;
             _value = DataStorm::Decoder<Value>::decode(communicator, _encodedValue);
             _encodedValue.clear();
         }
     }
 
-    virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>& communicator) override
-    {
-        assert(false);
-        return _encodedValue;
-    }
-
 private:
 
+    bool _hasValue;
     Value _value;
 };
 
@@ -341,17 +362,19 @@ public:
                                            long long int id,
                                            DataStorm::SampleEvent type,
                                            const std::shared_ptr<DataStormInternal::Key>& key,
+                                           const std::shared_ptr<DataStormInternal::Tag>& tag,
                                            std::vector<unsigned char> value,
                                            long long int timestamp)
     {
-        return std::shared_ptr<Sample>(std::make_shared<RSampleT<Key, Value>>(session,
-                                                                              topic,
-                                                                              element,
-                                                                              id,
-                                                                              type,
-                                                                              key,
-                                                                              std::move(value),
-                                                                              timestamp));
+        return std::make_shared<SampleT<Key, Value>>(session,
+                                                     topic,
+                                                     element,
+                                                     id,
+                                                     type,
+                                                     key,
+                                                     tag,
+                                                     std::move(value),
+                                                     timestamp);
     }
 };
 
@@ -427,6 +450,45 @@ public:
     static std::shared_ptr<FilterFactoryT<void, void, V>> createFactory()
     {
         return nullptr;
+    }
+};
+
+template<typename T> class TagT : public Tag, public AbstractElementT<T>
+{
+public:
+
+    virtual std::string toString() const override
+    {
+        return "t" + AbstractElementT<T>::toString();
+    }
+
+    using AbstractElementT<T>::AbstractElementT;
+    using ClassType = Tag;
+};
+
+template<typename T> class TagFactoryT : public TagFactory, public AbstractFactoryT<T, TagT<T>>
+{
+public:
+
+    using AbstractFactoryT<T, TagT<T>>::AbstractFactoryT;
+
+    virtual std::shared_ptr<Tag>
+    get(long long int id) const override
+    {
+        return AbstractFactoryT<T, TagT<T>>::getImpl(id);
+    }
+
+    virtual std::shared_ptr<Tag>
+    decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
+    {
+        return AbstractFactoryT<T, TagT<T>>::create(DataStorm::Decoder<T>::decode(communicator, data));
+    }
+
+    static std::shared_ptr<TagFactoryT<T>> createFactory()
+    {
+        auto f = std::make_shared<TagFactoryT<T>>();
+        f->init();
+        return f;
     }
 };
 

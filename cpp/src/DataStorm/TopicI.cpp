@@ -40,6 +40,13 @@ toInt(const std::string& v, int value = 0)
     return value;
 }
 
+static Topic::Updater noOpUpdater = [](const shared_ptr<Sample>& previous,
+                                       const shared_ptr<Sample>& next,
+                                       const shared_ptr<Ice::Communicator>&)
+{
+    next->setValue(previous);
+};
+
 // The always match filter always matches the value, it's used by the any key reader/writer.
 class AlwaysMatchFilter : public Filter
 {
@@ -72,12 +79,14 @@ const auto alwaysMatchFilter = make_shared<AlwaysMatchFilter>();
 TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
                const shared_ptr<KeyFactory>& keyFactory,
                const shared_ptr<FilterFactory>& filterFactory,
+               const shared_ptr<TagFactory>& tagFactory,
                const shared_ptr<SampleFactory>& sampleFactory,
                const string& name,
                long long int id) :
     _factory(factory),
     _keyFactory(keyFactory),
     _filterFactory(filterFactory),
+    _tagFactory(tagFactory),
     _sampleFactory(move(sampleFactory)),
     _name(name),
     _instance(factory.lock()->getInstance()),
@@ -130,7 +139,20 @@ TopicI::getTopicSpec() const
     {
         spec.elements.push_back({ -f.first->getId(), f.first->encode(_instance->getCommunicator()) });
     }
+    spec.tags = getTags();
     return spec;
+}
+
+ElementInfoSeq
+TopicI::getTags() const
+{
+    ElementInfoSeq tags;
+    tags.reserve(_updaters.size());
+    for(auto u : _updaters)
+    {
+        tags.push_back({ u.first->getId(), u.first->encode(_instance->getCommunicator()) });
+    }
+    return tags;
 }
 
 ElementSpecSeq
@@ -475,6 +497,46 @@ TopicI::flushQueue()
 }
 
 void
+TopicI::setUpdater(const shared_ptr<Tag>& tag, Updater updater)
+{
+    unique_lock<mutex> lock(_mutex);
+    if(updater)
+    {
+        _updaters[tag] = updater;
+    }
+    else
+    {
+        _updaters.erase(tag);
+    }
+}
+
+const Topic::Updater&
+TopicI::getUpdater(const shared_ptr<Tag>& tag) const
+{
+    // Called with mutex locked
+    auto p = _updaters.find(tag);
+    if(p != _updaters.end())
+    {
+        return p->second;
+    }
+    return noOpUpdater;
+}
+
+void
+TopicI::setUpdaters(map<shared_ptr<Tag>, Updater> updaters)
+{
+    unique_lock<mutex> lock(_mutex);
+    _updaters = move(updaters);
+}
+
+map<shared_ptr<Tag>, Topic::Updater>
+TopicI::getUpdaters() const
+{
+    unique_lock<mutex> lock(_mutex);
+    return _updaters;
+}
+
+void
 TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -595,10 +657,11 @@ TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefi
 TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<FilterFactory>& filterFactory,
+                           const shared_ptr<TagFactory>& tagFactory,
                            const shared_ptr<SampleFactory>& sampleFactory,
                            const string& name,
                            long long int id) :
-    TopicI(factory, keyFactory, filterFactory, move(sampleFactory), name, id)
+    TopicI(factory, keyFactory, filterFactory, tagFactory, move(sampleFactory), name, id)
 {
     _defaultConfig = parseConfig("DataStorm.Topic." + name);
 }
@@ -725,10 +788,11 @@ TopicReaderI::mergeConfigs(DataStorm::ReaderConfig config) const
 TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<FilterFactory>& filterFactory,
+                           const std::shared_ptr<TagFactory>& tagFactory,
                            const shared_ptr<SampleFactory>& sampleFactory,
                            const string& name,
                            long long int id) :
-    TopicI(factory, keyFactory, filterFactory, move(sampleFactory), name, id)
+    TopicI(factory, keyFactory, filterFactory, tagFactory, move(sampleFactory), name, id)
 {
     _defaultConfig = parseConfig("DataStorm.Topic." + name);
 }

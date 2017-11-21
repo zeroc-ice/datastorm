@@ -23,7 +23,7 @@ main(int argc, char* argv[])
     {
         Topic<string, string> topic(node, "string");
         {
-            KeyReader<string, string> reader(topic, "elem1");
+            auto reader = makeSingleKeyReader(topic, "elem1");
 
             reader.waitForWriters(1);
             test(reader.hasWriters());
@@ -51,8 +51,8 @@ main(int argc, char* argv[])
             test(samples.empty());
         }
         {
-            KeyReader<string, string> reader1(topic, "elem2");
-            KeyReader<string, string> reader2(topic, "elem2");
+            auto reader1 = makeSingleKeyReader(topic, "elem2");
+            auto reader2 = makeSingleKeyReader(topic, "elem2");
             reader1.waitForWriters(1);
             reader2.waitForWriters(1);
             reader1.waitForUnread();
@@ -62,7 +62,7 @@ main(int argc, char* argv[])
 
     {
         Topic<int, Test::StructValue> topic(node, "struct");
-        KeyReader<int, Test::StructValue> reader(topic, 10);
+        auto reader = makeSingleKeyReader(topic, 10);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -86,7 +86,7 @@ main(int argc, char* argv[])
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass");
-        KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem1");
+        auto reader = makeSingleKeyReader(topic, "elem1");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -111,7 +111,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
 
-        auto testSample = [&topic](KeyReader<string, shared_ptr<Test::Base>>& reader, SampleEvent event,
+        auto testSample = [&topic](typename decltype(topic)::ReaderType& reader, SampleEvent event,
                                    string key, string value = "")
         {
             reader.waitForWriters(1);
@@ -128,21 +128,21 @@ main(int argc, char* argv[])
         };
 
         {
-            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem1");
+            auto reader = makeSingleKeyReader(topic, "elem1");
             testSample(reader, SampleEvent::Add, "elem1", "value1");
             testSample(reader, SampleEvent::Update, "elem1", "value2");
             testSample(reader, SampleEvent::Remove, "elem1");
         }
         {
-            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem2");
+            auto reader = makeSingleKeyReader(topic, "elem2");
             testSample(reader, SampleEvent::Update, "elem2", "value1");
         }
         {
-            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem3");
+            auto reader = makeSingleKeyReader(topic, "elem3");
             testSample(reader, SampleEvent::Remove, "elem3");
         }
         {
-            KeyReader<string, shared_ptr<Test::Base>> reader(topic, "elem4");
+            auto reader = makeSingleKeyReader(topic, "elem4");
             testSample(reader, SampleEvent::Add, "elem4", "value1");
         }
     }
@@ -168,7 +168,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
-        FilteredReader<string, shared_ptr<Test::Base>> reader(topic, "elem[0-4]");
+        auto reader = makeFilteredReader(topic, "elem[0-4]");
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -196,8 +196,10 @@ main(int argc, char* argv[])
     {
         Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
         {
-            auto testSample = [](FilteredReader<string, string, SampleEventSeq>& reader, SampleEvent event,
-                                 string key, string value = "")
+            auto testSample = [](typename decltype(topic)::ReaderType& reader,
+                                 SampleEvent event,
+                                 string key,
+                                 string value = "")
             {
                 reader.waitForUnread(1);
                 auto sample = reader.getNextUnread();
@@ -209,16 +211,18 @@ main(int argc, char* argv[])
                 }
             };
 
-            FilteredReader<string, string, SampleEventSeq> reader11(topic, "elem[1]", { SampleEvent::Add });
-            FilteredReader<string, string, SampleEventSeq> reader12(topic, "elem[1]", { SampleEvent::Update });
-            FilteredReader<string, string, SampleEventSeq> reader13(topic, "elem[1]", { SampleEvent::Remove });
+            auto reader11 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Add });
+            auto reader12 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Update });
+            auto reader13 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Remove });
             testSample(reader11, SampleEvent::Add, "elem1", "value1");
             testSample(reader12, SampleEvent::Update, "elem1", "value2");
             testSample(reader13, SampleEvent::Remove, "elem1");
         }
         {
-            auto testSample = [](FilteredReader<string, string, string>& reader, SampleEvent event,
-                                 string key, string value = "")
+            auto testSample = [](typename decltype(topic)::ReaderType& reader,
+                                 SampleEvent event,
+                                 string key,
+                                 string value = "")
             {
                 reader.waitForUnread(1);
                 auto sample = reader.getNextUnread();
@@ -230,7 +234,7 @@ main(int argc, char* argv[])
                 }
             };
 
-            FilteredReader<string, string, string> reader2(topic, "elem[2]", "value[2-4]");
+            auto reader2 = makeFilteredReader(topic, "elem[2]", "value[2-4]");
             testSample(reader2, SampleEvent::Update, "elem2", "value2");
             testSample(reader2, SampleEvent::Update, "elem2", "value3");
             testSample(reader2, SampleEvent::Update, "elem2", "value4");
@@ -245,7 +249,7 @@ main(int argc, char* argv[])
         t1.waitForWriters(2);
         t2.waitForWriters(2);
 
-        KeyReader<string, string> reader(t1, "shutdown");
+        auto reader = makeSingleKeyReader(t1, "shutdown");
         reader.waitForUnread();
     }
     return 0;

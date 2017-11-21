@@ -59,6 +59,7 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
             {
                 topic->attach(id, this, _session);
             }
+
             _session->attachTopicAsync(topic->getTopicSpec());
         });
     }
@@ -82,6 +83,22 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
         }
 
         topic->attach(spec.id, this, _session);
+
+        if(!spec.tags.empty())
+        {
+            auto& subscriber = _topics.at(spec.id).getSubscriber(topic.get());
+            for(const auto& tag : spec.tags)
+            {
+                subscriber.tags[tag.valueId] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
+            }
+        }
+
+        auto tags = topic->getTags();
+        if(!tags.empty())
+        {
+            _session->attachTagsAsync(topic->getId(), tags);
+        }
+
         auto specs = topic->getElementSpecs(spec.elements);
         if(!specs.empty())
         {
@@ -119,7 +136,7 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
 }
 
 void
-SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const Ice::Current&)
+SessionI::attachTags(long long int topicId, ElementInfoSeq tags, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -127,6 +144,53 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
         return;
     }
 
+    runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
+    {
+        if(_traceLevels->session > 2)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": attaching tags `[" << tags << "]@" << topicId << "' on topic `" << topic << "'";
+        }
+
+        for(const auto& tag : tags)
+        {
+            subscriber.tags[tag.valueId] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
+        }
+    });
+}
+
+void
+SessionI::detachTags(long long int topicId, LongSeq tags, const Ice::Current&)
+{
+    lock_guard<mutex> lock(_mutex);
+    if(!_session)
+    {
+        return;
+    }
+
+    runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
+    {
+        if(_traceLevels->session > 2)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": detaching tags `[" << tags << "]@" << topicId << "' on topic `" << topic << "'";
+        }
+
+        for(auto tag : tags)
+        {
+            subscriber.tags.erase(tag);
+        }
+    });
+}
+
+void
+SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const Ice::Current&)
+{
+    lock_guard<mutex> lock(_mutex);
+    if(!_session)
+    {
+        return;
+    }
 
     runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
     {
@@ -299,6 +363,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                                                                  s.id,
                                                                  s.event,
                                                                  k->get(),
+                                                                 subscriber.tags[s.tag],
                                                                  s.value,
                                                                  s.timestamp));
                     }
@@ -347,6 +412,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                                                                  s.id,
                                                                  s.event,
                                                                  nullptr,
+                                                                 subscriber.tags[s.tag],
                                                                  s.value,
                                                                  s.timestamp));
                     }
@@ -692,11 +758,13 @@ SessionI::disconnectFromFilter(long long topicId, long long int elementId, DataE
     runWithTopic(topicId, element->getTopic(), [&](TopicSubscriber&) { this->unsubscribeFromFilter(topicId, elementId, element); });
 }
 
-void
-SessionI::subscriberInitialized(long long topicId, long long int elementId, DataElementI* element)
+vector<shared_ptr<Sample>>
+SessionI::subscriberInitialized(long long topicId, long long int elementId, const DataSampleSeq& samples,
+                                const shared_ptr<Key>& key, DataElementI* element)
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
+
     if(elementId > 0)
     {
         auto k = subscriber.keys.get(elementId);
@@ -731,6 +799,23 @@ SessionI::subscriberInitialized(long long topicId, long long int elementId, Data
             }
         }
     }
+
+    vector<shared_ptr<Sample>> samplesI;
+    samplesI.reserve(samples.size());
+    auto sampleFactory = element->getTopic()->getSampleFactory();
+    for(auto& s : samples)
+    {
+        samplesI.push_back(sampleFactory->create(_id,
+                                                 topicId,
+                                                 elementId,
+                                                 s.id,
+                                                 s.event,
+                                                 key,
+                                                 subscriber.tags[s.tag],
+                                                 s.value,
+                                                 s.timestamp));
+    }
+    return samplesI;
 }
 
 void
@@ -868,6 +953,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
                                                           s.id,
                                                           s.event,
                                                           e->get(),
+                                                          subscriber.tags[s.tag],
                                                           s.value,
                                                           s.timestamp);
             for(auto& es : e->getSubscribers())

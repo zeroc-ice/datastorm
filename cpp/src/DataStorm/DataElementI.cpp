@@ -25,6 +25,7 @@ toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& 
 {
     return { sample->id,
              chrono::time_point_cast<chrono::microseconds>(sample->timestamp).time_since_epoch().count(),
+             sample->tag ? sample->tag->getId() : 0,
              sample->event,
              sample->encode(communicator) };
 }
@@ -119,25 +120,11 @@ DataElementI::attach(long long int topicId,
     {
         samples.push_back({ _id, getSamples(lastId, key, sampleFilter, data.config, now) });
     }
-
-    if(_parent->_sampleFactory && !data.samples.empty())
+    auto samplesI = session->subscriberInitialized(topicId, data.id, data.samples, key, this);
+    if(!samplesI.empty())
     {
-        vector<shared_ptr<Sample>> samplesI;
-        samplesI.reserve(data.samples.size());
-        for(auto& s : data.samples)
-        {
-            samplesI.push_back(_parent->_sampleFactory->create(session->getId(),
-                                                               topicId,
-                                                               data.id,
-                                                               s.id,
-                                                               s.event,
-                                                               key,
-                                                               s.value,
-                                                               s.timestamp));
-        }
         initSamples(samplesI, topicId, data.id, now);
     }
-    session->subscriberInitialized(topicId, data.id, this);
 }
 
 bool
@@ -465,6 +452,23 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         out << this << ": initialized " << samples.size() << " samples from `" << element << '@' << topic << "'";
     }
 
+    shared_ptr<Sample> previous = !_unread.empty() ? _unread.back() : (!_all.empty() ? _all.back() : nullptr);
+    for(const auto& sample : samples)
+    {
+        if(sample->event == DataStorm::SampleEvent::PartialUpdate)
+        {
+            if(!sample->hasValue())
+            {
+                _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
+            }
+        }
+        else
+        {
+            sample->decode(_parent->getInstance()->getCommunicator());
+        }
+        previous = sample;
+    }
+
     if(_onInit)
     {
         _parent->queue(shared_from_this(), [this, samples] { _onInit(samples); });
@@ -533,6 +537,19 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": queued sample " << sample->id << " listeners=" << _listenerCount;
+    }
+
+    if(!sample->hasValue())
+    {
+        if(sample->event == DataStorm::SampleEvent::PartialUpdate)
+        {
+            shared_ptr<Sample> previous = !_unread.empty() ? _unread.back() : (!_all.empty() ? _all.back() : nullptr);
+            _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
+        }
+        else
+        {
+            sample->decode(_parent->getInstance()->getCommunicator());
+        }
     }
 
     if(_onSample)
@@ -608,6 +625,12 @@ void
 DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sample)
 {
     lock_guard<mutex> lock(_parent->_mutex);
+    if(sample->event == DataStorm::SampleEvent::PartialUpdate)
+    {
+        assert(!sample->hasValue());
+        shared_ptr<Sample> previous = !_all.empty() ? _all.back() : nullptr;
+        _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
+    }
 
     if(_traceLevels->data > 1)
     {

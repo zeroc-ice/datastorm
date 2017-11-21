@@ -26,6 +26,7 @@ shared_ptr<TopicReader>
 TopicFactoryI::createTopicReader(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
                                  const shared_ptr<FilterFactory>& filterFactory,
+                                 const shared_ptr<TagFactory>& tagFactory,
                                  const shared_ptr<SampleFactory>& sampleFactory)
 {
     shared_ptr<TopicReaderI> reader;
@@ -34,6 +35,7 @@ TopicFactoryI::createTopicReader(const string& name,
         reader = make_shared<TopicReaderI>(shared_from_this(),
                                            keyFactory,
                                            filterFactory,
+                                           tagFactory,
                                            move(sampleFactory),
                                            name,
                                            _nextReaderId++);
@@ -53,6 +55,7 @@ shared_ptr<TopicWriter>
 TopicFactoryI::createTopicWriter(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
                                  const shared_ptr<FilterFactory>& filterFactory,
+                                 const shared_ptr<TagFactory>& tagFactory,
                                  const shared_ptr<SampleFactory>& sampleFactory)
 {
     shared_ptr<TopicWriterI> writer;
@@ -61,6 +64,7 @@ TopicFactoryI::createTopicWriter(const string& name,
         writer = make_shared<TopicWriterI>(shared_from_this(),
                                            keyFactory,
                                            filterFactory,
+                                           tagFactory,
                                            move(sampleFactory),
                                            name,
                                            _nextWriterId++);

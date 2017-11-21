@@ -24,6 +24,7 @@ struct DataSample
 {
     long id;
     long timestamp;
+    long tag;
     DataStorm::SampleEvent event;
     ByteSeq value;
 }
@@ -55,6 +56,7 @@ struct TopicSpec
     long id;
     string name;
     ElementInfoSeq elements;
+    ElementInfoSeq tags;
 };
 
 class ElementConfig(1)
@@ -104,6 +106,9 @@ interface Session
     void announceTopics(TopicInfoSeq topics);
     void attachTopic(TopicSpec topic);
     void detachTopic(long topic);
+
+    void attachTags(long topic, ElementInfoSeq tags);
+    void detachTags(long topic, LongSeq tags);
 
     void announceElements(long topic, ElementInfoSeq keys);
     void attachElements(long topic, long lastId, ElementSpecSeq elements);

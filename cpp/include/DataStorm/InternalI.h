@@ -47,7 +47,19 @@ public:
     virtual std::shared_ptr<Key> decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
 };
 
-class Sample : public Filterable, public std::enable_shared_from_this<Sample>
+class Tag : virtual public Element
+{
+};
+
+class TagFactory
+{
+public:
+
+    virtual std::shared_ptr<Tag> get(long long int) const = 0;
+    virtual std::shared_ptr<Tag> decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+};
+
+class Sample : public Filterable
 {
 public:
 
@@ -57,20 +69,29 @@ public:
            long long int id,
            DataStorm::SampleEvent event,
            const std::shared_ptr<Key>& key,
+           const std::shared_ptr<Tag>& tag,
            std::vector<unsigned char> value,
            long long int timestamp) :
-        session(session), topic(topic), element(element), id(id), event(event), key(key),
+        session(session), topic(topic), element(element), id(id), event(event), key(key), tag(tag),
         timestamp(std::chrono::microseconds(timestamp)),
         _encodedValue(std::move(value))
     {
     }
 
-    Sample(DataStorm::SampleEvent event) : event(event)
+    Sample(DataStorm::SampleEvent event, const std::shared_ptr<Tag>& tag = nullptr) : event(event), tag(tag)
     {
     }
 
+    virtual bool hasValue() const = 0;
+    virtual void setValue(const std::shared_ptr<Sample>&) = 0;
+
     virtual void decode(const std::shared_ptr<Ice::Communicator>&) = 0;
     virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>&) = 0;
+
+    const std::vector<unsigned char>& getEncodedValue() const
+    {
+        return _encodedValue;
+    }
 
     std::string session;
     long long int topic;
@@ -78,6 +99,7 @@ public:
     long long int id;
     DataStorm::SampleEvent event;
     std::shared_ptr<Key> key;
+    std::shared_ptr<Tag> tag;
     std::chrono::time_point<std::chrono::system_clock> timestamp;
 
 protected:
@@ -95,6 +117,7 @@ public:
                                            long long int,
                                            DataStorm::SampleEvent,
                                            const std::shared_ptr<Key>&,
+                                           const std::shared_ptr<Tag>&,
                                            std::vector<unsigned char>,
                                            long long int) = 0;
 };
@@ -158,6 +181,15 @@ class Topic
 {
 public:
 
+    using Updater = std::function<void(const std::shared_ptr<Sample>&,
+                                       const std::shared_ptr<Sample>&,
+                                       const std::shared_ptr<Ice::Communicator>&)>;
+
+    virtual void setUpdater(const std::shared_ptr<Tag>&, Updater) = 0;
+
+    virtual void setUpdaters(std::map<std::shared_ptr<Tag>, Updater>) = 0;
+    virtual std::map<std::shared_ptr<Tag>, Updater> getUpdaters() const = 0;
+
     virtual std::string getName() const = 0;
     virtual void destroy() = 0;
 };
@@ -198,11 +230,13 @@ public:
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<FilterFactory>&,
+                                                           const std::shared_ptr<TagFactory>&,
                                                            const std::shared_ptr<SampleFactory>&) = 0;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<FilterFactory>&,
+                                                           const std::shared_ptr<TagFactory>&,
                                                            const std::shared_ptr<SampleFactory>&) = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;

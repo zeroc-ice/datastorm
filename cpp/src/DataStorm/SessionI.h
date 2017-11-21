@@ -123,6 +123,7 @@ protected:
     {
         SubscribersFactory<Key> keys;
         SubscribersFactory<Filter> filters;
+        std::map<long long int, std::shared_ptr<Tag>> tags;
     };
 
     class TopicSubscribers
@@ -153,6 +154,7 @@ protected:
         void
         addSubscriber(TopicI* topic)
         {
+            assert(_subscribers.find(topic) == _subscribers.end());
             _subscribers[topic] = TopicSubscriber();
         }
 
@@ -195,6 +197,9 @@ public:
     virtual void announceTopics(DataStormContract::TopicInfoSeq, const Ice::Current&) override;
     virtual void attachTopic(DataStormContract::TopicSpec, const Ice::Current&) override;
     virtual void detachTopic(long long int, const Ice::Current&) override;
+
+    virtual void attachTags(long long int, DataStormContract::ElementInfoSeq, const Ice::Current&) override;
+    virtual void detachTags(long long int, DataStormContract::LongSeq, const Ice::Current&) override;
 
     virtual void announceElements(long long int, DataStormContract::ElementInfoSeq, const Ice::Current&) override;
     virtual void attachElements(long long int, long long int, DataStormContract::ElementSpecSeq, const Ice::Current&) override;
@@ -253,7 +258,11 @@ public:
     void unsubscribeFromFilter(long long int, long long int, DataElementI*);
     void disconnectFromFilter(long long int, long long int, DataElementI*);
 
-    void subscriberInitialized(long long int, long long int, DataElementI*);
+    std::vector<std::shared_ptr<Sample>> subscriberInitialized(long long int,
+                                                               long long int,
+                                                               const DataStormContract::DataSampleSeq&,
+                                                               const std::shared_ptr<Key>&,
+                                                               DataElementI*);
 
 protected:
 

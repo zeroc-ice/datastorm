@@ -24,7 +24,7 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "string");
-            KeyWriter<string, string> writer(topic, "elem1");
+            auto writer = makeSingleKeyWriter(topic, "elem1");
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -35,14 +35,14 @@ main(int argc, char* argv[])
 
             writer.waitForNoReaders();
 
-            KeyWriter<string, string> writer2(topic, "elem2");
+            auto writer2 = makeSingleKeyWriter(topic, "elem2");
             writer2.waitForReaders(2);
             writer2.add("value");
             writer2.waitForNoReaders();
         }
         {
             Topic<int, Test::StructValue> topic(node, "struct");
-            KeyWriter<int, Test::StructValue> writer(topic, 10);
+            auto writer = makeSingleKeyWriter(topic, 10);
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -55,7 +55,7 @@ main(int argc, char* argv[])
         }
         {
             Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass");
-            KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
+            auto writer = makeSingleKeyWriter(topic, "elem1");
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -69,7 +69,7 @@ main(int argc, char* argv[])
         {
             Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
             {
-                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem1");
+                auto writer = makeSingleKeyWriter(topic, "elem1");
                 writer.waitForReaders(1);
                 test(writer.hasReaders());
 
@@ -79,19 +79,19 @@ main(int argc, char* argv[])
                 writer.waitForNoReaders();
             }
             {
-                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem2");
+                auto writer = makeSingleKeyWriter(topic, "elem2");
                 writer.waitForReaders(1);
                 writer.update(make_shared<Test::Base>("value1"));
                 writer.waitForNoReaders();
             }
             {
-                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem3");
+                auto writer = makeSingleKeyWriter(topic, "elem3");
                 writer.waitForReaders(1);
                 writer.remove();
                 writer.waitForNoReaders();
             }
             {
-                KeyWriter<string, shared_ptr<Test::Base>> writer(topic, "elem4");
+                auto writer = makeSingleKeyWriter(topic, "elem4");
                 writer.waitForReaders(1);
                 writer.add(make_shared<Test::Base>("value1"));
                 writer.waitForNoReaders();
@@ -104,8 +104,8 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey1");
-            KeyWriter<string, string> writer1(topic, "elem1");
-            KeyWriter<string, string> writer2(topic, "elem2");
+            auto writer1 = makeSingleKeyWriter(topic, "elem1");
+            auto writer2 = makeSingleKeyWriter(topic, "elem2");
 
             writer1.waitForReaders(1);
             writer2.waitForReaders(1);
@@ -128,8 +128,8 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "anykey");
-            KeyWriter<string, string> writer1(topic, "elem1");
-            KeyWriter<string, string> writer2(topic, "elem2");
+            auto writer1 = makeSingleKeyWriter(topic, "elem1");
+            auto writer2 = makeSingleKeyWriter(topic, "elem2");
 
             writer1.waitForReaders(1);
             writer2.waitForReaders(1);
@@ -152,27 +152,27 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
-        KeyWriter<string, shared_ptr<Test::Base>> writer5(topic, "elem5");
+        auto writer5 = makeSingleKeyWriter(topic, "elem5");
         writer5.add(make_shared<Test::Base>("value1"));
         writer5.update(make_shared<Test::Base>("value2"));
         writer5.remove();
 
-        KeyWriter<string, shared_ptr<Test::Base>> writer1(topic, "elem1");
+        auto writer1 = makeSingleKeyWriter(topic, "elem1");
         writer1.waitForReaders(1);
         test(writer1.hasReaders());
         writer1.add(make_shared<Test::Base>("value1"));
         writer1.update(make_shared<Test::Base>("value2"));
         writer1.remove();
 
-        KeyWriter<string, shared_ptr<Test::Base>> writer2(topic, "elem2");
+        auto writer2 = makeSingleKeyWriter(topic, "elem2");
         writer2.waitForReaders(1);
         writer2.update(make_shared<Test::Base>("value1"));
 
-        KeyWriter<string, shared_ptr<Test::Base>> writer3(topic, "elem3");
+        auto writer3 = makeSingleKeyWriter(topic, "elem3");
         writer3.waitForReaders(1);
         writer3.remove();
 
-        KeyWriter<string, shared_ptr<Test::Base>> writer4(topic, "elem4");
+        auto writer4 = makeSingleKeyWriter(topic, "elem4");
         writer4.waitForReaders(1);
         writer4.add(make_shared<Test::Base>("value1"));
         writer4.waitForNoReaders();
@@ -183,14 +183,14 @@ main(int argc, char* argv[])
     {
         Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
 
-        KeyWriter<string, string, SampleEventFilter<string, string>, SampleEventSeq> writer1(topic, "elem1");
+        auto writer1 = makeSingleKeyWriter<SampleEventFilter<string, string>, SampleEventSeq>(topic, "elem1");
         writer1.waitForReaders(3);
         test(writer1.hasReaders());
         writer1.add("value1");
         writer1.update("value2");
         writer1.remove();
 
-        KeyWriter<string, string, RegexFilter<Sample<string, string>>, string> writer2(topic, "elem2");
+        auto writer2 = makeSingleKeyWriter<RegexFilter<Sample<string, string>>, string>(topic, "elem2");
         writer2.waitForReaders(1);
         writer2.update("value1");
         writer2.update("value2");
@@ -212,7 +212,7 @@ main(int argc, char* argv[])
         t1.waitForReaders(2);
         t2.waitForReaders(2);
 
-        KeyWriter<string, string> writer(t1, "shutdown");
+        auto writer = makeSingleKeyWriter(t1, "shutdown");
         writer.add("now");
 
         t1.waitForNoReaders();

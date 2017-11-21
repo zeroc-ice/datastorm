@@ -36,7 +36,7 @@ main(int argc, char* argv[])
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
             readers.update(false);
-            KeyReader<string, string> reader(topic, "elem1");
+            auto reader = makeSingleKeyReader(topic, "elem1");
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
             test(count < 4 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
@@ -58,7 +58,7 @@ main(int argc, char* argv[])
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
             readers.update(false);
-            KeyReader<string, string> reader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", config);
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
             test(count < 4 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
@@ -92,7 +92,7 @@ main(int argc, char* argv[])
 
         // Writer keeps 3ms worth of samples
         readers.update(false);
-        KeyReader<string, string> reader(topic, "elem1");
+        auto reader = makeSingleKeyReader(topic, "elem1");
         test(reader.getNextUnread().getValue() == "value3");
         test(reader.getNextUnread().getValue() == "value4");
         test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
@@ -110,7 +110,7 @@ main(int argc, char* argv[])
 
         // Reader wants 3ms worth of samples
         readers.update(false);
-        KeyReader<string, string> reader(topic, "elem1", config);
+        auto reader = makeSingleKeyReader(topic, "elem1", config);
         test(reader.getNextUnread().getValue() == "value3");
         test(reader.getNextUnread().getValue() == "value4");
         test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
