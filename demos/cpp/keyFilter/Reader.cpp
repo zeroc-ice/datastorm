@@ -32,7 +32,7 @@ main(int argc, char* argv[])
     // Instantiate a filtered reader that matches the writer key using the foo[ace]
     // regular expression.
     //
-    auto reader = DataStorm::makeFilteredReader(topic, "foo[ace]");
+    auto reader = DataStorm::makeFilteredReader(topic, "foo[ace]", DataStorm::ReaderConfig(-1));
 
     //
     // Get the 3 samples published by the writers fooa, fooc and fooe.

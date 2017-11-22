@@ -22,10 +22,15 @@ main(int argc, char* argv[])
     Topic<string, string> topic(node, "topic");
     Topic<string, bool> controller(node, "controller");
 
-    WriterConfig config;
-    config.sampleCount = 1;
-    auto readers = makeSingleKeyWriter(controller, "readers", config);
+    auto readers = makeSingleKeyWriter(controller, "readers");
     auto writers = makeSingleKeyReader(controller, "writers");
+
+    {
+        ReaderConfig config;
+        config.sampleCount = -1;
+        config.clearHistory = ClearHistoryPolicy::Never;
+        topic.setReaderDefaultConfig(config);
+    }
 
     writers.waitForWriters();
 
@@ -36,6 +41,7 @@ main(int argc, char* argv[])
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
             readers.update(false);
+
             auto reader = makeSingleKeyReader(topic, "elem1");
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
@@ -66,10 +72,12 @@ main(int argc, char* argv[])
             test(count < 2 || reader.getNextUnread().getValue() == "value4");
             test(count < 1 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
             readers.update(true); // Reader is done
-       };
+        };
 
         // Keep all the samples in the history.
-        read(6, ReaderConfig());
+        {
+            read(6, ReaderConfig());
+        }
 
         // Keep 4 samples in the history
         {
@@ -81,7 +89,7 @@ main(int argc, char* argv[])
         // Keep last instance samples in the history
         {
             ReaderConfig config;
-            config.sampleCount = -1;
+            config.clearHistory = ClearHistoryPolicy::Add;
             read(3, config);
         }
     }

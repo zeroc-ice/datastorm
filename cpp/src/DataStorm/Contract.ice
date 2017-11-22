@@ -14,6 +14,14 @@
 module DataStormContract
 {
 
+enum ClearHistoryPolicy
+{
+    Add,
+    Remove,
+    AddOrRemove,
+    Never
+};
+
 /** A sequence of bytes use to hold the encoded key or value */
 sequence<byte> ByteSeq;
 
@@ -65,6 +73,7 @@ class ElementConfig(1)
     optional(2) ByteSeq sampleFilter;
     optional(10) int sampleCount;
     optional(11) int sampleLifetime;
+    optional(12) ClearHistoryPolicy clearHistory;
 };
 
 struct ElementData
@@ -111,8 +120,8 @@ interface Session
     void detachTags(long topic, LongSeq tags);
 
     void announceElements(long topic, ElementInfoSeq keys);
-    void attachElements(long topic, long lastId, ElementSpecSeq elements);
-    void attachElementsAck(long topic, long lastId, ElementSpecAckSeq elements);
+    void attachElements(long topic, ElementSpecSeq elements);
+    void attachElementsAck(long topic, ElementSpecAckSeq elements);
     void detachElements(long topic, LongSeq keys);
 
     void initSamples(long topic, DataSamplesSeq samples);

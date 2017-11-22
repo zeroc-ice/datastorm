@@ -115,7 +115,6 @@ public:
                 SessionI*,
                 const std::shared_ptr<DataStormContract::SessionPrx>&,
                 const DataStormContract::ElementData&,
-                long long int,
                 const std::chrono::time_point<std::chrono::system_clock>&,
                 DataStormContract::ElementDataAckSeq&);
 
@@ -125,7 +124,6 @@ public:
                 SessionI*,
                 const std::shared_ptr<DataStormContract::SessionPrx>&,
                 const DataStormContract::ElementDataAck&,
-                long long int,
                 const std::chrono::time_point<std::chrono::system_clock>&,
                 DataStormContract::DataSamplesSeq&);
 
@@ -142,8 +140,7 @@ public:
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
                              const std::chrono::time_point<std::chrono::system_clock>&);
-    virtual DataStormContract::DataSampleSeq getSamples(long long int,
-                                                        const std::shared_ptr<Key>&,
+    virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
                                                         const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
@@ -282,8 +279,7 @@ public:
     virtual bool hasReaders() const override;
 
     virtual std::string toString() const override;
-    virtual DataStormContract::DataSampleSeq getSamples(long long int,
-                                                        const std::shared_ptr<Key>&,
+    virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
                                                         const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&) override;

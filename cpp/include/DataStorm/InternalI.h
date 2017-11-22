@@ -93,6 +93,11 @@ public:
         return _encodedValue;
     }
 
+    void clearEncodedValue()
+    {
+        _encodedValue.clear();
+    }
+
     std::string session;
     long long int topic;
     long long int element;

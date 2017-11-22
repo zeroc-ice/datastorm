@@ -12,15 +12,13 @@
 #include <Ice/Communicator.h>
 
 #include <DataStorm/Config.h>
+#include <DataStorm/Types.h>
 #include <DataStorm/InternalI.h>
 
 namespace DataStorm
 {
 
 template<typename K, typename V> class Sample;
-template<typename T> struct Encoder;
-template<typename T> struct Decoder;
-template<typename T> struct Stringifier;
 
 }
 
@@ -41,7 +39,7 @@ public:
     static const bool value = decltype(test<T, std::ostream>(0))::value;
 };
 
-template<typename T, typename C=void> struct Stringifier
+template<typename T, typename Enabler=void> struct Stringifier
 {
     static std::string
     toString(const T& value)

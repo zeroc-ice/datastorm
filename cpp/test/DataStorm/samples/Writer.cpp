@@ -22,10 +22,15 @@ main(int argc, char* argv[])
     Topic<string, string> topic(node, "topic");
     Topic<string, bool> controller(node, "controller");
 
-    WriterConfig config;
-    config.sampleCount = 1;
-    auto writers = makeSingleKeyWriter(controller, "writers", config);
+    auto writers = makeSingleKeyWriter(controller, "writers");
     auto readers = makeSingleKeyReader(controller, "readers");
+
+    {
+        WriterConfig config;
+        config.sampleCount = -1;
+        config.clearHistory = ClearHistoryPolicy::Never;
+        topic.setWriterDefaultConfig(config);
+    }
 
     cout << "testing writer sampleCount... " << flush;
     {
@@ -45,7 +50,9 @@ main(int argc, char* argv[])
         };
 
         // Keep all the samples in the history.
-        write(WriterConfig());
+        {
+            write(WriterConfig());
+        }
 
         // Keep 4 samples in the history
         {
@@ -57,7 +64,7 @@ main(int argc, char* argv[])
         // Keep last instance samples in the history
         {
             WriterConfig config;
-            config.sampleCount = -1;
+            config.clearHistory = ClearHistoryPolicy::Add;
             write(config);
         }
     }
@@ -109,7 +116,6 @@ main(int argc, char* argv[])
 
     cout << "testing reader sampleLifetime... " << flush;
     {
-
         writers.update(false); // Not ready
         auto writer = makeSingleKeyWriter(topic, "elem1");
         writer.add("value1");

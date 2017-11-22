@@ -107,7 +107,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
             }
-            _session->attachElementsAsync(topic->getId(), this->getLastId(spec.id), specs);
+            _session->attachElementsAsync(topic->getId(), specs);
         }
     });
 }
@@ -208,13 +208,13 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": matched elements `[" << specs << "]@" << topicId << "' on topic `" << topic << "'";
             }
-            _session->attachElementsAsync(topic->getId(), this->getLastId(topicId), specs);
+            _session->attachElementsAsync(topic->getId(), specs);
         }
     });
 }
 
 void
-SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq elements, const Ice::Current&)
+SessionI::attachElements(long long int id, ElementSpecSeq elements, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -231,7 +231,7 @@ SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq 
             out << _id << ": attaching elements `[" << elements << "]@" << id << "' on topic `" << topic << "'";
         }
 
-        auto specAck = topic->attachElements(id, lastId, elements, this, _session, now);
+        auto specAck = topic->attachElements(id, elements, this, _session, now);
         if(!specAck.empty())
         {
             if(_traceLevels->session > 2)
@@ -239,13 +239,13 @@ SessionI::attachElements(long long int id, long long int lastId, ElementSpecSeq 
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": matched elements `[" << specAck << "]@" << id << "' on topic `" << topic << "'";
             }
-            _session->attachElementsAckAsync(topic->getId(), this->getLastId(id), specAck);
+            _session->attachElementsAckAsync(topic->getId(), specAck);
         }
     });
 }
 
 void
-SessionI::attachElementsAck(long long int id, long long int lastId, ElementSpecAckSeq elements, const Ice::Current&)
+SessionI::attachElementsAck(long long int id, ElementSpecAckSeq elements, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -261,7 +261,7 @@ SessionI::attachElementsAck(long long int id, long long int lastId, ElementSpecA
             out << _id << ": attaching elements ack `[" << elements << "]@" << id << "' on topic `" << topic << "'";
         }
 
-        auto samples = topic->attachElementsAck(id, lastId, elements, this, _session, now);
+        auto samples = topic->attachElementsAck(id, elements, this, _session, now);
         if(!samples.empty())
         {
             if(_traceLevels->session > 2)
@@ -509,10 +509,8 @@ SessionI::disconnected(exception_ptr ex)
         for(auto& t : _topics)
         {
             runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
-
-            // Clear the subscribers but don't remove the topic in order to preserve lastId.
-            t.second.clearSubscribers();
         }
+        _topics.clear();
 
         _session = nullptr;
         _connection = nullptr;
@@ -589,18 +587,6 @@ shared_ptr<SessionPrx>
 SessionI::getSessionNoLock() const
 {
     return _session;
-}
-
-long long int
-SessionI::getLastId(long long int topic) const
-{
-    // Called within the topic synchronization
-    auto p = _topics.find(topic);
-    if(p != _topics.end())
-    {
-        return p->second.getLastId();
-    }
-    return -1;
 }
 
 void
@@ -922,7 +908,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
             return;
         }
         auto e = subscriber.keys.get(element);
-        if(e && topicSubscribers.setLastId(s.id))
+        if(e)
         {
             if(_traceLevels->session > 2)
             {

@@ -71,14 +71,12 @@ public:
     void detach(long long int, SessionI*);
 
     DataStormContract::ElementSpecAckSeq attachElements(long long int,
-                                                        long long int,
                                                         const DataStormContract::ElementSpecSeq&,
                                                         SessionI*,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
 
     DataStormContract::DataSamplesSeq attachElementsAck(long long int,
-                                                        long long int,
                                                         const DataStormContract::ElementSpecAckSeq&,
                                                         SessionI*,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&,

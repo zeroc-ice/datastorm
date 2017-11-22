@@ -20,10 +20,14 @@ main(int argc, char* argv[])
 {
     Node node(argc, argv);
 
+    ReaderConfig config;
+    config.sampleCount = -1; // Unlimited sample count
+    config.clearHistory = ClearHistoryPolicy::Never;
+
     {
         Topic<string, string> topic(node, "string");
         {
-            auto reader = makeSingleKeyReader(topic, "elem1");
+            auto reader = makeSingleKeyReader(topic, "elem1", config);
 
             reader.waitForWriters(1);
             test(reader.hasWriters());
@@ -51,8 +55,8 @@ main(int argc, char* argv[])
             test(samples.empty());
         }
         {
-            auto reader1 = makeSingleKeyReader(topic, "elem2");
-            auto reader2 = makeSingleKeyReader(topic, "elem2");
+            auto reader1 = makeSingleKeyReader(topic, "elem2", config);
+            auto reader2 = makeSingleKeyReader(topic, "elem2", config);
             reader1.waitForWriters(1);
             reader2.waitForWriters(1);
             reader1.waitForUnread();
@@ -62,7 +66,7 @@ main(int argc, char* argv[])
 
     {
         Topic<int, Test::StructValue> topic(node, "struct");
-        auto reader = makeSingleKeyReader(topic, 10);
+        auto reader = makeSingleKeyReader(topic, 10, config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -86,7 +90,7 @@ main(int argc, char* argv[])
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass");
-        auto reader = makeSingleKeyReader(topic, "elem1");
+        auto reader = makeSingleKeyReader(topic, "elem1", config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -128,21 +132,21 @@ main(int argc, char* argv[])
         };
 
         {
-            auto reader = makeSingleKeyReader(topic, "elem1");
+            auto reader = makeSingleKeyReader(topic, "elem1", config);
             testSample(reader, SampleEvent::Add, "elem1", "value1");
             testSample(reader, SampleEvent::Update, "elem1", "value2");
             testSample(reader, SampleEvent::Remove, "elem1");
         }
         {
-            auto reader = makeSingleKeyReader(topic, "elem2");
+            auto reader = makeSingleKeyReader(topic, "elem2", config);
             testSample(reader, SampleEvent::Update, "elem2", "value1");
         }
         {
-            auto reader = makeSingleKeyReader(topic, "elem3");
+            auto reader = makeSingleKeyReader(topic, "elem3", config);
             testSample(reader, SampleEvent::Remove, "elem3");
         }
         {
-            auto reader = makeSingleKeyReader(topic, "elem4");
+            auto reader = makeSingleKeyReader(topic, "elem4", config);
             testSample(reader, SampleEvent::Add, "elem4", "value1");
         }
     }
@@ -150,7 +154,7 @@ main(int argc, char* argv[])
     {
         Topic<string, string> topic(node, "multikey1");
 
-        auto reader = makeMultiKeyReader(topic, { "elem1", "elem2" });
+        auto reader = makeMultiKeyReader(topic, { "elem1", "elem2" }, config);
         reader.waitForWriters(2);
         reader.waitForUnread(6);
         test(reader.getAll().size() == 6);
@@ -159,7 +163,7 @@ main(int argc, char* argv[])
     {
         Topic<string, string> topic(node, "anykey");
 
-        auto reader = makeAnyKeyReader(topic);
+        auto reader = makeAnyKeyReader(topic, config);
         reader.waitForWriters(2);
         reader.waitForUnread(6);
         test(reader.getAll().size() == 6);
@@ -168,7 +172,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
 
-        auto reader = makeFilteredReader(topic, "elem[0-4]");
+        auto reader = makeFilteredReader(topic, "elem[0-4]", config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -211,9 +215,9 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader11 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Add });
-            auto reader12 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Update });
-            auto reader13 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Remove });
+            auto reader11 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Add }, config);
+            auto reader12 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Update }, config);
+            auto reader13 = makeFilteredReader(topic, "elem[1]", vector<SampleEvent> { SampleEvent::Remove }, config);
             testSample(reader11, SampleEvent::Add, "elem1", "value1");
             testSample(reader12, SampleEvent::Update, "elem1", "value2");
             testSample(reader13, SampleEvent::Remove, "elem1");
@@ -234,7 +238,7 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader2 = makeFilteredReader(topic, "elem[2]", "value[2-4]");
+            auto reader2 = makeFilteredReader(topic, "elem[2]", "value[2-4]", config);
             testSample(reader2, SampleEvent::Update, "elem2", "value2");
             testSample(reader2, SampleEvent::Update, "elem2", "value3");
             testSample(reader2, SampleEvent::Update, "elem2", "value4");
@@ -249,7 +253,7 @@ main(int argc, char* argv[])
         t1.waitForWriters(2);
         t2.waitForWriters(2);
 
-        auto reader = makeSingleKeyReader(t1, "shutdown");
+        auto reader = makeSingleKeyReader(t1, "shutdown", config);
         reader.waitForUnread();
     }
     return 0;

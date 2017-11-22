@@ -64,6 +64,10 @@ DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Co
     {
         _config->sampleLifetime = *config.sampleLifetime;
     }
+    if(config.clearHistory)
+    {
+        _config->clearHistory = static_cast<ClearHistoryPolicy>(*config.clearHistory);
+    }
 }
 
 DataElementI::~DataElementI()
@@ -89,7 +93,6 @@ DataElementI::attach(long long int topicId,
                      SessionI* session,
                      const shared_ptr<SessionPrx>& prx,
                      const ElementData& data,
-                     long long int lastId,
                      const chrono::time_point<chrono::system_clock>& now,
                      ElementDataAckSeq& acks)
 {
@@ -98,7 +101,7 @@ DataElementI::attach(long long int topicId,
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        acks.push_back({ _id, _config, getSamples(lastId, key, sampleFilter, data.config, now), data.id });
+        acks.push_back({ _id, _config, getSamples(key, sampleFilter, data.config, now), data.id });
     }
 }
 
@@ -109,7 +112,6 @@ DataElementI::attach(long long int topicId,
                      SessionI* session,
                      const shared_ptr<SessionPrx>& prx,
                      const ElementDataAck& data,
-                     long long int lastId,
                      const chrono::time_point<chrono::system_clock>& now,
                      DataSamplesSeq& samples)
 {
@@ -118,7 +120,7 @@ DataElementI::attach(long long int topicId,
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        samples.push_back({ _id, getSamples(lastId, key, sampleFilter, data.config, now) });
+        samples.push_back({ _id, getSamples(key, sampleFilter, data.config, now) });
     }
     auto samplesI = session->subscriberInitialized(topicId, data.id, data.samples, key, this);
     if(!samplesI.empty())
@@ -270,8 +272,7 @@ DataElementI::initSamples(const vector<shared_ptr<Sample>>&,
 }
 
 DataSampleSeq
-DataElementI::getSamples(long long int,
-                         const shared_ptr<Key>&,
+DataElementI::getSamples(const shared_ptr<Key>&,
                          const shared_ptr<Filter>&,
                          const shared_ptr<DataStormContract::ElementConfig>&,
                          const chrono::time_point<chrono::system_clock>&)
@@ -474,13 +475,12 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         _parent->queue(shared_from_this(), [this, samples] { _onInit(samples); });
     }
 
-    if(_config->sampleLifetime)
+    if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
         cleanOldSamples(_all, now, *_config->sampleLifetime);
         cleanOldSamples(_unread, now, *_config->sampleLifetime);
     }
 
-    bool trimOnAdd = false;
     if(_config->sampleCount)
     {
         if(*_config->sampleCount > 0)
@@ -501,10 +501,6 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
                 assert(_all.size() + _unread.size() + samples.size() == maxCount);
             }
         }
-        else if(*_config->sampleCount < 0)
-        {
-            trimOnAdd = true;
-        }
         else if(*_config->sampleCount == 0)
         {
             return; // Don't keep history
@@ -513,7 +509,13 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
 
     for(const auto& s : samples)
     {
-        if(trimOnAdd && s->event == DataStorm::SampleEvent::Add)
+        if(_config->clearHistory &&
+           ((s->event == DataStorm::SampleEvent::Add &&
+             (*_config->clearHistory == ClearHistoryPolicy::Add ||
+              *_config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
+            (s->event == DataStorm::SampleEvent::Remove &&
+             (*_config->clearHistory == ClearHistoryPolicy::Remove ||
+              *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
         {
             _all.clear();
             _unread.clear();
@@ -557,7 +559,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
         _parent->queue(shared_from_this(), [this, sample] { _onSample(sample); });
     }
 
-    if(_config->sampleLifetime)
+    if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
         cleanOldSamples(_all, now, *_config->sampleLifetime);
         cleanOldSamples(_unread, now, *_config->sampleLifetime);
@@ -582,17 +584,23 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
                 assert(_all.size() + _unread.size() + 1 == maxCount);
             }
         }
-        else if(*_config->sampleCount < 0 && sample->event == DataStorm::SampleEvent::Add)
-        {
-            _all.clear();
-            _unread.clear();
-        }
         else if(*_config->sampleCount == 0)
         {
             return; // Don't keep history
         }
     }
 
+    if(_config->clearHistory &&
+       ((sample->event == DataStorm::SampleEvent::Add &&
+         (*_config->clearHistory == ClearHistoryPolicy::Add ||
+          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
+        (sample->event == DataStorm::SampleEvent::Remove &&
+         (*_config->clearHistory == ClearHistoryPolicy::Remove ||
+          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
+    {
+        _all.clear();
+        _unread.clear();
+    }
     _unread.push_back(sample);
     _parent->_cond.notify_all();
 }
@@ -641,7 +649,7 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     sample->timestamp = chrono::system_clock::now();
     send(key, sample);
 
-    if(_config->sampleLifetime)
+    if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
         cleanOldSamples(_all, sample->timestamp, *_config->sampleLifetime);
     }
@@ -655,14 +663,28 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
                 _all.pop_front();
             }
         }
-        else if(*_config->sampleCount < 0 && sample->event == DataStorm::SampleEvent::Add)
-        {
-            _all.clear();
-        }
         else if(*_config->sampleCount == 0)
         {
             return; // Don't keep history
         }
+    }
+
+    if(_config->clearHistory &&
+       ((sample->event == DataStorm::SampleEvent::Add &&
+         (*_config->clearHistory == ClearHistoryPolicy::Add ||
+          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
+        (sample->event == DataStorm::SampleEvent::Remove &&
+         (*_config->clearHistory == ClearHistoryPolicy::Remove ||
+          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
+    {
+        _all.clear();
+    }
+
+    // Don't keep partial update events in the history
+    if(sample->event == DataStorm::SampleEvent::PartialUpdate)
+    {
+        sample->event = DataStorm::SampleEvent::Update;
+        sample->clearEncodedValue(); // Clear the encoded partial update to force the sample to re-encode the value.
     }
     _all.push_back(sample);
 }
@@ -801,8 +823,7 @@ KeyDataWriterI::toString() const
 }
 
 DataSampleSeq
-KeyDataWriterI::getSamples(long long int lastId,
-                           const shared_ptr<Key>& key,
+KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
                            const shared_ptr<Filter>& filter,
                            const shared_ptr<DataStormContract::ElementConfig>& config,
                            const chrono::time_point<chrono::system_clock>& now)
@@ -813,29 +834,39 @@ KeyDataWriterI::getSamples(long long int lastId,
         return samples;
     }
 
-    if(_config->sampleLifetime)
+    if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
         cleanOldSamples(_all, now, *_config->sampleLifetime);
     }
 
-    chrono::time_point<chrono::system_clock> staleTime;
-    if(config->sampleLifetime)
+    chrono::time_point<chrono::system_clock> staleTime = chrono::time_point<chrono::system_clock>::min();
+    if(config->sampleLifetime && *config->sampleLifetime > 0)
     {
         staleTime = now - chrono::milliseconds(*config->sampleLifetime);
     }
 
     for(auto p = _all.rbegin(); p != _all.rend(); ++p)
     {
-        if((*p)->id <= lastId || (config->sampleLifetime && (*p)->timestamp < staleTime))
+        if((*p)->timestamp < staleTime)
         {
             break;
         }
         if((!key || key == (*p)->key) && (!filter || filter->match(*p)))
         {
-            samples.push_front(toSample(*p, nullptr)); // The sample should already be encoded
+            samples.push_front(toSample(*p, getCommunicator()));
             if(config->sampleCount &&
-               ((*config->sampleCount < 0 && (*p)->event == DataStorm::SampleEvent::Add) ||
-                static_cast<size_t>(*config->sampleCount) == samples.size()))
+               *config->sampleCount > 0 && static_cast<size_t>(*config->sampleCount) == samples.size())
+            {
+                break;
+            }
+
+            if(config->clearHistory &&
+               (((*p)->event == DataStorm::SampleEvent::Add &&
+                 (config->clearHistory == ClearHistoryPolicy::Add ||
+                  config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
+                ((*p)->event == DataStorm::SampleEvent::Remove &&
+                 (config->clearHistory == ClearHistoryPolicy::Remove ||
+                  config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
             {
                 break;
             }

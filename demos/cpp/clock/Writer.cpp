@@ -21,6 +21,16 @@ template<> struct Encoder<chrono::system_clock::time_point>
     }
 };
 
+template<> struct Decoder<chrono::system_clock::time_point>
+{
+    static chrono::system_clock::time_point
+    decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
+    {
+        auto value = Decoder<long long int>::decode(com, data);
+        return std::chrono::time_point<std::chrono::system_clock>(std::chrono::seconds(value));
+    }
+};
+
 };
 
 int

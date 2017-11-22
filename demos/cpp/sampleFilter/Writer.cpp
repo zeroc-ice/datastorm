@@ -29,7 +29,7 @@ main(int argc, char* argv[])
     // to filter the sample with a regular expression initiliazed from the criteria.
     //
     using Filter = DataStorm::RegexFilter<DataStorm::Sample<string, string>>;
-    auto writer = DataStorm::makeSingleKeyWriter<Filter, string>(topic, "foo");
+    auto writer = DataStorm::makeSingleKeyWriter<Filter, string>(topic, "foo", DataStorm::WriterConfig(-1));
 
     //
     // Publish samples

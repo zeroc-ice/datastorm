@@ -130,25 +130,8 @@ protected:
     {
     public:
 
-        TopicSubscribers() : _lastId(-1)
+        TopicSubscribers()
         {
-        }
-
-        long long int
-        getLastId() const
-        {
-            return _lastId;
-        }
-
-        bool
-        setLastId(long long int lastId)
-        {
-            if(_lastId >= lastId)
-            {
-                return false;
-            }
-            _lastId = lastId;
-            return true;
         }
 
         void
@@ -177,15 +160,8 @@ protected:
             return _subscribers;
         }
 
-        void
-        clearSubscribers()
-        {
-            _subscribers.clear();
-        }
-
     private:
 
-        long long int _lastId;
         std::map<TopicI*, TopicSubscriber> _subscribers;
     };
 
@@ -202,8 +178,8 @@ public:
     virtual void detachTags(long long int, DataStormContract::LongSeq, const Ice::Current&) override;
 
     virtual void announceElements(long long int, DataStormContract::ElementInfoSeq, const Ice::Current&) override;
-    virtual void attachElements(long long int, long long int, DataStormContract::ElementSpecSeq, const Ice::Current&) override;
-    virtual void attachElementsAck(long long int, long long int, DataStormContract::ElementSpecAckSeq, const Ice::Current&) override;
+    virtual void attachElements(long long int, DataStormContract::ElementSpecSeq, const Ice::Current&) override;
+    virtual void attachElementsAck(long long int, DataStormContract::ElementSpecAckSeq, const Ice::Current&) override;
     virtual void detachElements(long long int, DataStormContract::LongSeq, const Ice::Current&) override;
 
     virtual void initSamples(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&) override;
@@ -228,8 +204,6 @@ public:
 
     std::shared_ptr<DataStormContract::SessionPrx> getSession() const;
     std::shared_ptr<DataStormContract::SessionPrx> getSessionNoLock() const;
-
-    long long int getLastId(long long int) const;
 
     std::shared_ptr<DataStormContract::SessionPrx> getProxy() const
     {

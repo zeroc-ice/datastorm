@@ -261,7 +261,6 @@ TopicI::detach(long long id, SessionI* session)
 
 ElementSpecAckSeq
 TopicI::attachElements(long long int topicId,
-                       long long int lastId,
                        const ElementSpecSeq& elements,
                        SessionI* session,
                        const shared_ptr<SessionPrx>& prx,
@@ -299,11 +298,11 @@ TopicI::attachElements(long long int topicId,
                     {
                         if(spec.valueId > 0) // Key
                         {
-                            e->attach(topicId, key, nullptr, session, prx, data, lastId, now, acks);
+                            e->attach(topicId, key, nullptr, session, prx, data, now, acks);
                         }
                         else if(filter->match(key))
                         {
-                            e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, acks);
+                            e->attach(topicId, nullptr, filter, session, prx, data, now, acks);
                         }
                     }
                     if(!acks.empty())
@@ -348,11 +347,11 @@ TopicI::attachElements(long long int topicId,
                     {
                         if(spec.valueId < 0) // Filter
                         {
-                            e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, acks);
+                            e->attach(topicId, nullptr, filter, session, prx, data, now, acks);
                         }
                         else if(filter->match(key))
                         {
-                            e->attach(topicId, key, nullptr, session, prx, data, lastId, now, acks);
+                            e->attach(topicId, key, nullptr, session, prx, data, now, acks);
                         }
                     }
                     if(!acks.empty())
@@ -371,7 +370,6 @@ TopicI::attachElements(long long int topicId,
 
 DataSamplesSeq
 TopicI::attachElementsAck(long long int topicId,
-                          long long int lastId,
                           const ElementSpecAckSeq& elements,
                           SessionI* session,
                           const shared_ptr<SessionPrx>& prx,
@@ -412,11 +410,11 @@ TopicI::attachElementsAck(long long int topicId,
                         {
                             if(spec.valueId > 0) // Key
                             {
-                                e->attach(topicId, key, nullptr, session, prx, data, lastId, now, samples);
+                                e->attach(topicId, key, nullptr, session, prx, data, now, samples);
                             }
                             else if(filter->match(key)) // Filter
                             {
-                                e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, samples);
+                                e->attach(topicId, nullptr, filter, session, prx, data, now, samples);
                             }
                             break;
                         }
@@ -457,11 +455,11 @@ TopicI::attachElementsAck(long long int topicId,
                         {
                             if(spec.valueId < 0) // Filter
                             {
-                                e->attach(topicId, nullptr, filter, session, prx, data, lastId, now, samples);
+                                e->attach(topicId, nullptr, filter, session, prx, data, now, samples);
                             }
                             else if(filter->match(key))
                             {
-                                e->attach(topicId, key, nullptr, session, prx, data, lastId, now, samples);
+                                e->attach(topicId, key, nullptr, session, prx, data, now, samples);
                             }
                             break;
                         }
@@ -642,6 +640,12 @@ TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Fi
 void
 TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefix, DataStorm::Config& config) const
 {
+    // Set defaults
+    config.sampleCount = 1;
+    config.sampleLifetime = 0;
+    config.clearHistory = DataStorm::ClearHistoryPolicy::AddOrRemove;
+
+    // Override defaults with properties
     auto p = properties.find(prefix + ".SampleLifetime");
     if(p != properties.end())
     {
@@ -651,6 +655,26 @@ TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefi
     if(p != properties.end())
     {
         config.sampleCount = toInt(p->second);
+    }
+    p = properties.find(prefix + ".ClearHistory");
+    if(p != properties.end())
+    {
+        if(p->second == "Add")
+        {
+            config.clearHistory = DataStorm::ClearHistoryPolicy::Add;
+        }
+        else if(p->second == "Remove")
+        {
+            config.clearHistory = DataStorm::ClearHistoryPolicy::Remove;
+        }
+        else if(p->second == "AddOrRemove")
+        {
+            config.clearHistory = DataStorm::ClearHistoryPolicy::AddOrRemove;
+        }
+        else if(p->second == "Never")
+        {
+            config.clearHistory = DataStorm::ClearHistoryPolicy::Never;
+        }
     }
 }
 
@@ -684,7 +708,8 @@ TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
                      vector<unsigned char> sampleFilter)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, move(sampleFilter), mergeConfigs(move(config)));
+    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, move(sampleFilter),
+                                               mergeConfigs(move(config)));
     if(keys.empty())
     {
         addFiltered(element, alwaysMatchFilter);
@@ -777,6 +802,10 @@ TopicReaderI::mergeConfigs(DataStorm::ReaderConfig config) const
     if(!config.sampleLifetime && _defaultConfig.sampleLifetime)
     {
         config.sampleLifetime = _defaultConfig.sampleLifetime;
+    }
+    if(!config.clearHistory && _defaultConfig.clearHistory)
+    {
+        config.clearHistory = _defaultConfig.clearHistory;
     }
     if(!config.discardPolicy && _defaultConfig.discardPolicy)
     {
@@ -882,6 +911,10 @@ TopicWriterI::mergeConfigs(DataStorm::WriterConfig config) const
     if(!config.sampleLifetime && _defaultConfig.sampleLifetime)
     {
         config.sampleLifetime = _defaultConfig.sampleLifetime;
+    }
+    if(!config.clearHistory && _defaultConfig.clearHistory)
+    {
+        config.clearHistory = _defaultConfig.clearHistory;
     }
     if(!config.priority && _defaultConfig.priority)
     {

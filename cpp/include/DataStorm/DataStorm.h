@@ -41,54 +41,6 @@ template<typename, typename, typename, typename, typename> class KeyWriter;
 template<typename, typename, typename, typename> class FilteredReader;
 
 /**
- * The Encoder template provides a method to encode decode user types.
- *
- * The encoder template can be specialized to provide encoding for types that don't
- * support being encoded with Ice. By default, the Ice encoding is used if no
- * Encoder template specialization is provided for the type.
- */
-template<typename T>
-struct Encoder
-{
-    /**
-     * Encode the given value. This method encodes the given value and returns the
-     * resulting byte sequence. The communicator parameter is provided to allow the
-     * implementation to eventually use the Ice encoding.
-     *
-     * @see decode
-     *
-     * @param communicator The communicator associated with the node
-     * @param value The value to encode
-     * @return The resulting byte sequence
-     */
-    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&, const T&);
-};
-
-/**
- * The Decoder template provides a method to decode user types.
- *
- * The decoder template can be specialized to provide decoding for types that don't
- * support being decoded with Ice. By default, the Ice decoding is used if no
- * Decoder template specialization is provided for the type.
- */
-template<typename T>
-struct Decoder
-{
-    /**
-     * Unencodes a value. This method decodes the given byte sequence and returns the
-     * resulting value. The communicator parameter is provided to allow the
-     * implementation to eventually use the Ice encoding.
-     *
-     * @see encode
-     *
-     * @param communicator The communicator associated with the node
-     * @param value The byte sequence to decode
-     * @return The resulting value
-     */
-    static T decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&);
-};
-
-/**
  * A sample provides information about an update of a data element.
  *
  * The Sample template provides access to key, value and type of
@@ -415,7 +367,7 @@ public:
      * @param updater The updater function.
      */
     template<typename UpdateValue>
-    void setUpdater(const UpdateTag&, std::function<Value (Value, UpdateValue)>);
+    void setUpdater(const UpdateTag&, std::function<void (Value&, UpdateValue)>);
 
 private:
 
@@ -1252,37 +1204,6 @@ namespace DataStorm
 {
 
 //
-// Encoder template implementation
-//
-template<typename T> std::vector<unsigned char>
-Encoder<T>::encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
-{
-    std::vector<unsigned char> v;
-    Ice::OutputStream stream(communicator);
-    stream.write(value);
-    stream.finished(v);
-    return v;
-}
-
-//
-// Decoder template implementation
-//
-template<typename T> T
-Decoder<T>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value)
-{
-    T v;
-    if(value.empty())
-    {
-        v = T();
-    }
-    else
-    {
-        Ice::InputStream(communicator, value).read(v);
-    }
-    return v;
-}
-
-//
 // Sample template implementation
 //
 template<typename Key, typename Value> SampleEvent
@@ -1815,7 +1736,7 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setWriterDefaultConf
 template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
 template<typename UpdateValue> void
 Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setUpdater(const UpdateTag& tag,
-                                                                       std::function<Value (Value, UpdateValue)> updater)
+                                                                       std::function<void (Value&, UpdateValue)> updater)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto tagI = _tagFactory->create(std::move(tag));
@@ -1826,9 +1747,9 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setUpdater(const Upd
         Value value;
         if(previous)
         {
-            value = std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(previous)->getValue();
+            value = Cloner<Value>::clone(std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(previous)->getValue());
         }
-        value = updater(std::move(value), Decoder<UpdateValue>::decode(communicator, next->getEncodedValue()));
+        updater(value, Decoder<UpdateValue>::decode(communicator, next->getEncodedValue()));
         std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(next)->setValue(std::move(value));
     };
 
