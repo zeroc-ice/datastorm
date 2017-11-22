@@ -39,7 +39,7 @@ main(int argc, char* argv[])
         writer.waitForReaders();
         writer.add(Stock(12.0f, 13.0f, 14.0f));
         writer.update("price", 15.0f);
-        writer.update("price", 18.0);
+        writer.update("price", 18.0f);
         writer.waitForNoReaders();
     }
     cout << "ok" << endl;

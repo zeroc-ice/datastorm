@@ -38,6 +38,7 @@ template<typename T> bool compare(shared_ptr<T> v1, shared_ptr<T> v2)
 template<typename T, typename A, typename U> void
 testReader(T topic, A add, U update)
 {
+    topic.setReaderDefaultConfig(ReaderConfig(-1, Ice::nullopt, ClearHistoryPolicy::Never));
     map<typename decltype(topic)::KeyType, typename decltype(topic)::ReaderType> readers;
     for(auto p : add)
     {

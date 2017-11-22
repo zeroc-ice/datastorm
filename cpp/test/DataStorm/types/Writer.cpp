@@ -29,6 +29,7 @@ enum class color : unsigned char
 template<typename T, typename A, typename U> void
 testWriter(T topic, A add, U update)
 {
+    topic.setWriterDefaultConfig(WriterConfig(-1, Ice::nullopt, ClearHistoryPolicy::Never));
     using WriterType = decltype(makeSingleKeyWriter(topic, typename decltype(add)::key_type()));
     map<typename decltype(topic)::KeyType, WriterType> writers;
     for(auto p : add)
