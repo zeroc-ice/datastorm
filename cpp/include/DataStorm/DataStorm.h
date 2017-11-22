@@ -46,7 +46,7 @@ template<typename, typename, typename, typename> class FilteredReader;
  * The Sample template provides access to key, value and type of
  * an update to a data element.
  */
-template<typename Key, typename Value> class Sample
+template<typename Key, typename Value, typename UpdateTag=std::string> class Sample
 {
 public:
 
@@ -70,12 +70,21 @@ public:
     /**
      * The value of the sample.
      *
-     * Depending on the sample type, the sample value might not always be
-     * available. It is for instance the case if the sample type is Remove.
+     * Depending on the sample event, the sample value might not always be
+     * available. It is for instance the case if the sample event is Remove.
      *
      * @return The sample value.
      */
     Value getValue() const;
+
+    /**
+     * The update tag for the partial update.
+     *
+     * This method should only be called if the sample event is PartialUpdate.
+     *
+     * @return The update tag.
+     */
+    UpdateTag getUpdateTag() const;
 
     /**
      * The timestamp of the sample.
@@ -104,7 +113,7 @@ public:
 
 private:
 
-    std::shared_ptr<DataStormInternal::SampleT<Key, Value>> _impl;
+    std::shared_ptr<DataStormInternal::SampleT<Key, Value, UpdateTag>> _impl;
 };
 
 /**
@@ -114,7 +123,6 @@ private:
 
 #include <regex.h>
 
-template<typename T>
 class RegexFilter
 {
 public:
@@ -138,7 +146,7 @@ public:
      * @param value The value to match against the regular expression.
      * @return True if the value matches the regular expression, false otherwise.
      */
-    bool match(const T& value) const
+    template<typename T> bool match(const T& value) const
     {
         std::ostringstream os;
         os << value;
@@ -152,7 +160,6 @@ private:
 
 #else
 
-template<typename T>
 class RegexFilter
 {
 public:
@@ -172,7 +179,7 @@ public:
      * @param value The value to match against the regular expression.
      * @return True if the value matches the regular expression, false otherwise.
      */
-    bool match(const T& value) const
+    template<typename T> bool match(const T& value) const
     {
         std::ostringstream os;
         os << value;
@@ -188,9 +195,9 @@ private:
 
 
 /**
- * The SampleEventFilter template filters samples based on a set of sample types.
+ * The SampleEventFilter template filters samples based on a set of sample events.
  **/
-template<typename Key, typename Value> struct SampleEventFilter
+struct SampleEventFilter
 {
 public:
 
@@ -204,12 +211,13 @@ public:
     }
 
     /**
-     * Returns wether or not the sample matches the sample types.
+     * Returns wether or not the sample matches the sample events.
      *
      * @param sample The sample to match against the filter.
-     * @return True if the sample type matches the filter sample types, false otherwise.
+     * @return True if the sample event matches the filter sample events, false otherwise.
      */
-    bool match(const Sample<Key, Value>& sample) const
+    template<typename Key, typename Value, typename UpdateTag>
+    bool match(const Sample<Key, Value, UpdateTag>& sample) const
     {
         return std::find(_events.begin(), _events.end(), sample.getEvent()) != _events.end();
     }
@@ -256,9 +264,9 @@ operator<<(std::ostream& os, const std::vector<SampleEvent>& types)
     return os;
 }
 
-template<typename K, typename V>
+template<typename K, typename V, typename U>
 std::ostream&
-operator<<(std::ostream& os, const Sample<K, V>& sample)
+operator<<(std::ostream& os, const Sample<K, V, U>& sample)
 {
     os << sample.getValue();
     return os;
@@ -445,14 +453,14 @@ public:
      *
      * @return The data samples.
      */
-    std::vector<Sample<Key, Value>> getAll() const;
+    std::vector<Sample<Key, Value, UpdateTag>> getAll() const;
 
     /**
      * Returns all the unread data samples.
      *
      * @return The unread data samples.
      */
-    std::vector<Sample<Key, Value>> getAllUnread();
+    std::vector<Sample<Key, Value, UpdateTag>> getAllUnread();
 
     /**
      * Wait for given number of unread data samples to be available.
@@ -469,7 +477,7 @@ public:
      *
      * @return The unread data sample.
      */
-    Sample<Key, Value> getNextUnread();
+    Sample<Key, Value, UpdateTag> getNextUnread();
 
     /**
      * Calls the given lambda when a new writer connects to this reader.
@@ -477,7 +485,7 @@ public:
      * @param callback The lambda to call when a new reader connects. The tuple
      *                 provided to the lambda indentifies the writer.
      *
-     * @see Sample<K, V>::getOrigin
+     * @see Sample<K, V, U>::getOrigin
      **/
     void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
 
@@ -487,7 +495,7 @@ public:
      * @param callback The lambda to call when a new reader disconnects. The tuple
      *                 provided to the lambda indentifies the writer.
      *
-     * @see Sample<K, V>::getOrigin
+     * @see Sample<K, V, U>::getOrigin
      **/
     void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
 
@@ -497,7 +505,7 @@ public:
      *
      * @param callback The lambda to call when initialization samples are received.
      **/
-    void onInit(std::function<void(std::vector<Sample<Key, Value>>)>);
+    void onInit(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)>);
 
     /**
      * Calls the given lambda when a sample is queued with this reader. If
@@ -505,7 +513,7 @@ public:
      *
      * @param callback The lambda to call when a sample is queued.
      **/
-    void onSample(std::function<void(Sample<Key, Value>)>);
+    void onSample(std::function<void(Sample<Key, Value, UpdateTag>)>);
 
 protected:
 
@@ -935,7 +943,7 @@ public:
      * @param callback The lambda to call when a new writer connects. The tuple
      *                 provided to the lambda indentifies the reader.
      *
-     * @see Sample<K, V>::getOrigin
+     * @see Sample<K, V, U>::getOrigin
      **/
     void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
 
@@ -946,7 +954,7 @@ public:
      * @param callback The lambda to call when a new writer disconnects. The tuple
      *                 provided to the lambda indentifies the reader.
 
-     * @see Sample<K, V>::getOrigin
+     * @see Sample<K, V, U>::getOrigin
      **/
     void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
 
@@ -1206,38 +1214,45 @@ namespace DataStorm
 //
 // Sample template implementation
 //
-template<typename Key, typename Value> SampleEvent
-Sample<Key, Value>::getEvent() const
+template<typename Key, typename Value, typename UpdateTag> SampleEvent
+Sample<Key, Value, UpdateTag>::getEvent() const
 {
     return _impl->event;
 }
 
-template<typename Key, typename Value> Key
-Sample<Key, Value>::getKey() const
+template<typename Key, typename Value, typename UpdateTag> Key
+Sample<Key, Value, UpdateTag>::getKey() const
 {
     return _impl->getKey();
 }
 
-template<typename Key, typename Value> Value
-Sample<Key, Value>::getValue() const
+template<typename Key, typename Value, typename UpdateTag> Value
+Sample<Key, Value, UpdateTag>::getValue() const
 {
     return _impl->getValue();
 }
 
-template<typename Key, typename Value> std::chrono::time_point<std::chrono::system_clock>
-Sample<Key, Value>::getTimeStamp() const
+template<typename Key, typename Value, typename UpdateTag> UpdateTag
+Sample<Key, Value, UpdateTag>::getUpdateTag() const
+{
+    return _impl->getTag();
+}
+
+template<typename Key, typename Value, typename UpdateTag> std::chrono::time_point<std::chrono::system_clock>
+Sample<Key, Value, UpdateTag>::getTimeStamp() const
 {
     return _impl->timestamp;
 }
 
-template<typename Key, typename Value> std::tuple<std::string, long long int, long long int>
-Sample<Key, Value>::getOrigin() const
+template<typename Key, typename Value, typename UpdateTag> std::tuple<std::string, long long int, long long int>
+Sample<Key, Value, UpdateTag>::getOrigin() const
 {
     return std::make_tuple<std::string, long long int, long long int>(_impl->session, _impl->topic, _impl->element);
 }
 
-template<typename Key, typename Value> Sample<Key, Value>::Sample(const std::shared_ptr<DataStormInternal::Sample>& impl) :
-    _impl(std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(impl))
+template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>::Sample(
+    const std::shared_ptr<DataStormInternal::Sample>& impl) :
+    _impl(std::static_pointer_cast<DataStormInternal::SampleT<Key, Value, UpdateTag>>(impl))
 {
 }
 
@@ -1271,11 +1286,11 @@ Reader<Key, Value, UpdateTag>::waitForNoWriters() const
     _impl->waitForWriters(-1);
 }
 
-template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value>>
+template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
 Reader<Key, Value, UpdateTag>::getAll() const
 {
     auto all = _impl->getAll();
-    std::vector<Sample<Key, Value>> samples;
+    std::vector<Sample<Key, Value, UpdateTag>> samples;
     samples.reserve(all.size());
     for(const auto& sample : all)
     {
@@ -1284,11 +1299,11 @@ Reader<Key, Value, UpdateTag>::getAll() const
     return samples;
 }
 
-template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value>>
+template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
 Reader<Key, Value, UpdateTag>::getAllUnread()
 {
     auto unread = _impl->getAllUnread();
-    std::vector<Sample<Key, Value>> samples;
+    std::vector<Sample<Key, Value, UpdateTag>> samples;
     samples.reserve(unread.size());
     for(auto sample : unread)
     {
@@ -1309,10 +1324,10 @@ Reader<Key, Value, UpdateTag>::hasUnread() const
     return _impl->hasUnread();
 }
 
-template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value>
+template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>
 Reader<Key, Value, UpdateTag>::getNextUnread()
 {
-    return Sample<Key, Value>(_impl->getNextUnread());
+    return Sample<Key, Value, UpdateTag>(_impl->getNextUnread());
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1328,12 +1343,12 @@ Reader<Key, Value, UpdateTag>::onDisconnect(std::function<void(std::tuple<std::s
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onInit(std::function<void(std::vector<Sample<Key, Value>>)> callback)
+Reader<Key, Value, UpdateTag>::onInit(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback)
 {
     auto communicator = _impl->getCommunicator();
     _impl->onInit([communicator, callback](const std::vector<std::shared_ptr<DataStormInternal::Sample>>& samplesI)
     {
-        std::vector<Sample<Key, Value>> samples;
+        std::vector<Sample<Key, Value, UpdateTag>> samples;
         samples.reserve(samplesI.size());
         for(const auto& s : samplesI)
         {
@@ -1344,12 +1359,12 @@ Reader<Key, Value, UpdateTag>::onInit(std::function<void(std::vector<Sample<Key,
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onSample(std::function<void(Sample<Key, Value>)> callback)
+Reader<Key, Value, UpdateTag>::onSample(std::function<void(Sample<Key, Value, UpdateTag>)> callback)
 {
     auto communicator = _impl->getCommunicator();
     _impl->onSample([communicator, callback](const std::shared_ptr<DataStormInternal::Sample>& sample)
     {
-        callback(Sample<Key, Value>(sample));
+        callback(Sample<Key, Value, UpdateTag>(sample));
     });
 }
 
@@ -1543,7 +1558,7 @@ KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::KeyWriter(
                                                  DataStormInternal::FilterFactoryT<
                                                      SampleFilter,
                                                      SampleFilterCriteria,
-                                                     DataStormInternal::SampleT<Key, Value>>::createFactory())),
+                                                     DataStormInternal::SampleT<Key, Value, UpdateTag>>::createFactory())),
     _tagFactory(topic._tagFactory)
 {
 }
@@ -1560,14 +1575,14 @@ template<typename Key, typename Value, typename SampleFilter, typename SampleFil
 KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::add(const Value& value)
 {
    Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Add, value));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Add, value));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
 KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const Value& value)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Update, value));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Update, value));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
@@ -1576,15 +1591,16 @@ KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(con
                                                                              const UpdateValue& value)
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
+
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(encoded, _tagFactory->create(tag)));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
 KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::remove()
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Remove));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
@@ -1593,12 +1609,13 @@ MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::Multi
         Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
         std::vector<Key> keys,
         WriterConfig config) :
-    Writer<Key, Value, UpdateTag>(topic.getWriter()->create(topic._keyFactory->create(std::move(keys)),
-                                                            std::move(config),
-                                                            DataStormInternal::FilterFactoryT<
-                                                                SampleFilter,
-                                                                SampleFilterCriteria,
-                                                                DataStormInternal::SampleT<Key, Value>>::createFactory())),
+    Writer<Key, Value, UpdateTag>(topic.getWriter()->create(
+        topic._keyFactory->create(std::move(keys)),
+        std::move(config),
+        DataStormInternal::FilterFactoryT<
+            SampleFilter,
+            SampleFilterCriteria,
+            DataStormInternal::SampleT<Key, Value, UpdateTag>>::createFactory())),
     _keyFactory(topic._keyFactory),
     _tagFactory(topic._tagFactory)
 {
@@ -1617,14 +1634,14 @@ template<typename Key, typename Value, typename SampleFilter, typename SampleFil
 MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::add(const Key& key, const Value& value)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Add, value));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Add, value));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
 MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const Key& key, const Value& value)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Update, value));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Update, value));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
@@ -1635,14 +1652,14 @@ MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::updat
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(encoded, _tagFactory->create(tag)));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
 MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::remove(const Key& key)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
-        std::make_shared<DataStormInternal::SampleT<Key, Value>>(SampleEvent::Remove));
+        std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
 }
 
 //
@@ -1747,10 +1764,11 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setUpdater(const Upd
         Value value;
         if(previous)
         {
-            value = Cloner<Value>::clone(std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(previous)->getValue());
+            value = Cloner<Value>::clone(
+                std::static_pointer_cast<DataStormInternal::SampleT<Key, Value, UpdateTag>>(previous)->getValue());
         }
         updater(value, Decoder<UpdateValue>::decode(communicator, next->getEncodedValue()));
-        std::static_pointer_cast<DataStormInternal::SampleT<Key, Value>>(next)->setValue(std::move(value));
+        std::static_pointer_cast<DataStormInternal::SampleT<Key, Value, UpdateTag>>(next)->setValue(std::move(value));
     };
 
     if(_reader && !_writer)
@@ -1783,7 +1801,7 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::getReader() const
                                                    _keyFactory,
                                                    _filterFactory,
                                                    _tagFactory,
-                                                   std::make_shared<DataStormInternal::SampleFactoryT<Key, Value>>());
+                                                   std::make_shared<DataStormInternal::SampleFactoryT<Key, Value, UpdateTag>>());
         _reader->setUpdaters(_writer ? _writer->getUpdaters() : _updaters);
         _updaters.clear();
     }

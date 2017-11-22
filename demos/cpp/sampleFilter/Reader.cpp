@@ -20,6 +20,7 @@ main(int argc, char* argv[])
     // Instantiates the "hello" topic. The topic uses strings for keys and values.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
+    topic.setReaderDefaultConfig(DataStorm::ReaderConfig(-1)); // Keeps all the samples in the history.
 
     //
     // Wait for a writer to connect.
@@ -33,7 +34,7 @@ main(int argc, char* argv[])
     // Here, the criteria is the string "good.*". This string is provided to writers
     // to perform the sample filtering.
     //
-    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "good.*", DataStorm::ReaderConfig(-1));
+    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "good.*");
 
     //
     // Get the 2 samples published by the writer which starts with good

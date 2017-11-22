@@ -170,7 +170,7 @@ main(int argc, char* argv[])
     }
 
     {
-        Topic<string, shared_ptr<Test::Base>, RegexFilter<string>, string> topic(node, "baseclass3");
+        Topic<string, shared_ptr<Test::Base>, RegexFilter, string> topic(node, "baseclass3");
 
         auto reader = makeFilteredReader(topic, "elem[0-4]", config);
 
@@ -198,7 +198,7 @@ main(int argc, char* argv[])
         testSample(SampleEvent::Add, "elem4", "value1");
     }
     {
-        Topic<string, string, RegexFilter<string>, string> topic(node, "filtered reader key/value filter");
+        Topic<string, string, RegexFilter, string> topic(node, "filtered reader key/value filter");
         {
             auto testSample = [](typename decltype(topic)::ReaderType& reader,
                                  SampleEvent event,

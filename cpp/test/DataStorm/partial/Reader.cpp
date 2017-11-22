@@ -41,10 +41,12 @@ main(int argc, char* argv[])
 
         sample = reader.getNextUnread();
         test(sample.getEvent() == SampleEvent::PartialUpdate);
+        test(sample.getUpdateTag() == "price");
         test(sample.getValue().price == 15.0f);
 
         sample = reader.getNextUnread();
         test(sample.getEvent() == SampleEvent::PartialUpdate);
+        test(sample.getUpdateTag() == "price");
         test(sample.getValue().price == 18.0f);
 
         // Late joining reader should receives update events instead of partial updates
