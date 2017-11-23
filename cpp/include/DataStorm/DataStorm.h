@@ -1018,8 +1018,8 @@ public:
      * @param tag The partial update tag.
      * @param value The partial update value.
      */
-    template<typename UpdateValue>
-    void update(const UpdateTag&, const UpdateValue&);
+    template<typename UpdateValue, typename Update>
+    void update(const UpdateTag&, const Update&);
 
     /**
      * Remove the data element. This generates a {@link Remove} data sample.
@@ -1086,8 +1086,8 @@ public:
      * @param tag The partial update tag.
      * @param value The partial update value.
      */
-    template<typename UpdateValue>
-    void update(const Key&, const UpdateTag&, const UpdateValue&);
+    template<typename UpdateValue, typename Update>
+    void update(const Key&, const UpdateTag&, const Update&);
 
     /**
      * Remove the data element. This generates a {@link Remove} data sample.
@@ -1586,12 +1586,11 @@ KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(con
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
-template<typename UpdateValue> void
+template<typename UpdateValue, typename Update> void
 KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const UpdateTag& tag,
-                                                                             const UpdateValue& value)
+                                                                             const Update& value)
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
-
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
 }
@@ -1645,10 +1644,10 @@ MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::updat
 }
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
-template<typename UpdateValue> void
+template<typename UpdateValue, typename Update> void
 MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const Key& key,
                                                                                   const UpdateTag& tag,
-                                                                                  const UpdateValue& value)
+                                                                                  const Update& value)
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
