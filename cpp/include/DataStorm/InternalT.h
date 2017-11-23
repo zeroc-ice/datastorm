@@ -375,6 +375,12 @@ public:
         return _encodedValue;
     }
 
+    virtual std::vector<unsigned char> encodeValue(const std::shared_ptr<Ice::Communicator>& communicator) override
+    {
+        assert(_hasValue);
+        return DataStorm::Encoder<Value>::encode(communicator, _value);
+    }
+
     virtual void decode(const std::shared_ptr<Ice::Communicator>& communicator) override
     {
         if(!_encodedValue.empty())

@@ -48,11 +48,7 @@ main(int argc, char* argv[])
             testSample(SampleEvent::Update, "elem1", "value2");
             testSample(SampleEvent::Remove, "elem1");
 
-            auto samples = reader.getAll();
-            test(samples.size() == 3);
-
-            samples = reader.getAllUnread();
-            test(samples.empty());
+            test(reader.getAllUnread().empty());
         }
         {
             auto reader1 = makeSingleKeyReader(topic, "elem2", config);
@@ -157,7 +153,7 @@ main(int argc, char* argv[])
         auto reader = makeMultiKeyReader(topic, { "elem1", "elem2" }, config);
         reader.waitForWriters(2);
         reader.waitForUnread(6);
-        test(reader.getAll().size() == 6);
+        test(reader.getAllUnread().size() == 6);
     }
 
     {
@@ -166,7 +162,7 @@ main(int argc, char* argv[])
         auto reader = makeAnyKeyReader(topic, config);
         reader.waitForWriters(2);
         reader.waitForUnread(6);
-        test(reader.getAll().size() == 6);
+        test(reader.getAllUnread().size() == 6);
     }
 
     {

@@ -87,15 +87,11 @@ public:
 
     virtual void decode(const std::shared_ptr<Ice::Communicator>&) = 0;
     virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>&) = 0;
+    virtual std::vector<unsigned char> encodeValue(const std::shared_ptr<Ice::Communicator>&) = 0;
 
     const std::vector<unsigned char>& getEncodedValue() const
     {
         return _encodedValue;
-    }
-
-    void clearEncodedValue()
-    {
-        _encodedValue.clear();
     }
 
     std::string session;
@@ -160,8 +156,6 @@ public:
     virtual bool hasWriters() = 0;
     virtual void waitForWriters(int) = 0;
     virtual int getInstanceCount() const = 0;
-
-    virtual std::vector<std::shared_ptr<Sample>> getAll() = 0;
 
     virtual std::vector<std::shared_ptr<Sample>> getAllUnread() = 0;
     virtual void waitForUnread(unsigned int) const = 0;

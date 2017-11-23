@@ -392,24 +392,11 @@ DataReaderI::getInstanceCount() const
 }
 
 vector<shared_ptr<Sample>>
-DataReaderI::getAll()
-{
-    getAllUnread(); // Read and add unread
-
-    lock_guard<mutex> lock(_parent->_mutex);
-    return vector<shared_ptr<Sample>>(_all.begin(), _all.end());
-}
-
-vector<shared_ptr<Sample>>
 DataReaderI::getAllUnread()
 {
     lock_guard<mutex> lock(_parent->_mutex);
-    vector<shared_ptr<Sample>> unread(_unread.begin(), _unread.end());
-    for(const auto& s : unread)
-    {
-        _all.push_back(s);
-    }
-    _unread.clear();
+    vector<shared_ptr<Sample>> unread(_samples.begin(), _samples.end());
+    _samples.clear();
     return unread;
 }
 
@@ -417,7 +404,7 @@ void
 DataReaderI::waitForUnread(unsigned int count) const
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    while(_unread.size() < count)
+    while(_samples.size() < count)
     {
         _parent->_cond.wait(lock);
     }
@@ -427,17 +414,16 @@ bool
 DataReaderI::hasUnread() const
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    return !_unread.empty();
+    return !_samples.empty();
 }
 
 shared_ptr<Sample>
 DataReaderI::getNextUnread()
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _parent->_cond.wait(lock, [&]() { return !_unread.empty(); });
-    shared_ptr<Sample> sample = _unread.front();
-    _unread.pop_front();
-    _all.push_back(sample);
+    _parent->_cond.wait(lock, [&]() { return !_samples.empty(); });
+    shared_ptr<Sample> sample = _samples.front();
+    _samples.pop_front();
     return sample;
 }
 
@@ -453,7 +439,7 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         out << this << ": initialized " << samples.size() << " samples from `" << element << '@' << topic << "'";
     }
 
-    shared_ptr<Sample> previous = !_unread.empty() ? _unread.back() : (!_all.empty() ? _all.back() : nullptr);
+    shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
     for(const auto& sample : samples)
     {
         if(sample->event == DataStorm::SampleEvent::PartialUpdate)
@@ -477,28 +463,23 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
-        cleanOldSamples(_all, now, *_config->sampleLifetime);
-        cleanOldSamples(_unread, now, *_config->sampleLifetime);
+        cleanOldSamples(_samples, now, *_config->sampleLifetime);
     }
 
     if(_config->sampleCount)
     {
         if(*_config->sampleCount > 0)
         {
-            size_t count = _all.size() + _unread.size();
+            size_t count = _samples.size();
             size_t maxCount = static_cast<size_t>(*_config->sampleCount);
             if(count + samples.size() > maxCount)
             {
                 count = count + samples.size() - maxCount;
-                while(!_all.empty() && count-- > 0)
+                while(!_samples.empty() && count-- > 0)
                 {
-                    _all.pop_front();
+                    _samples.pop_front();
                 }
-                while(!_unread.empty() && count-- > 0)
-                {
-                    _unread.pop_front();
-                }
-                assert(_all.size() + _unread.size() + samples.size() == maxCount);
+                assert(_samples.size() + samples.size() == maxCount);
             }
         }
         else if(*_config->sampleCount == 0)
@@ -517,10 +498,9 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
              (*_config->clearHistory == ClearHistoryPolicy::Remove ||
               *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
         {
-            _all.clear();
-            _unread.clear();
+            _samples.clear();
         }
-        _unread.push_back(s);
+        _samples.push_back(s);
     }
     _parent->_cond.notify_all();
 }
@@ -545,7 +525,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
     {
         if(sample->event == DataStorm::SampleEvent::PartialUpdate)
         {
-            shared_ptr<Sample> previous = !_unread.empty() ? _unread.back() : (!_all.empty() ? _all.back() : nullptr);
+            shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
             _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
         }
         else
@@ -561,27 +541,22 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
-        cleanOldSamples(_all, now, *_config->sampleLifetime);
-        cleanOldSamples(_unread, now, *_config->sampleLifetime);
+        cleanOldSamples(_samples, now, *_config->sampleLifetime);
     }
 
     if(_config->sampleCount)
     {
         if(*_config->sampleCount > 0)
         {
-            size_t count = _all.size() + _unread.size();
+            size_t count = _samples.size();
             size_t maxCount = static_cast<size_t>(*_config->sampleCount);
             if(count + 1 > maxCount)
             {
-                if(!_all.empty())
+                if(!_samples.empty())
                 {
-                    _all.pop_front();
+                    _samples.pop_front();
                 }
-                else if(!_unread.empty())
-                {
-                    _unread.pop_front();
-                }
-                assert(_all.size() + _unread.size() + 1 == maxCount);
+                assert(_samples.size() + 1 == maxCount);
             }
         }
         else if(*_config->sampleCount == 0)
@@ -598,10 +573,9 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
          (*_config->clearHistory == ClearHistoryPolicy::Remove ||
           *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
     {
-        _all.clear();
-        _unread.clear();
+        _samples.clear();
     }
-    _unread.push_back(sample);
+    _samples.push_back(sample);
     _parent->_cond.notify_all();
 }
 
@@ -636,7 +610,7 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     if(sample->event == DataStorm::SampleEvent::PartialUpdate)
     {
         assert(!sample->hasValue());
-        shared_ptr<Sample> previous = !_all.empty() ? _all.back() : nullptr;
+        shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
         _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
     }
 
@@ -651,16 +625,16 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
-        cleanOldSamples(_all, sample->timestamp, *_config->sampleLifetime);
+        cleanOldSamples(_samples, sample->timestamp, *_config->sampleLifetime);
     }
 
     if(_config->sampleCount)
     {
         if(*_config->sampleCount > 0)
         {
-            if(_all.size() + 1 > static_cast<size_t>(*_config->sampleCount))
+            if(_samples.size() + 1 > static_cast<size_t>(*_config->sampleCount))
             {
-                _all.pop_front();
+                _samples.pop_front();
             }
         }
         else if(*_config->sampleCount == 0)
@@ -677,16 +651,9 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
          (*_config->clearHistory == ClearHistoryPolicy::Remove ||
           *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
     {
-        _all.clear();
+        _samples.clear();
     }
-
-    // Don't keep partial update events in the history
-    if(sample->event == DataStorm::SampleEvent::PartialUpdate)
-    {
-        sample->event = DataStorm::SampleEvent::Update;
-        sample->clearEncodedValue(); // Clear the encoded partial update to force the sample to re-encode the value.
-    }
-    _all.push_back(sample);
+    _samples.push_back(sample);
 }
 
 shared_ptr<Filter>
@@ -836,7 +803,7 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
-        cleanOldSamples(_all, now, *_config->sampleLifetime);
+        cleanOldSamples(_samples, now, *_config->sampleLifetime);
     }
 
     chrono::time_point<chrono::system_clock> staleTime = chrono::time_point<chrono::system_clock>::min();
@@ -845,7 +812,8 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
         staleTime = now - chrono::milliseconds(*config->sampleLifetime);
     }
 
-    for(auto p = _all.rbegin(); p != _all.rend(); ++p)
+    shared_ptr<Sample> first;
+    for(auto p = _samples.rbegin(); p != _samples.rend(); ++p)
     {
         if((*p)->timestamp < staleTime)
         {
@@ -853,6 +821,7 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
         }
         if((!key || key == (*p)->key) && (!filter || filter->match(*p)))
         {
+            first = *p;
             samples.push_front(toSample(*p, getCommunicator()));
             if(config->sampleCount &&
                *config->sampleCount > 0 && static_cast<size_t>(*config->sampleCount) == samples.size())
@@ -870,6 +839,18 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
             {
                 break;
             }
+        }
+    }
+    if(!samples.empty())
+    {
+        // If the first sample is a partial update, transform it to an full Update
+        if(first->event == DataStorm::SampleEvent::PartialUpdate)
+        {
+            samples[0] = { first->id,
+                           chrono::time_point_cast<chrono::microseconds>(first->timestamp).time_since_epoch().count(),
+                           0,
+                           DataStorm::SampleEvent::Update,
+                           first->encodeValue(getCommunicator()) };
         }
     }
     return samples;

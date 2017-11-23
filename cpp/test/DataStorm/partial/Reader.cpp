@@ -49,18 +49,28 @@ main(int argc, char* argv[])
         test(sample.getUpdateTag() == "price");
         test(sample.getValue().price == 18.0f);
 
-        // Late joining reader should receives update events instead of partial updates
+        // Late joining reader should still receive update events instead of partial updates
         auto reader2 = makeSingleKeyReader(topic, "AAPL");
         sample = reader2.getNextUnread();
         test(sample.getEvent() == SampleEvent::Add);
         test(sample.getValue().price == 12.0f);
 
         sample = reader2.getNextUnread();
-        test(sample.getEvent() == SampleEvent::Update);
+        test(sample.getEvent() == SampleEvent::PartialUpdate);
         test(sample.getValue().price == 15.0f);
 
         sample = reader2.getNextUnread();
+        test(sample.getEvent() == SampleEvent::PartialUpdate);
+        test(sample.getValue().price == 18.0f);
+
+        // Late joining reader with limited sample count should receive one Update event and a PartialUpdate event
+        auto reader3 = makeSingleKeyReader(topic, "AAPL", ReaderConfig(2));
+        sample = reader3.getNextUnread();
         test(sample.getEvent() == SampleEvent::Update);
+        test(sample.getValue().price == 15.0f);
+
+        sample = reader3.getNextUnread();
+        test(sample.getEvent() == SampleEvent::PartialUpdate);
         test(sample.getValue().price == 18.0f);
     }
 

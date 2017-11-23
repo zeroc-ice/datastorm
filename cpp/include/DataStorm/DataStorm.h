@@ -449,13 +449,6 @@ public:
     void waitForNoWriters() const;
 
     /**
-     * Returns all the data samples available with this reader.
-     *
-     * @return The data samples.
-     */
-    std::vector<Sample<Key, Value, UpdateTag>> getAll() const;
-
-    /**
      * Returns all the unread data samples.
      *
      * @return The unread data samples.
@@ -1284,19 +1277,6 @@ template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::waitForNoWriters() const
 {
     _impl->waitForWriters(-1);
-}
-
-template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
-Reader<Key, Value, UpdateTag>::getAll() const
-{
-    auto all = _impl->getAll();
-    std::vector<Sample<Key, Value, UpdateTag>> samples;
-    samples.reserve(all.size());
-    for(const auto& sample : all)
-    {
-        samples.emplace_back(sample);
-    }
-    return samples;
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>

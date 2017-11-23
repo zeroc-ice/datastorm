@@ -119,12 +119,14 @@ main(int argc, char* argv[])
         // Reader wants 3ms worth of samples
         readers.update(false);
         auto reader = makeSingleKeyReader(topic, "elem1", config);
-        test(reader.getNextUnread().getValue() == "value3");
-        test(reader.getNextUnread().getValue() == "value4");
-        test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
+        reader.waitForUnread(3);
+        auto samples = reader.getAllUnread();
+        test(samples[0].getValue() == "value3");
+        test(samples[1].getValue() == "value4");
+        test(samples[2].getEvent() == SampleEvent::Remove);
         readers.update(true); // Reader is done
 
-        for(const auto& s : reader.getAll())
+        for(const auto& s : samples)
         {
             test(s.getTimeStamp() >= (now - chrono::milliseconds(3)));
         }

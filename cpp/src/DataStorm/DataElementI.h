@@ -202,7 +202,6 @@ public:
 
     virtual int getInstanceCount() const override;
 
-    virtual std::vector<std::shared_ptr<Sample>> getAll() override;
     virtual std::vector<std::shared_ptr<Sample>> getAllUnread() override;
     virtual void waitForUnread(unsigned int) const override;
     virtual bool hasUnread() const override;
@@ -220,8 +219,7 @@ protected:
 
     TopicReaderI* _parent;
 
-    std::deque<std::shared_ptr<Sample>> _all;
-    std::deque<std::shared_ptr<Sample>> _unread;
+    std::deque<std::shared_ptr<Sample>> _samples;
     int _instanceCount;
     std::function<void(const std::vector<std::shared_ptr<Sample>>&)> _onInit;
     std::function<void(const std::shared_ptr<Sample>&)> _onSample;
@@ -244,7 +242,7 @@ protected:
     TopicWriterI* _parent;
     std::shared_ptr<FilterFactory> _sampleFilterFactory;
     std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
-    std::deque<std::shared_ptr<Sample>> _all;
+    std::deque<std::shared_ptr<Sample>> _samples;
 };
 
 class KeyDataReaderI : public DataReaderI
