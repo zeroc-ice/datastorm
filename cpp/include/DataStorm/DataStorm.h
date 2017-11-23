@@ -65,7 +65,7 @@ public:
      *
      * @return The sample key.
      */
-    Key getKey() const;
+    const Key& getKey() const;
 
     /**
      * The value of the sample.
@@ -75,7 +75,7 @@ public:
      *
      * @return The sample value.
      */
-    Value getValue() const;
+    const Value& getValue() const;
 
     /**
      * The update tag for the partial update.
@@ -1213,13 +1213,13 @@ Sample<Key, Value, UpdateTag>::getEvent() const
     return _impl->event;
 }
 
-template<typename Key, typename Value, typename UpdateTag> Key
+template<typename Key, typename Value, typename UpdateTag> const Key&
 Sample<Key, Value, UpdateTag>::getKey() const
 {
     return _impl->getKey();
 }
 
-template<typename Key, typename Value, typename UpdateTag> Value
+template<typename Key, typename Value, typename UpdateTag> const Value&
 Sample<Key, Value, UpdateTag>::getValue() const
 {
     return _impl->getValue();

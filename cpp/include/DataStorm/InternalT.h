@@ -332,12 +332,13 @@ public:
         return DataStorm::Sample<Key, Value, UpdateTag>(impl);
     }
 
-    Key getKey()
+    const Key& getKey()
     {
-        return key ? std::static_pointer_cast<KeyT<Key>>(key)->get() : Key();
+        assert(key);
+        return std::static_pointer_cast<KeyT<Key>>(key)->get();
     }
 
-    Value getValue() const
+    const Value& getValue() const
     {
         assert(_hasValue);
         return _value;
@@ -361,7 +362,15 @@ public:
 
     virtual void setValue(const std::shared_ptr<Sample>& sample) override
     {
-        _value = sample ? std::static_pointer_cast<SampleT<Key, Value, UpdateTag>>(sample)->getValue() : Value();
+        if(sample)
+        {
+            _value = DataStorm::Cloner<Value>::clone(
+                std::static_pointer_cast<DataStormInternal::SampleT<Key, Value, UpdateTag>>(sample)->getValue());
+        }
+        else
+        {
+            _value = Value();
+        }
         _hasValue = true;
     }
 
