@@ -99,16 +99,17 @@ main(int argc, char* argv[])
 
         // Keep 3ms worth of samples in the history
         WriterConfig config;
-        config.sampleLifetime = 3;
+        config.sampleLifetime = 20;
         auto writer = makeSingleKeyWriter(topic, "elem1", config);
         writer.add("value1");
         writer.update("value2");
         writer.remove();
-        this_thread::sleep_for(chrono::milliseconds(4));
+        this_thread::sleep_for(chrono::milliseconds(20));
+        writers.update(true); // Ready
+        writer.waitForReaders();
         writer.add("value3");
         writer.update("value4");
         writer.remove();
-        writers.update(true); // Ready
 
         while(!readers.getNextUnread().getValue()); // Wait for reader to be done
     }

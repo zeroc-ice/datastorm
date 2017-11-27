@@ -194,15 +194,12 @@ template<typename T, typename Enabler=void>
 struct Cloner
 {
     /**
-     * Encode the given value. This method encodes the given value and returns the
-     * resulting byte sequence. The communicator parameter is provided to allow the
-     * implementation to eventually use the Ice encoding.
+     * Clone the given value. This helper is used when processing partial update to
+     * clone the previous value and compute the new value with the partial update.
+     * The default implementation performs a plain C++ copy with the copy constructor.
      *
-     * @see decode
-     *
-     * @param communicator The communicator associated with the node
      * @param value The value to encode
-     * @return The resulting byte sequence
+     * @return The cloned value
      */
     static T clone(const T& value)
     {
@@ -211,7 +208,7 @@ struct Cloner
 };
 
 /**
- * Encoder template specilization to encode Ice::Value instances
+ * Encoder template specilization to encode Ice::Value instances.
  **/
 template<typename T>
 struct Encoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
@@ -223,7 +220,7 @@ struct Encoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::valu
 };
 
 /**
- * Decoder template specilization to decode Ice::Value instances
+ * Decoder template specilization to decode Ice::Value instances.
  **/
 template<typename T>
 struct Decoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>

@@ -16,7 +16,6 @@ using namespace DataStorm;
 using namespace std;
 using namespace Test;
 
-
 namespace
 {
 
@@ -76,8 +75,6 @@ template<> struct Encoder<color>
 };
 
 }
-
-
 
 int
 main(int argc, char* argv[])

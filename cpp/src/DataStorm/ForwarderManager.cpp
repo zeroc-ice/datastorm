@@ -53,4 +53,3 @@ ForwarderManager::ice_invoke(Ice::ByteSeq inEncaps, Ice::ByteSeq&, const Ice::Cu
     p->second->forward(inEncaps, current);
     return true;
 }
-

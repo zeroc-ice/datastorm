@@ -26,4 +26,3 @@
 #   define DATASTORM_DECLSPEC_EXPORT /**/
 #   define DATASTORM_DECLSPEC_IMPORT /**/
 #endif
-

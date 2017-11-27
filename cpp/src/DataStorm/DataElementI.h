@@ -236,7 +236,6 @@ public:
 
 protected:
 
-
     virtual void send(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) const = 0;
 
     TopicWriterI* _parent;

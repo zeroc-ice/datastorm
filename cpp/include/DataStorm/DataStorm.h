@@ -193,7 +193,6 @@ private:
 
 #endif
 
-
 /**
  * The SampleEventFilter template filters samples based on a set of sample events.
  **/
@@ -1195,7 +1194,6 @@ makeAnyKeyWriter(Topic<K, V, KF, KFC, UT>& topic, WriterConfig config = WriterCo
 }
 
 }
-
 
 //
 // Public template based API implementation

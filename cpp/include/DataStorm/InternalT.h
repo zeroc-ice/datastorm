@@ -309,7 +309,6 @@ public:
     {
     }
 
-
     SampleT(DataStorm::SampleEvent event) : Sample(event), _hasValue(false)
     {
     }
@@ -460,7 +459,6 @@ private:
     F _filter;
 };
 
-
 template<typename F, typename C, typename V> class FilterFactoryT : public FilterFactory,
                                                                     public AbstractFactoryT<C, FilterT<F, C, V>>
 {
@@ -506,6 +504,5 @@ public:
         return nullptr;
     }
 };
-
 
 }

@@ -614,13 +614,14 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
         _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
     }
 
+    sample->id = ++_parent->_nextSampleId;
+    sample->timestamp = chrono::system_clock::now();
+
     if(_traceLevels->data > 1)
     {
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": publishing sample " << sample->id << " listeners=" << _listenerCount;
     }
-    sample->id = ++_parent->_nextSampleId;
-    sample->timestamp = chrono::system_clock::now();
     send(key, sample);
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
