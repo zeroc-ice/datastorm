@@ -144,6 +144,7 @@ public:
 
     virtual void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) = 0;
     virtual void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) = 0;
+    virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const = 0;
 
     virtual void destroy() = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
@@ -172,6 +173,9 @@ public:
 
     virtual bool hasReaders() const = 0;
     virtual void waitForReaders(int) const = 0;
+
+    virtual std::shared_ptr<Sample> getLast() const = 0;
+    virtual std::vector<std::shared_ptr<Sample>> getAll() const = 0;
 
     virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) = 0;
 };

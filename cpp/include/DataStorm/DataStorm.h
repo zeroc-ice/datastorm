@@ -448,6 +448,13 @@ public:
     void waitForNoWriters() const;
 
     /**
+     * Get the keys for which writers are connected to this reader.
+     *
+     * @return The keys for which we have writers connected.
+     **/
+    std::vector<Key> getConnectedKeys() const;
+
+    /**
      * Returns all the unread data samples.
      *
      * @return The unread data samples.
@@ -929,6 +936,27 @@ public:
     void waitForNoReaders() const;
 
     /**
+     * Get the keys for which readers are connected to this writer.
+     *
+     * @return The keys for which we have writers connected.
+     **/
+    std::vector<Key> getConnectedKeys() const;
+
+    /**
+     * Get the last written sample.
+     *
+     * @return The last written sample.
+     **/
+    Sample<Key, Value, UpdateTag> getLast();
+
+    /**
+     * Get all the written sample kept in the writer history.
+     *
+     * @return The sample history.
+     **/
+    std::vector<Sample<Key, Value, UpdateTag>> getAll();
+
+    /**
      *
      * Calls the given lambda when a new reader connects to this writer.
      *
@@ -1277,6 +1305,19 @@ Reader<Key, Value, UpdateTag>::waitForNoWriters() const
     _impl->waitForWriters(-1);
 }
 
+template<typename Key, typename Value, typename UpdateTag> std::vector<Key>
+Reader<Key, Value, UpdateTag>::getConnectedKeys() const
+{
+    std::vector<Key> keys;
+    auto connectedKeys = _impl->getConnectedKeys();
+    keys.reserve(connectedKeys.size());
+    for(const auto& k : connectedKeys)
+    {
+        keys.push_back(std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+    }
+    return keys;
+}
+
 template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
 Reader<Key, Value, UpdateTag>::getAllUnread()
 {
@@ -1511,6 +1552,43 @@ template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::waitForNoReaders() const
 {
     return _impl->waitForReaders(-1);
+}
+
+template<typename Key, typename Value, typename UpdateTag> std::vector<Key>
+Writer<Key, Value, UpdateTag>::getConnectedKeys() const
+{
+    std::vector<Key> keys;
+    auto connectedKeys = _impl->getConnectedKeys();
+    keys.reserve(connectedKeys.size());
+    for(const auto& k : connectedKeys)
+    {
+        keys.push_back(std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+    }
+    return keys;
+}
+
+template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>
+Writer<Key, Value, UpdateTag>::getLast()
+{
+    auto sample = _impl->getLast();
+    if(!sample)
+    {
+        throw std::invalid_argument("no sample");
+    }
+    return Sample<Key, Value, UpdateTag>(sample);
+}
+
+template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
+Writer<Key, Value, UpdateTag>::getAll()
+{
+    auto all = _impl->getAll();
+    std::vector<Sample<Key, Value, UpdateTag>> samples;
+    samples.reserve(all.size());
+    for(auto sample : all)
+    {
+        samples.emplace_back(sample);
+    }
+    return samples;
 }
 
 template<typename Key, typename Value, typename UpdateTag> void

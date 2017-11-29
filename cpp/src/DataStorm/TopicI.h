@@ -133,6 +133,7 @@ protected:
     friend class DataReaderI;
     friend class FilteredDataReaderI;
     friend class DataWriterI;
+    friend class KeyDataWriterI;
 
     const std::weak_ptr<TopicFactoryI> _factory;
     const std::shared_ptr<KeyFactory> _keyFactory;

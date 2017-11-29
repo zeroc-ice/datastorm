@@ -144,7 +144,7 @@ DataElementI::attachKey(long long int topicId,
     {
         p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
-    if(p->second.keys.add(topicId, elementId, sampleFilter))
+    if(p->second.keys.add(topicId, elementId, key, sampleFilter))
     {
         ++_listenerCount;
         session->subscribeToKey(topicId, elementId, key, this, facet);
@@ -204,7 +204,7 @@ DataElementI::attachFilter(long long int topicId,
     {
         p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
-    if(p->second.filters.add(topicId, elementId, sampleFilter))
+    if(p->second.filters.add(topicId, elementId, filter, sampleFilter))
     {
         ++_listenerCount;
         session->subscribeToFilter(topicId, elementId, filter, this, facet);
@@ -261,6 +261,21 @@ DataElementI::onDisconnect(function<void(tuple<string, long long int, long long 
 {
     unique_lock<mutex> lock(_parent->_mutex);
     _onDisconnect = move(callback);
+}
+
+vector<shared_ptr<Key>>
+DataElementI::getConnectedKeys() const
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    set<shared_ptr<Key>> keys;
+    for(const auto& listener : _listeners)
+    {
+        for(const auto& key : listener.second.keys.subscribers)
+        {
+            keys.insert(key.second.element);
+        }
+    }
+    return vector<shared_ptr<Key>>(keys.begin(), keys.end());
 }
 
 void
@@ -502,6 +517,10 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         }
         _samples.push_back(s);
     }
+    if(!samples.empty())
+    {
+        _config->lastId = samples.back()->id;
+    }
     _parent->_cond.notify_all();
 }
 
@@ -576,6 +595,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
         _samples.clear();
     }
     _samples.push_back(sample);
+    _config->lastId = sample->id;
     _parent->_cond.notify_all();
 }
 
@@ -773,6 +793,21 @@ KeyDataWriterI::hasReaders() const
     return hasListeners();
 }
 
+shared_ptr<Sample>
+KeyDataWriterI::getLast() const
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    return _samples.empty () ? nullptr : _samples.back();
+}
+
+vector<std::shared_ptr<Sample>>
+KeyDataWriterI::getAll() const
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    vector<shared_ptr<Sample>> all(_samples.begin(), _samples.end());
+    return all;
+}
+
 string
 KeyDataWriterI::toString() const
 {
@@ -820,6 +855,11 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
         {
             break;
         }
+        else if(config->lastId && (*p)->id <= *config->lastId)
+        {
+            break;
+        }
+
         if((!key || key == (*p)->key) && (!filter || filter->match(*p)))
         {
             first = *p;

@@ -46,16 +46,18 @@ class DataElementI : virtual public DataElement, private Forwarder, public std::
         }
     };
 
-    struct Subscriber
+    template<typename T> struct Subscriber
     {
+        std::shared_ptr<T> element;
         std::shared_ptr<Filter> sampleFilter;
     };
 
     template<typename T> struct Subscribers
     {
-        bool add(long long int topic, long long int element, const std::shared_ptr<Filter>& sampleFilter)
+        bool add(long long int topicId, long long int elementId, const std::shared_ptr<T>& element,
+                 const std::shared_ptr<Filter>& sampleFilter)
         {
-            return subscribers.emplace(std::make_pair(topic, element), Subscriber { sampleFilter }).second;
+            return subscribers.emplace(std::make_pair(topicId, elementId), Subscriber<T> { element, sampleFilter }).second;
         }
 
         bool remove(long long int topic, long long int element)
@@ -63,7 +65,7 @@ class DataElementI : virtual public DataElement, private Forwarder, public std::
             return subscribers.erase({ topic, element });
         }
 
-        std::map<std::pair<long long int, long long int>, Subscriber> subscribers;
+        std::map<std::pair<long long int, long long int>, Subscriber<T>> subscribers;
     };
 
     struct Listener
@@ -137,6 +139,7 @@ public:
 
     virtual void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
     virtual void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
+    virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
                              const std::chrono::time_point<std::chrono::system_clock>&);
@@ -274,6 +277,9 @@ public:
 
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
+
+    virtual std::shared_ptr<Sample> getLast() const override;
+    virtual std::vector<std::shared_ptr<Sample>> getAll() const override;
 
     virtual std::string toString() const override;
     virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
