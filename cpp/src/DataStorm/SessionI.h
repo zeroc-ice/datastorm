@@ -240,7 +240,8 @@ public:
 
 protected:
 
-    void runWithTopics(const std::string&, std::function<void (const std::shared_ptr<TopicI>&)>);
+    void runWithTopics(const std::string&, std::vector<std::shared_ptr<TopicI>>&,
+                       std::function<void (const std::shared_ptr<TopicI>&)>);
     void runWithTopics(long long int, std::function<void (TopicI*, TopicSubscriber&)>);
     void runWithTopics(long long int, std::function<void (TopicI*, TopicSubscriber&, TopicSubscribers&)>);
     void runWithTopic(long long int, TopicI*, std::function<void (TopicSubscriber&)>);

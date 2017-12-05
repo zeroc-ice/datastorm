@@ -62,6 +62,8 @@ NodeI::~NodeI()
 {
     _instance->getForwarderManager()->remove(_subscriberForwarder->ice_getIdentity());
     _instance->getForwarderManager()->remove(_publisherForwarder->ice_getIdentity());
+    assert(_subscribers.empty());
+    assert(_publishers.empty());
 }
 
 void
@@ -84,30 +86,39 @@ NodeI::init()
 bool
 NodeI::createSubscriberSession(const shared_ptr<NodePrx>& subscriber)
 {
-    unique_lock<mutex> lock(_mutex);
-    auto session = createPublisherSessionServant(subscriber);
-    if(!session)
+    std::shared_ptr<PublisherSessionI> session;
+    try
     {
-        return false; // Shutting down.
-    }
+        unique_lock<mutex> lock(_mutex);
+        session = createPublisherSessionServant(subscriber);
+        if(!session)
+        {
+            return false; // Shutting down.
+        }
 
-    auto proxy = session->getSession();
-    if(proxy)
+        auto proxy = session->getSession();
+        if(proxy)
+        {
+            return true; // Already connected.
+        }
+
+        auto self = dynamic_pointer_cast<NodeI>(shared_from_this());
+        subscriber->createSubscriberSessionAsync(Ice::uncheckedCast<NodePrx>(_proxy),
+                                                 Ice::uncheckedCast<PublisherSessionPrx>(session->getProxy()),
+                                                 [self, session, subscriber](shared_ptr<SubscriberSessionPrx> s)
+                                                 {
+                                                     self->subscriberSessionConnected(session, s, subscriber);
+                                                 },
+                                                 [self, session, subscriber](exception_ptr e)
+                                                 {
+                                                     self->subscriberSessionConnected(session, nullptr, subscriber);
+                                                 });
+    }
+    catch(const Ice::LocalException&)
     {
-        return true; // Already connected.
+        removePublisherSession(session.get());
+        return false;
     }
-
-    auto self = dynamic_pointer_cast<NodeI>(shared_from_this());
-    subscriber->createSubscriberSessionAsync(Ice::uncheckedCast<NodePrx>(_proxy),
-                                             Ice::uncheckedCast<PublisherSessionPrx>(session->getProxy()),
-                                             [self, session, subscriber](shared_ptr<SubscriberSessionPrx> s)
-                                             {
-                                                 self->subscriberSessionConnected(session, s, subscriber);
-                                             },
-                                             [self, session, subscriber](exception_ptr e)
-                                             {
-                                                 self->subscriberSessionConnected(session, nullptr, subscriber);
-                                             });
     return true;
 }
 
@@ -118,32 +129,40 @@ NodeI::createSubscriberSessionAsync(shared_ptr<NodePrx> publisher,
                                     function<void (exception_ptr)>,
                                     const Ice::Current& c)
 {
-    unique_lock<mutex> lock(_mutex);
-    auto p = _subscribers.find(publisher->ice_getIdentity());
-    if(p != _subscribers.end())
+    shared_ptr<SubscriberSessionI> session;
+    try
     {
-        p->second->addConnectedCallback([response](std::shared_ptr<SessionPrx> prx)
-                                        {
-                                            response(Ice::uncheckedCast<SubscriberSessionPrx>(prx));
-                                        });
-        return;
-    }
+        unique_lock<mutex> lock(_mutex);
+        auto p = _subscribers.find(publisher->ice_getIdentity());
+        if(p != _subscribers.end())
+        {
+            p->second->addConnectedCallback([response](std::shared_ptr<SessionPrx> prx)
+                                            {
+                                                response(Ice::uncheckedCast<SubscriberSessionPrx>(prx));
+                                            });
+            return;
+        }
 
-    auto session = createSubscriberSessionServant(publisher);
-    if(!session)
-    {
-        response(nullptr);
-        return; // Shutting down.
-    }
+        session = createSubscriberSessionServant(publisher);
+        if(!session)
+        {
+            response(nullptr);
+            return; // Shutting down.
+        }
 
-    if(c.con && !c.con->getAdapter())
-    {
-        // Setup the bi-dir connection before sending the reply, the node calls initTopics as
-        // it got the reply.
-        c.con->setAdapter(_instance->getObjectAdapter());
+        if(c.con && !c.con->getAdapter())
+        {
+            // Setup the bi-dir connection before sending the reply, the node calls initTopics as
+            // it got the reply.
+            c.con->setAdapter(_instance->getObjectAdapter());
+        }
+        response(Ice::uncheckedCast<SubscriberSessionPrx>(session->getProxy())); // Must be called before connected
+        session->connected(s, c.con, _instance->getTopicFactory()->getTopicReaders());
     }
-    response(Ice::uncheckedCast<SubscriberSessionPrx>(session->getProxy())); // Must be called before connected
-    session->connected(s, c.con, _instance->getTopicFactory()->getTopicReaders());
+    catch(const Ice::LocalException& ex)
+    {
+        removeSubscriberSession(session.get());
+    }
 }
 
 void
@@ -153,19 +172,19 @@ NodeI::subscriberSessionConnected(const shared_ptr<PublisherSessionI>& session,
 {
     if(!prx) // This might occurs if the node is shutting down.
     {
-        try
-        {
-            session->getProxy()->destroyAsync();
-        }
-        catch(const Ice::LocalException&)
-        {
-            // Ignore
-        }
+        removePublisherSession(session.get());
     }
     else
     {
-        unique_lock<mutex> lock(_mutex);
-        session->connected(prx, node->ice_getCachedConnection(), _instance->getTopicFactory()->getTopicWriters());
+        try
+        {
+            unique_lock<mutex> lock(_mutex);
+            session->connected(prx, node->ice_getCachedConnection(), _instance->getTopicFactory()->getTopicWriters());
+        }
+        catch(const Ice::LocalException& ex)
+        {
+            removePublisherSession(session.get());
+        }
     }
 }
 
@@ -183,30 +202,39 @@ NodeI::removeSubscriberSession(SubscriberSessionI* session)
 bool
 NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher)
 {
-    unique_lock<mutex> lock(_mutex);
-    auto session = createSubscriberSessionServant(publisher);
-    if(!session)
+    std::shared_ptr<SubscriberSessionI> session;
+    try
     {
-        return false; // Shutting down.
-    }
+        unique_lock<mutex> lock(_mutex);
+        session = createSubscriberSessionServant(publisher);
+        if(!session)
+        {
+            return false; // Shutting down.
+        }
 
-    auto proxy = session->getSession();
-    if(proxy)
+        auto proxy = session->getSession();
+        if(proxy)
+        {
+            return true; // Already connected.
+        }
+
+        auto self = dynamic_pointer_cast<NodeI>(shared_from_this());
+        publisher->createPublisherSessionAsync(Ice::uncheckedCast<NodePrx>(_proxy),
+                                               Ice::uncheckedCast<SubscriberSessionPrx>(session->getProxy()),
+                                               [self, session, publisher](shared_ptr<PublisherSessionPrx> s)
+                                               {
+                                                   self->publisherSessionConnected(session, s, publisher);
+                                               },
+                                               [self, session, publisher](exception_ptr e)
+                                               {
+                                                   self->publisherSessionConnected(session, nullptr, publisher);
+                                               });
+    }
+    catch(const Ice::LocalException&)
     {
-        return true; // Already connected.
+        removeSubscriberSession(session.get());
+        return false;
     }
-
-    auto self = dynamic_pointer_cast<NodeI>(shared_from_this());
-    publisher->createPublisherSessionAsync(Ice::uncheckedCast<NodePrx>(_proxy),
-                                           Ice::uncheckedCast<SubscriberSessionPrx>(session->getProxy()),
-                                           [self, session, publisher](shared_ptr<PublisherSessionPrx> s)
-                                           {
-                                               self->publisherSessionConnected(session, s, publisher);
-                                           },
-                                           [self, session, publisher](exception_ptr e)
-                                           {
-                                               self->publisherSessionConnected(session, nullptr, publisher);
-                                           });
     return true;
 }
 
@@ -217,22 +245,30 @@ NodeI::createPublisherSessionAsync(shared_ptr<NodePrx> t,
                                    function<void (exception_ptr)>,
                                    const Ice::Current& c)
 {
-    unique_lock<mutex> lock(_mutex);
-    auto session = createPublisherSessionServant(t);
-    if(!session)
+    shared_ptr<PublisherSessionI> session;
+    try
     {
-        response(nullptr);
-        return; // Shutting down.
-    }
+        unique_lock<mutex> lock(_mutex);
+        session = createPublisherSessionServant(t);
+        if(!session)
+        {
+            response(nullptr);
+            return; // Shutting down.
+        }
 
-    if(c.con && !c.con->getAdapter())
-    {
-        // Setup the bi-dir connection before sending the reply, the node calls initTopics as
-        // it got the reply.
-        c.con->setAdapter(_instance->getObjectAdapter());
+        if(c.con && !c.con->getAdapter())
+        {
+            // Setup the bi-dir connection before sending the reply, the node calls initTopics as
+            // it got the reply.
+            c.con->setAdapter(_instance->getObjectAdapter());
+        }
+        response(Ice::uncheckedCast<PublisherSessionPrx>(session->getProxy())); // Must be called before connected
+        session->connected(s, c.con, _instance->getTopicFactory()->getTopicWriters());
     }
-    response(Ice::uncheckedCast<PublisherSessionPrx>(session->getProxy())); // Must be called before connected
-    session->connected(s, c.con, _instance->getTopicFactory()->getTopicWriters());
+    catch(const Ice::LocalException& ex)
+    {
+        removePublisherSession(session.get());
+    }
 }
 
 void
@@ -242,19 +278,19 @@ NodeI::publisherSessionConnected(const shared_ptr<SubscriberSessionI>& session,
 {
     if(!prx) // This might occurs if the node is shutting down.
     {
-        try
-        {
-            session->getProxy()->destroyAsync();
-        }
-        catch(const Ice::LocalException&)
-        {
-            // Ignore
-        }
+        removeSubscriberSession(session.get());
     }
     else
     {
-        unique_lock<mutex> lock(_mutex);
-        session->connected(prx, node->ice_getCachedConnection(), _instance->getTopicFactory()->getTopicReaders());
+        try
+        {
+            unique_lock<mutex> lock(_mutex);
+            session->connected(prx, node->ice_getCachedConnection(), _instance->getTopicFactory()->getTopicReaders());
+        }
+        catch(const Ice::LocalException& ex)
+        {
+            removeSubscriberSession(session.get());
+        }
     }
 }
 

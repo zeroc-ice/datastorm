@@ -745,7 +745,7 @@ TopicReaderI::destroy()
 {
     TopicI::destroy();
 
-    auto factory = _factory.lock();;
+    auto factory = _factory.lock();
     if(factory)
     {
         factory->removeTopicReader(_name, shared_from_this());

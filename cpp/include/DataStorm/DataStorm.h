@@ -313,6 +313,13 @@ public:
     ~Topic();
 
     /**
+     * Move assignement operator.
+     *
+     * @param topic The topic.
+     **/
+    Topic& operator=(Topic&&);
+
+    /**
      * Indicates whether or not topic writers are online.
      *
      * @return True if topic writers are connected, false otherwise.
@@ -418,15 +425,20 @@ public:
      *
      * @param reader The reader.
      **/
-    Reader(Reader&& reader) : _impl(std::move(reader._impl))
-    {
-    }
+    Reader(Reader&&);
 
     /**
      * Destruct the reader. The destruction of the reader disconnects
      * the reader from the writers.
      */
     ~Reader();
+
+    /**
+     * Move assignement operator
+     *
+     * @param reader The reader.
+     **/
+    Reader& operator=(Reader&&);
 
     /**
      * Indicates whether or not writers are online.
@@ -566,6 +578,13 @@ public:
      * @param reader The reader.
      **/
     KeyReader(KeyReader&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param reader The reader.
+     **/
+    KeyReader& operator=(KeyReader&&);
 };
 
 /**
@@ -610,6 +629,13 @@ public:
      * @param reader The reader.
      **/
     MultiKeyReader(MultiKeyReader&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param reader The reader.
+     **/
+    MultiKeyReader& operator=(MultiKeyReader&&);
 };
 
 /**
@@ -749,6 +775,13 @@ public:
      * @param reader The reader.
      **/
     KeyReader(KeyReader<Key, Value, void, UpdateTag>&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param reader The reader.
+     **/
+    KeyReader& operator=(KeyReader&&);
 };
 
 /**
@@ -778,6 +811,13 @@ public:
      * @param reader The reader.
      **/
     MultiKeyReader(MultiKeyReader<Key, Value, void, UpdateTag>&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param reader The reader.
+     **/
+    MultiKeyReader& operator=(MultiKeyReader&&);
 };
 
 /**
@@ -823,6 +863,13 @@ public:
      * @param reader The reader.
      **/
     FilteredReader(FilteredReader&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param reader The reader.
+     **/
+    FilteredReader& operator=(FilteredReader&&);
 };
 
 /**
@@ -888,6 +935,13 @@ public:
      * @param reader The reader.
      **/
     FilteredReader(FilteredReader<Key, Value, void, UpdateTag>&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param reader The reader.
+     **/
+    FilteredReader& operator=(FilteredReader&&);
 };
 
 /**
@@ -906,9 +960,14 @@ public:
      *
      * @param writer The writer.
      **/
-    Writer(Writer&& writer) : _impl(std::move(writer._impl))
-    {
-    }
+    Writer(Writer&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param writer The writer.
+     **/
+    Writer& operator=(Writer&&);
 
     /**
      * Destruct the writer. The destruction of the writer disconnects
@@ -1009,11 +1068,18 @@ public:
     KeyWriter(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&, Key, WriterConfig = WriterConfig());
 
     /**
-     * Transfers the given writer to this writer.
+     * Move constructor.
      *
      * @param writer The writer.
      **/
     KeyWriter(KeyWriter&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param writer The writer.
+     **/
+    KeyWriter& operator=(KeyWriter&&);
 
     /**
      * Add the data element. This generates an {@link Add} data sample with the
@@ -1079,6 +1145,13 @@ public:
      * @param writer The writer.
      **/
     MultiKeyWriter(MultiKeyWriter&&);
+
+    /**
+     * Move assignement operator.
+     *
+     * @param writer The writer.
+     **/
+    MultiKeyWriter& operator=(MultiKeyWriter&&);
 
     /**
      * Add the data element. This generates an {@link Add} data sample with the
@@ -1167,7 +1240,7 @@ makeSingleKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
  * @param config The optional writer configuration.
  */
 template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-KeyWriter<K, V, SF, SFC, UT>
+MultiKeyWriter<K, V, SF, SFC, UT>
 makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
                    std::vector<typename Topic<K, V, KF, KFC, UT>::KeyType> keys,
                    WriterConfig config = WriterConfig())
@@ -1184,7 +1257,7 @@ makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
  * @param config The optional writer configuration.
  */
 template<typename K, typename V, typename KF, typename KFC, typename UT>
-KeyWriter<K, V, void, void, UT>
+MultiKeyWriter<K, V, void, void, UT>
 makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
                    std::vector<typename Topic<K, V, KF, KFC, UT>::KeyType> keys,
                    WriterConfig config = WriterConfig())
@@ -1201,7 +1274,7 @@ makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
  * @param config The optional writer configuration.
  */
 template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-KeyWriter<K, V, SF, SFC, UT>
+MultiKeyWriter<K, V, SF, SFC, UT>
 makeAnyKeyWriter(Topic<K, V, KF, KFC, UT>& topic, WriterConfig config = WriterConfig())
 {
     return MultiKeyWriter<K, V, SF, SFC, UT>(topic, {}, config);
@@ -1215,7 +1288,7 @@ makeAnyKeyWriter(Topic<K, V, KF, KFC, UT>& topic, WriterConfig config = WriterCo
  * @param config The optional writer configuration.
  */
 template<typename K, typename V, typename KF, typename KFC, typename UT>
-KeyWriter<K, V, void, void, UT>
+MultiKeyWriter<K, V, void, void, UT>
 makeAnyKeyWriter(Topic<K, V, KF, KFC, UT>& topic, WriterConfig config = WriterConfig())
 {
     return MultiKeyWriter<K, V, void, void, UT>(topic, {}, config);
@@ -1279,12 +1352,24 @@ template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, Up
 // Reader template implementation
 //
 template<typename Key, typename Value, typename UpdateTag>
+Reader<Key, Value, UpdateTag>::Reader(Reader<Key, Value, UpdateTag>&& reader) : _impl(std::move(reader._impl))
+{
+}
+
+template<typename Key, typename Value, typename UpdateTag>
 Reader<Key, Value, UpdateTag>::~Reader()
 {
     if(_impl)
     {
         _impl->destroy();
     }
+}
+
+template<typename Key, typename Value, typename UpdateTag> Reader<Key, Value, UpdateTag>&
+Reader<Key, Value, UpdateTag>::operator=(Reader&& reader)
+{
+    _impl = std::move(reader._impl);
+    return *this;
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
@@ -1419,6 +1504,14 @@ KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::KeyReader(
 }
 
 template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
+KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>&
+KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::operator=(KeyReader&& reader)
+{
+    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
+    return *this;
+}
+
+template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
 template<typename KeyFilter, typename KeyFilterCriteria>
 MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::MultiKeyReader(
         Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
@@ -1449,6 +1542,14 @@ MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::MultiKeyReader(
 {
 }
 
+template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
+MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>&
+MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::operator=(MultiKeyReader&& reader)
+{
+    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
+    return *this;
+}
+
 template<typename Key, typename Value, typename UpdateTag> template<typename KeyFilter, typename KeyFilterCriteria>
 KeyReader<Key, Value, void, UpdateTag>::KeyReader(
         Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
@@ -1464,6 +1565,14 @@ KeyReader<Key, Value, void, UpdateTag>::KeyReader(KeyReader<Key, Value, void, Up
 {
 }
 
+template<typename Key, typename Value, typename UpdateTag>
+KeyReader<Key, Value, void, UpdateTag>&
+KeyReader<Key, Value, void, UpdateTag>::operator=(KeyReader&& reader)
+{
+    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
+    return *this;
+}
+
 template<typename Key, typename Value, typename UpdateTag> template<typename KeyFilter, typename KeyFilterCriteria>
 MultiKeyReader<Key, Value, void, UpdateTag>::MultiKeyReader(
         Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
@@ -1477,6 +1586,14 @@ template<typename Key, typename Value, typename UpdateTag>
 MultiKeyReader<Key, Value, void, UpdateTag>::MultiKeyReader(MultiKeyReader<Key, Value, void, UpdateTag>&& reader) :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
+}
+
+template<typename Key, typename Value, typename UpdateTag>
+MultiKeyReader<Key, Value, void, UpdateTag>&
+MultiKeyReader<Key, Value, void, UpdateTag>::operator=(MultiKeyReader&& reader)
+{
+    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
+    return *this;
 }
 
 template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
@@ -1511,6 +1628,14 @@ FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>::FilteredReader(
 {
 }
 
+template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
+FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>&
+FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>::operator=(FilteredReader&& reader)
+{
+    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
+    return *this;
+}
+
 template<typename Key, typename Value, typename UpdateTag> template<typename KeyFilter, typename KeyFilterCriteria>
 FilteredReader<Key, Value, void, UpdateTag>::FilteredReader(
     Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
@@ -1520,15 +1645,37 @@ FilteredReader<Key, Value, void, UpdateTag>::FilteredReader(
 {
 }
 
-template<typename Key, typename Value, typename UpdateTag> FilteredReader<Key, Value, void, UpdateTag>::FilteredReader(FilteredReader<Key, Value, void, UpdateTag>&& reader) :
+template<typename Key, typename Value, typename UpdateTag>
+FilteredReader<Key, Value, void, UpdateTag>::FilteredReader(FilteredReader<Key, Value, void, UpdateTag>&& reader) :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
+}
+
+template<typename Key, typename Value, typename UpdateTag>
+FilteredReader<Key, Value, void, UpdateTag>&
+FilteredReader<Key, Value, void, UpdateTag>::operator=(FilteredReader&& reader)
+{
+    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
+    return *this;
 }
 
 //
 // Writer template implementation
 //
-template<typename Key, typename Value, typename UpdateTag> Writer<Key, Value, UpdateTag>::~Writer()
+template<typename Key, typename Value, typename UpdateTag>
+Writer<Key, Value, UpdateTag>::Writer(Writer&& writer) : _impl(std::move(writer._impl))
+{
+}
+
+template<typename Key, typename Value, typename UpdateTag> Writer<Key, Value, UpdateTag>&
+Writer<Key, Value, UpdateTag>::operator=(Writer&& writer)
+{
+    _impl = std::move(writer._impl);
+    return *this;
+}
+
+template<typename Key, typename Value, typename UpdateTag>
+Writer<Key, Value, UpdateTag>::~Writer()
 {
     if(_impl)
     {
@@ -1627,6 +1774,13 @@ KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::KeyWriter(
 {
 }
 
+template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>&
+KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::operator=(KeyWriter&& writer)
+{
+    Writer<Key, Value, UpdateTag>::operator=(std::move(writer));
+    return *this;
+}
+
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
 KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::add(const Value& value)
 {
@@ -1685,6 +1839,13 @@ MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::Multi
 {
 }
 
+template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>&
+MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::operator=(MultiKeyWriter&& writer)
+{
+    Writer<Key, Value, UpdateTag>::operator=(std::move(writer));
+    return *this;
+}
+
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
 MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::add(const Key& key, const Value& value)
 {
@@ -1734,7 +1895,7 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::Topic(Node& node, co
 
 template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
 Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::Topic(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&& topic) :
-    _topicFactory(topic._topicFactory),
+    _topicFactory(std::move(topic._topicFactory)),
     _keyFactory(std::move(topic._keyFactory)),
     _filterFactory(std::move(topic._filterFactory)),
     _tagFactory(std::move(topic._tagFactory)),
@@ -1755,6 +1916,19 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::~Topic()
     {
         _writer->destroy();
     }
+}
+
+template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
+Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&
+Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::operator=(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&& topic)
+{
+    _topicFactory = std::move(topic._topicFactory);
+    _keyFactory = std::move(topic._keyFactory);
+    _filterFactory = std::move(topic._filterFactory);
+    _tagFactory = std::move(topic._tagFactory);
+    _reader = std::move(topic._reader);
+    _writer = std::move(topic._writer);
+    return *this;
 }
 
 template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> bool

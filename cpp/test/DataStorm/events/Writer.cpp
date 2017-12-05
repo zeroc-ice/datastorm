@@ -224,5 +224,26 @@ main(int argc, char* argv[])
     }
     cout << "ok" << endl;
 
+    cout << "testing topic collocated key reader and writer... " << flush;
+    {
+        Topic<string, string> topic(node, "topic");
+        {
+            auto writer = makeSingleKeyWriter(topic, "test");
+            writer.add("add");
+
+            auto reader = makeSingleKeyReader(topic, "test");
+            test(reader.getNextUnread().getValue() == "add");
+        }
+        {
+            auto reader = makeSingleKeyReader(topic, "test");
+
+            auto writer = makeSingleKeyWriter(topic, "test");
+            writer.update("update");
+
+            test(reader.getNextUnread().getValue() == "update");
+        }
+    }
+    cout << "ok" << endl;
+
     return 0;
 }

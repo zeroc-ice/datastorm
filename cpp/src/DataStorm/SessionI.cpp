@@ -20,7 +20,11 @@ using namespace DataStormInternal;
 using namespace DataStormContract;
 
 SessionI::SessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
-    _instance(parent->getInstance()), _traceLevels(_instance->getTraceLevels()), _parent(parent), _node(node)
+    _instance(parent->getInstance()),
+    _traceLevels(_instance->getTraceLevels()),
+    _parent(parent),
+    _node(node),
+    _destroyed(false)
 {
 }
 
@@ -39,77 +43,93 @@ SessionI::init(const shared_ptr<SessionPrx>& prx)
 void
 SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
 {
-    lock_guard<mutex> lock(_mutex);
-    if(!_session)
+    //
+    // Retain topics outside the synchronization. This is necessary to ensure the topic destructor
+    // doesn't get called within the synchronization. The topic destructor can callback on the
+    // session to disconnect.
+    //
+    vector<shared_ptr<TopicI>> retained;
     {
-        return;
-    }
-
-    if(_traceLevels->session > 2)
-    {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": announcing topics `" << topics << "'";
-    }
-
-    for(const auto& info : topics)
-    {
-        runWithTopics(info.name, [&](const shared_ptr<TopicI>& topic)
+        lock_guard<mutex> lock(_mutex);
+        if(!_session)
         {
-            for(auto id : info.ids)
-            {
-                topic->attach(id, this, _session);
-            }
+            return;
+        }
 
-            _session->attachTopicAsync(topic->getTopicSpec());
-        });
+        if(_traceLevels->session > 2)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": announcing topics `" << topics << "'";
+        }
+
+        for(const auto& info : topics)
+        {
+            runWithTopics(info.name, retained, [&](const shared_ptr<TopicI>& topic)
+            {
+                for(auto id : info.ids)
+                {
+                    topic->attach(id, this, _session);
+                }
+
+                _session->attachTopicAsync(topic->getTopicSpec());
+            });
+        }
     }
 }
 
 void
 SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
 {
-    lock_guard<mutex> lock(_mutex);
-    if(!_session)
+    //
+    // Retain topics outside the synchronization. This is necessary to ensure the topic destructor
+    // doesn't get called within the synchronization. The topic destructor can callback on the
+    // session to disconnect.
+    //
+    vector<shared_ptr<TopicI>> retained;
     {
-        return;
-    }
-
-    runWithTopics(spec.name, [&](const shared_ptr<TopicI>& topic)
-    {
-        if(_traceLevels->session > 2)
+        lock_guard<mutex> lock(_mutex);
+        if(!_session)
         {
-            Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": attaching topic `" << spec << "' to `" << topic.get() << "'";
+            return;
         }
 
-        topic->attach(spec.id, this, _session);
-
-        if(!spec.tags.empty())
-        {
-            auto& subscriber = _topics.at(spec.id).getSubscriber(topic.get());
-            for(const auto& tag : spec.tags)
-            {
-                subscriber.tags[tag.valueId] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
-            }
-        }
-
-        auto tags = topic->getTags();
-        if(!tags.empty())
-        {
-            _session->attachTagsAsync(topic->getId(), tags);
-        }
-
-        auto specs = topic->getElementSpecs(spec.elements);
-        if(!specs.empty())
+        runWithTopics(spec.name, retained, [&](const shared_ptr<TopicI>& topic)
         {
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
+                out << _id << ": attaching topic `" << spec << "' to `" << topic.get() << "'";
             }
-            _session->attachElementsAsync(topic->getId(), specs);
-        }
-    });
+
+            topic->attach(spec.id, this, _session);
+
+            if(!spec.tags.empty())
+            {
+                auto& subscriber = _topics.at(spec.id).getSubscriber(topic.get());
+                for(const auto& tag : spec.tags)
+                {
+                    subscriber.tags[tag.valueId] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
+                }
+            }
+
+            auto tags = topic->getTags();
+            if(!tags.empty())
+            {
+                _session->attachTagsAsync(topic->getId(), tags);
+            }
+
+            auto specs = topic->getElementSpecs(spec.elements);
+            if(!specs.empty())
+            {
+                if(_traceLevels->session > 2)
+                {
+                    Trace out(_traceLevels, _traceLevels->sessionCat);
+                    out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
+                }
+                _session->attachElementsAsync(topic->getId(), specs);
+            }
+        });
+    }
 }
 
 void
@@ -436,27 +456,28 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
                     const TopicInfoSeq& topics)
 {
     lock_guard<mutex> lock(_mutex);
-    if(_connection)
+    if(_destroyed || _session)
     {
+        assert(_connectedCallbacks.empty());
         return;
     }
 
-    _connection = connection;
-    if(_connection)
+    shared_ptr<Ice::ObjectPrx> prx;
+    if(connection)
     {
-        if(!_connection->getAdapter())
+        if(!connection->getAdapter())
         {
-            _connection->setAdapter(_instance->getObjectAdapter());
+            connection->setAdapter(_instance->getObjectAdapter());
         }
-        _instance->getSessionManager()->add(this, _connection);
-        _session = Ice::uncheckedCast<SessionPrx>(
-            connection->createProxy(session->ice_getIdentity())->ice_oneway());
+        _instance->getSessionManager()->add(this, connection);
+        prx = connection->createProxy(session->ice_getIdentity());
     }
     else
     {
-        _session = Ice::uncheckedCast<SessionPrx>(
-            _instance->getObjectAdapter()->createProxy(session->ice_getIdentity())->ice_oneway());
+        prx = _instance->getObjectAdapter()->createProxy(session->ice_getIdentity());
     }
+    _connection = connection;
+    _session = Ice::uncheckedCast<SessionPrx>(prx->ice_oneway());
 
     if(_traceLevels->session > 0)
     {
@@ -470,7 +491,14 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
 
     if(!topics.empty())
     {
-        _session->announceTopicsAsync(topics);
+        try
+        {
+            _session->announceTopicsAsync(topics);
+        }
+        catch(const Ice::LocalException&)
+        {
+            // Ignore
+        }
     }
 
     for(auto c : _connectedCallbacks)
@@ -531,10 +559,8 @@ void
 SessionI::destroyImpl()
 {
     lock_guard<mutex> lock(_mutex);
-    if(!_session)
-    {
-        return;
-    }
+    assert(!_destroyed);
+    _destroyed = true;
 
     if(_traceLevels->session > 0)
     {
@@ -542,17 +568,20 @@ SessionI::destroyImpl()
         out << _id << ": destroyed session";
     }
 
-    if(_connection)
+    if(_session)
     {
-        _instance->getSessionManager()->remove(this, _connection);
-    }
+        if(_connection)
+        {
+            _instance->getSessionManager()->remove(this, _connection);
+        }
 
-    _session = nullptr;
-    _connection = nullptr;
+        _session = nullptr;
+        _connection = nullptr;
 
-    for(const auto& t : _topics)
-    {
-        runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
+        for(const auto& t : _topics)
+        {
+            runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
+        }
     }
 
     for(auto c : _connectedCallbacks)
@@ -567,6 +596,7 @@ SessionI::addConnectedCallback(function<void(shared_ptr<SessionPrx>)> callback)
 {
     {
         lock_guard<mutex> lock(_mutex);
+        assert(!_destroyed);
         if(!_session)
         {
             _connectedCallbacks.push_back(callback);
@@ -805,11 +835,14 @@ SessionI::subscriberInitialized(long long topicId, long long int elementId, cons
 }
 
 void
-SessionI::runWithTopics(const std::string& name, function<void (const shared_ptr<TopicI>&)> fn)
+SessionI::runWithTopics(const std::string& name,
+                        vector<shared_ptr<TopicI>>& retained,
+                        function<void (const shared_ptr<TopicI>&)> fn)
 {
     auto topics = getTopics(name);
     for(auto topic : topics)
     {
+        retained.push_back(topic);
         unique_lock<mutex> l(topic->getMutex());
         _topicLock = &l;
         fn(topic);

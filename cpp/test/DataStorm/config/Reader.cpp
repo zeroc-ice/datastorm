@@ -112,11 +112,11 @@ main(int argc, char* argv[])
         while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
         ReaderConfig config;
-        config.sampleLifetime = 3;
+        config.sampleLifetime = 150;
 
         auto now = chrono::system_clock::now();
 
-        // Reader wants 3ms worth of samples
+        // Reader wants 150ms worth of samples
         readers.update(false);
         auto reader = makeSingleKeyReader(topic, "elem1", config);
         reader.waitForUnread(3);
@@ -128,7 +128,7 @@ main(int argc, char* argv[])
 
         for(const auto& s : samples)
         {
-            test(s.getTimeStamp() >= (now - chrono::milliseconds(3)));
+            test(s.getTimeStamp() >= (now - chrono::milliseconds(150)));
         }
     }
 

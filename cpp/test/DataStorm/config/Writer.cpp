@@ -122,7 +122,7 @@ main(int argc, char* argv[])
         writer.add("value1");
         writer.update("value2");
         writer.remove();
-        this_thread::sleep_for(chrono::milliseconds(4));
+        this_thread::sleep_for(chrono::milliseconds(200));
         writer.add("value3");
         writer.update("value4");
         writer.remove();
