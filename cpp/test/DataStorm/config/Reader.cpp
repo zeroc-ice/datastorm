@@ -27,7 +27,6 @@ main(int argc, char* argv[])
 
     {
         ReaderConfig config;
-        config.sampleCount = -1;
         config.clearHistory = ClearHistoryPolicy::Never;
         topic.setReaderDefaultConfig(config);
     }
@@ -76,7 +75,9 @@ main(int argc, char* argv[])
 
         // Keep all the samples in the history.
         {
-            read(6, ReaderConfig());
+            ReaderConfig config;
+            config.clearHistory = ClearHistoryPolicy::Never;
+            read(6, config);
         }
 
         // Keep 4 samples in the history
@@ -89,7 +90,7 @@ main(int argc, char* argv[])
         // Keep last instance samples in the history
         {
             ReaderConfig config;
-            config.clearHistory = ClearHistoryPolicy::Add;
+            config.clearHistory = ClearHistoryPolicy::OnAdd;
             read(3, config);
         }
     }
@@ -130,6 +131,108 @@ main(int argc, char* argv[])
         {
             test(s.getTimeStamp() >= (now - chrono::milliseconds(150)));
         }
+    }
+
+    // Writer clearHistory
+    {
+        topic.setUpdater<string>("concat", [](string& value, string update) { value += update; });
+
+        {
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            readers.update(false);
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(22);
+            readers.update(true); // Reader is done
+        }
+
+        {
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            readers.update(false);
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(2);
+            test(reader.getNextUnread().getValue() == "value3");
+            test(reader.getNextUnread().getValue() == "value4");
+            readers.update(true); // Reader is done
+        }
+
+        {
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            readers.update(false);
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(3);
+            test(reader.getNextUnread().getEvent() == DataStorm::SampleEvent::Remove);
+            test(reader.getNextUnread().getValue() == "value3");
+            test(reader.getNextUnread().getValue() == "value4");
+            readers.update(true); // Reader is done
+        }
+
+        {
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            readers.update(false);
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(1);
+            test(reader.getNextUnread().getValue() == "value4");
+            readers.update(true); // Reader is done
+        }
+
+        {
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            readers.update(false);
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(4);
+            test(reader.getNextUnread().getValue() == "value");
+            auto s = reader.getNextUnread();
+            test(s.getEvent() == SampleEvent::PartialUpdate);
+            test(s.getUpdateTag() == "concat");
+            test(s.getValue() == "value1");
+            test(reader.getNextUnread().getValue() == "value12");
+            test(reader.getNextUnread().getValue() == "value123");
+            readers.update(true); // Reader is done
+        }
+    }
+
+    // Reader clearHistory
+    {
+        readers.update(false);
+
+        {
+            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+
+            ReaderConfig config;
+            config.clearHistory = ClearHistoryPolicy::Never;
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(9);
+        }
+
+        {
+            ReaderConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnAdd;
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(5);
+        }
+
+        {
+            ReaderConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnRemove;
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(6);
+        }
+
+        {
+            ReaderConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnAll;
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(1);
+        }
+
+        {
+            ReaderConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnAllExceptPartialUpdate;
+            auto reader = makeSingleKeyReader(topic, "elem1");
+            reader.waitForUnread(4);
+        }
+
+        readers.update(true); // Reader is done
     }
 
     return 0;

@@ -501,10 +501,12 @@ TopicI::setUpdater(const shared_ptr<Tag>& tag, Updater updater)
     if(updater)
     {
         _updaters[tag] = updater;
+        _forwarder->attachTags(_id, { { tag->getId(), tag->encode(_instance->getCommunicator()) } });
     }
     else
     {
         _updaters.erase(tag);
+        _forwarder->detachTags(_id, { tag->getId() });
     }
 }
 
@@ -641,9 +643,9 @@ void
 TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefix, DataStorm::Config& config) const
 {
     // Set defaults
-    config.sampleCount = 1;
+    config.sampleCount = -1;
     config.sampleLifetime = 0;
-    config.clearHistory = DataStorm::ClearHistoryPolicy::AddOrRemove;
+    config.clearHistory = DataStorm::ClearHistoryPolicy::OnAll;
 
     // Override defaults with properties
     auto p = properties.find(prefix + ".SampleLifetime");
@@ -659,17 +661,21 @@ TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefi
     p = properties.find(prefix + ".ClearHistory");
     if(p != properties.end())
     {
-        if(p->second == "Add")
+        if(p->second == "OnAdd")
         {
-            config.clearHistory = DataStorm::ClearHistoryPolicy::Add;
+            config.clearHistory = DataStorm::ClearHistoryPolicy::OnAdd;
         }
-        else if(p->second == "Remove")
+        else if(p->second == "OnRemove")
         {
-            config.clearHistory = DataStorm::ClearHistoryPolicy::Remove;
+            config.clearHistory = DataStorm::ClearHistoryPolicy::OnRemove;
         }
-        else if(p->second == "AddOrRemove")
+        else if(p->second == "OnAll")
         {
-            config.clearHistory = DataStorm::ClearHistoryPolicy::AddOrRemove;
+            config.clearHistory = DataStorm::ClearHistoryPolicy::OnAll;
+        }
+        else if(p->second == "OnAllExceptPartialUpdate")
+        {
+            config.clearHistory = DataStorm::ClearHistoryPolicy::OnAllExceptPartialUpdate;
         }
         else if(p->second == "Never")
         {

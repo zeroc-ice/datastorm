@@ -1797,8 +1797,7 @@ KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(con
 
 template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
 template<typename UpdateValue, typename Update> void
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const UpdateTag& tag,
-                                                                             const Update& value)
+KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const UpdateTag& tag, const Update& value)
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,

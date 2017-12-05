@@ -16,9 +16,10 @@ module DataStormContract
 
 enum ClearHistoryPolicy
 {
-    Add,
-    Remove,
-    AddOrRemove,
+    OnAdd,
+    OnRemove,
+    OnAll,
+    OnAllExceptPartialUpdate,
     Never
 };
 

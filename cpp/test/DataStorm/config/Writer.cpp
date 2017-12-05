@@ -27,7 +27,6 @@ main(int argc, char* argv[])
 
     {
         WriterConfig config;
-        config.sampleCount = -1;
         config.clearHistory = ClearHistoryPolicy::Never;
         topic.setWriterDefaultConfig(config);
     }
@@ -51,7 +50,9 @@ main(int argc, char* argv[])
 
         // Keep all the samples in the history.
         {
-            write(WriterConfig());
+            WriterConfig config;
+            config.clearHistory = ClearHistoryPolicy::Never;
+            write(config);
         }
 
         // Keep 4 samples in the history
@@ -64,7 +65,7 @@ main(int argc, char* argv[])
         // Keep last instance samples in the history
         {
             WriterConfig config;
-            config.clearHistory = ClearHistoryPolicy::Add;
+            config.clearHistory = ClearHistoryPolicy::OnAdd;
             write(config);
         }
     }
@@ -126,6 +127,114 @@ main(int argc, char* argv[])
         writer.add("value3");
         writer.update("value4");
         writer.remove();
+        writers.update(true); // Ready
+
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+    }
+    cout << "ok" << endl;
+
+    cout << "testing writer clearHistory... " << flush;
+    {
+        topic.setUpdater<string>("concat", [](string& value, string update) { value += update; });
+
+        {
+            writers.update(false); // Not ready
+            WriterConfig config;
+            config.clearHistory = ClearHistoryPolicy::Never;
+            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            writer.add("value1");
+            for(int i = 0; i < 20; ++i)
+            {
+                writer.update("value2");
+            }
+            writer.remove();
+            test(writer.getAll().size() == 22);
+            writers.update(true); // Ready
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        }
+
+        {
+            writers.update(false); // Not ready
+            WriterConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnAdd;
+            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            writer.add("value1");
+            writer.update("value2");
+            writer.remove();
+            writer.add("value3");
+            writer.update("value4");
+            test(writer.getAll().size() == 2);
+            writers.update(true); // Ready
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        }
+
+        {
+            writers.update(false); // Not ready
+            WriterConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnRemove;
+            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            writer.add("value1");
+            writer.update("value2");
+            writer.remove();
+            writer.add("value3");
+            writer.update("value4");
+            test(writer.getAll().size() == 3);
+            writers.update(true); // Ready
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        }
+
+        {
+            writers.update(false); // Not ready
+            WriterConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnAll;
+            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            writer.add("value1");
+            writer.update("value2");
+            writer.remove();
+            writer.add("value3");
+            writer.update("value4");
+            test(writer.getAll().size() == 1);
+            writers.update(true); // Ready
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        }
+
+        {
+            writers.update(false); // Not ready
+            WriterConfig config;
+            config.clearHistory = ClearHistoryPolicy::OnAllExceptPartialUpdate;
+            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            writer.add("value1");
+            writer.update("value2");
+            writer.update<string>("concat", "1");
+            writer.remove();
+            writer.add("value3");
+            writer.update("value");
+            writer.update<string>("concat", "1");
+            writer.update<string>("concat", "2");
+            writer.update<string>("concat", "3");
+            test(writer.getAll().size() == 4);
+            test(writer.getAll()[1].getValue() == "value1");
+            writers.update(true); // Ready
+            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing reader clearHistory... " << flush;
+    {
+        writers.update(false); // Not ready
+        WriterConfig config;
+        config.clearHistory = ClearHistoryPolicy::Never;
+        auto writer = makeSingleKeyWriter(topic, "elem1", config);
+        writer.add("value1");
+        writer.update("value2");
+        writer.update<string>("concat", "1");
+        writer.remove();
+        writer.add("value3");
+        writer.update("value");
+        writer.update<string>("concat", "1");
+        writer.update<string>("concat", "2");
+        writer.update<string>("concat", "3");
         writers.update(true); // Ready
 
         while(!readers.getNextUnread().getValue()); // Wait for reader to be done

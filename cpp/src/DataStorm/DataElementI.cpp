@@ -503,20 +503,27 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         }
     }
 
-    for(const auto& s : samples)
+    if(_config->clearHistory && *_config->clearHistory == ClearHistoryPolicy::OnAll)
     {
-        if(_config->clearHistory &&
-           ((s->event == DataStorm::SampleEvent::Add &&
-             (*_config->clearHistory == ClearHistoryPolicy::Add ||
-              *_config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
-            (s->event == DataStorm::SampleEvent::Remove &&
-             (*_config->clearHistory == ClearHistoryPolicy::Remove ||
-              *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
-        {
-            _samples.clear();
-        }
-        _samples.push_back(s);
+        _samples.clear();
+        _samples.push_back(samples.back());
     }
+    else
+    {
+        for(const auto& s : samples)
+        {
+            if(_config->clearHistory &&
+               ((s->event == DataStorm::SampleEvent::Add && *_config->clearHistory == ClearHistoryPolicy::OnAdd) ||
+                (s->event == DataStorm::SampleEvent::Remove && *_config->clearHistory == ClearHistoryPolicy::OnRemove) ||
+                (s->event != DataStorm::SampleEvent::PartialUpdate &&
+                 *_config->clearHistory == ClearHistoryPolicy::OnAllExceptPartialUpdate)))
+            {
+                _samples.clear();
+            }
+            _samples.push_back(s);
+        }
+    }
+
     if(!samples.empty())
     {
         _config->lastId = samples.back()->id;
@@ -585,12 +592,11 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
     }
 
     if(_config->clearHistory &&
-       ((sample->event == DataStorm::SampleEvent::Add &&
-         (*_config->clearHistory == ClearHistoryPolicy::Add ||
-          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
-        (sample->event == DataStorm::SampleEvent::Remove &&
-         (*_config->clearHistory == ClearHistoryPolicy::Remove ||
-          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
+       (*_config->clearHistory == ClearHistoryPolicy::OnAll ||
+        (sample->event == DataStorm::SampleEvent::Add && *_config->clearHistory == ClearHistoryPolicy::OnAdd) ||
+        (sample->event == DataStorm::SampleEvent::Remove && *_config->clearHistory == ClearHistoryPolicy::OnRemove) ||
+        (sample->event != DataStorm::SampleEvent::PartialUpdate &&
+         *_config->clearHistory == ClearHistoryPolicy::OnAllExceptPartialUpdate)))
     {
         _samples.clear();
     }
@@ -665,12 +671,11 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     }
 
     if(_config->clearHistory &&
-       ((sample->event == DataStorm::SampleEvent::Add &&
-         (*_config->clearHistory == ClearHistoryPolicy::Add ||
-          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
-        (sample->event == DataStorm::SampleEvent::Remove &&
-         (*_config->clearHistory == ClearHistoryPolicy::Remove ||
-          *_config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
+       (*_config->clearHistory == ClearHistoryPolicy::OnAll ||
+        (sample->event == DataStorm::SampleEvent::Add && *_config->clearHistory == ClearHistoryPolicy::OnAdd) ||
+        (sample->event == DataStorm::SampleEvent::Remove && *_config->clearHistory == ClearHistoryPolicy::OnRemove) ||
+        (sample->event != DataStorm::SampleEvent::PartialUpdate &&
+         *_config->clearHistory == ClearHistoryPolicy::OnAllExceptPartialUpdate)))
     {
         _samples.clear();
     }
@@ -871,12 +876,11 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
             }
 
             if(config->clearHistory &&
-               (((*p)->event == DataStorm::SampleEvent::Add &&
-                 (config->clearHistory == ClearHistoryPolicy::Add ||
-                  config->clearHistory == ClearHistoryPolicy::AddOrRemove)) ||
-                ((*p)->event == DataStorm::SampleEvent::Remove &&
-                 (config->clearHistory == ClearHistoryPolicy::Remove ||
-                  config->clearHistory == ClearHistoryPolicy::AddOrRemove))))
+               (*config->clearHistory == ClearHistoryPolicy::OnAll ||
+                ((*p)->event == DataStorm::SampleEvent::Add && *config->clearHistory == ClearHistoryPolicy::OnAdd) ||
+                ((*p)->event == DataStorm::SampleEvent::Remove && *config->clearHistory == ClearHistoryPolicy::OnRemove) ||
+                ((*p)->event != DataStorm::SampleEvent::PartialUpdate &&
+                     *config->clearHistory == ClearHistoryPolicy::OnAllExceptPartialUpdate)))
             {
                 break;
             }

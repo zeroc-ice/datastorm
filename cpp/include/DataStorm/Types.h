@@ -44,13 +44,16 @@ enum struct DiscardPolicy
 enum struct ClearHistoryPolicy
 {
     /** Clear the sample history when a Add sample is received. */
-    Add,
+    OnAdd,
 
     /** Clear the sample history when a Remove sample is received. */
-    Remove,
+    OnRemove,
 
-    /** Clear the sample history when a Add or Remove sample is received. */
-    AddOrRemove,
+    /** Clear the sample history when a new sample is received. */
+    OnAll,
+
+    /** Clear the sample history when a new sample which is not a partial update is received. */
+    OnAllExceptPartialUpdate,
 
     /** Never clear the sample history. */
     Never
