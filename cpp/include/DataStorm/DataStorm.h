@@ -36,9 +36,9 @@ namespace DataStorm
 
 template<typename, typename, typename> class Reader;
 template<typename, typename, typename> class Writer;
-template<typename, typename, typename, typename> class KeyReader;
-template<typename, typename, typename, typename, typename> class KeyWriter;
-template<typename, typename, typename, typename> class FilteredReader;
+template<typename, typename, typename> class KeyReader;
+template<typename, typename, typename> class KeyWriter;
+template<typename, typename, typename> class FilteredReader;
 
 /**
  * A sample provides information about an update of a data element.
@@ -119,112 +119,68 @@ private:
 /**
  * The RegexKeyFilter template filters keys matching a regular expression.
  **/
-#if defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
+#if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
 
 #include <regex.h>
 
-class RegexFilter
+template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
+makeRegexFilter()
 {
-public:
-
-    /**
-     * Construct the filter with the given filter criteria.
-     *
-     * @param criteria The filter criteria.
-     */
-    RegexFilter(const std::string& criteria)
-    {
-        if(regcomp(&_regex, criteria.c_str(), REG_EXTENDED) != 0)
+    return [](const std::string& criteria) {
+        regex_t expr; // TODO: XXX: fix leak
+        if(regcomp(&expr, criteria.c_str(), REG_EXTENDED) != 0)
         {
             throw std::invalid_argument(criteria);
         }
-    }
-
-    /**
-     * Returns wether or not the value matches the regular expression.
-     *
-     * @param value The value to match against the regular expression.
-     * @return True if the value matches the regular expression, false otherwise.
-     */
-    template<typename T> bool match(const T& value) const
-    {
-        std::ostringstream os;
-        os << value;
-        return regexec(&_regex, os.str().c_str(), 0, 0, 0) == 0;
-    }
-
-private:
-
-    regex_t _regex;
-};
+        return [expr](const Value& value) {
+            std::ostringstream os;
+            os << value;
+            return regexec(&expr, os.str().c_str(), 0, 0, 0) == 0;
+        };
+    };
+}
 
 #else
 
-class RegexFilter
+template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
+makeRegexFilter()
 {
-public:
-
-    /**
-     * Construct the filter with the given filter criteria.
-     *
-     * @param criteria The filter criteria.
-     */
-    RegexFilter(const std::string& criteria) : _regex(criteria)
-    {
-    }
-
-    /**
-     * Returns wether or not the value matches the regular expression.
-     *
-     * @param value The value to match against the regular expression.
-     * @return True if the value matches the regular expression, false otherwise.
-     */
-    template<typename T> bool match(const T& value) const
-    {
-        std::ostringstream os;
-        os << value;
-        return std::regex_match(os.str(), _regex);
-    }
-
-private:
-
-    std::regex _regex;
-};
+    return [](const std::string& criteria) {
+        std::regex expr(criteria);
+        return [expr](const Value& value) {
+            std::ostringstream os;
+            os << value;
+            return std::regex_match(os.str(), expr);
+        };
+    };
+}
 
 #endif
 
-/**
- * The SampleEventFilter template filters samples based on a set of sample events.
- **/
-struct SampleEventFilter
+template<typename Key, typename Value, typename UpdateTag>
+std::function<std::function<bool (const Key&)> (const std::string&)>
+makeKeyRegexFilter(const Topic<Key, Value, UpdateTag>&)
 {
-public:
+    return makeRegexFilter<Key>();
+}
 
-    /**
-     * Construct the filter with the given types criteria.
-     *
-     * @param criteria The filter criteria.
-     */
-    SampleEventFilter(std::vector<SampleEvent> criteria) : _events(std::move(criteria))
-    {
-    }
+template<typename Key, typename Value, typename UpdateTag>
+std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::string&)>
+makeSampleRegexFilter(const Topic<Key, Value, UpdateTag>&)
+{
+    return makeRegexFilter<Sample<Key, Value, UpdateTag>>();
+}
 
-    /**
-     * Returns wether or not the sample matches the sample events.
-     *
-     * @param sample The sample to match against the filter.
-     * @return True if the sample event matches the filter sample events, false otherwise.
-     */
-    template<typename Key, typename Value, typename UpdateTag>
-    bool match(const Sample<Key, Value, UpdateTag>& sample) const
-    {
-        return std::find(_events.begin(), _events.end(), sample.getEvent()) != _events.end();
-    }
-
-private:
-
-    const std::vector<SampleEvent> _events;
-};
+template<typename Key, typename Value, typename UpdateTag>
+std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::vector<SampleEvent>&)>
+makeSampleEventFilter(const Topic<Key, Value, UpdateTag>&)
+{
+    return [](const std::vector<SampleEvent>& criteria) {
+        return [criteria](const Sample<Key, Value, UpdateTag>& sample) {
+            return std::find(criteria.begin(), criteria.end(), sample.getEvent()) != criteria.end();
+        };
+    };
+}
 
 std::ostream&
 operator<<(std::ostream& os, SampleEvent sampleType)
@@ -274,19 +230,13 @@ operator<<(std::ostream& os, const Sample<K, V, U>& sample)
 /**
  * The Topic class allows to construct Reader and Writer objects.
  */
-template<typename Key,
-         typename Value,
-         typename KeyFilter=void,
-         typename KeyFilterCriteria=void,
-         typename UpdateTag=std::string>
+template<typename Key, typename Value, typename UpdateTag=std::string>
 class Topic
 {
 public:
 
     using KeyType = Key;
     using ValueType = Value;
-    using KeyFilterType = KeyFilter;
-    using KeyFilterCriteriaType = KeyFilterCriteria;
     using UpdateTagType = UpdateTag;
 
     using WriterType = Writer<Key, Value, UpdateTag>;
@@ -383,25 +333,48 @@ public:
     template<typename UpdateValue>
     void setUpdater(const UpdateTag&, std::function<void (Value&, UpdateValue)>);
 
+    /**
+     * Set a key filter factory. The given factory function must return a filter function
+     * that returns true if the key matches the filter criteria, false otherwise.
+     *
+     * @param name The name of the key filter.
+     * @param factory The filter factory function.
+     */
+    template<typename Criteria>
+    void setKeyFilter(const std::string&, std::function<std::function<bool (const Key&)> (const Criteria&)>);
+
+    /**
+     * Set a sample filter factory. The given factory function must return a filter function
+     * that returns true if the sample matches the filter criteria, false otherwise.
+     *
+     * @param name The name of the sample filter.
+     * @param factory The filter factory function.
+     */
+    template<typename Criteria>
+    void setSampleFilter(const std::string&,
+                         std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const Criteria&)>);
+
 private:
 
     std::shared_ptr<DataStormInternal::TopicReader> getReader() const;
     std::shared_ptr<DataStormInternal::TopicWriter> getWriter() const;
     std::shared_ptr<Ice::Communicator> getCommunicator() const;
 
-    template<typename, typename, typename, typename, typename> friend class KeyWriter;
-    template<typename, typename, typename, typename> friend class KeyReader;
-    template<typename, typename, typename, typename, typename> friend class MultiKeyWriter;
-    template<typename, typename, typename, typename> friend class MultiKeyReader;
-    template<typename, typename, typename, typename> friend class FilteredReader;
+    template<typename, typename, typename> friend class KeyWriter;
+    template<typename, typename, typename> friend class KeyReader;
+    template<typename, typename, typename> friend class MultiKeyWriter;
+    template<typename, typename, typename> friend class MultiKeyReader;
+    template<typename, typename, typename> friend class FilteredReader;
 
     const std::string _name;
     const std::shared_ptr<DataStormInternal::TopicFactory> _topicFactory;
     const std::shared_ptr<DataStormInternal::KeyFactoryT<Key>> _keyFactory;
-    const std::shared_ptr<DataStormInternal::FilterFactoryT<KeyFilter,
-                                                            KeyFilterCriteria,
-                                                            DataStormInternal::KeyT<Key>>> _filterFactory;
     const std::shared_ptr<DataStormInternal::TagFactoryT<UpdateTag>> _tagFactory;
+
+    const std::shared_ptr<DataStormInternal::FilterFactoryManagerT<
+       DataStormInternal::KeyT<Key>>> _keyFilterFactories;
+    const std::shared_ptr<DataStormInternal::FilterFactoryManagerT<
+       DataStormInternal::SampleT<Key, Value, UpdateTag>>> _sampleFilterFactories;
 
     mutable std::mutex _mutex;
     mutable std::shared_ptr<DataStormInternal::TopicReader> _reader;
@@ -539,7 +512,7 @@ protected:
 /**
  * The key reader to read the data element associated with a given key.
  */
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag=std::string>
+template<typename Key, typename Value, typename UpdateTag=std::string>
 class KeyReader : public Reader<Key, Value, UpdateTag>
 {
 public:
@@ -552,10 +525,7 @@ public:
      * @param key The key of the data element to read.
      * @param config The reader configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-              Key,
-              ReaderConfig = ReaderConfig());
+    KeyReader(Topic<Key, Value, UpdateTag>&, Key, ReaderConfig = ReaderConfig());
 
     /**
      * Construct a new reader for the given key and sample filter criteria. The
@@ -566,9 +536,10 @@ public:
      * @param criteria The sample filter criteria used by writers to filter the samples.
      * @param config The reader configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
+    template<typename SampleFilterCriteria>
+    KeyReader(Topic<Key, Value, UpdateTag>&,
               Key,
+              const std::string&,
               SampleFilterCriteria,
               ReaderConfig = ReaderConfig());
 
@@ -590,7 +561,7 @@ public:
 /**
  * The key reader to read the data element associated with a given set of keys.
  */
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag=std::string>
+template<typename Key, typename Value, typename UpdateTag=std::string>
 class MultiKeyReader : public Reader<Key, Value, UpdateTag>
 {
 public:
@@ -603,10 +574,7 @@ public:
      * @param keys The keys of the data elements to read.
      * @param config The reader configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    MultiKeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-                   std::vector<Key>,
-                   ReaderConfig = ReaderConfig());
+    MultiKeyReader(Topic<Key, Value, UpdateTag>&, std::vector<Key>, ReaderConfig = ReaderConfig());
 
     /**
      * Construct a new reader for the given keys and sample filter criteria. The
@@ -617,9 +585,10 @@ public:
      * @param criteria The sample filter criteria used by writers to filter the samples.
      * @param config The reader configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    MultiKeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
+    template<typename SampleFilterCriteria>
+    MultiKeyReader(Topic<Key, Value, UpdateTag>&,
                    std::vector<Key>,
+                   const std::string&,
                    SampleFilterCriteria,
                    ReaderConfig = ReaderConfig());
 
@@ -646,13 +615,10 @@ public:
  * @param key The key.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-    KeyReader<K, V, void, UT>
-makeSingleKeyReader(Topic<K, V, KF, KFC, UT>& topic,
-                    typename Topic<K, V, KF, KFC, UT>::KeyType key,
-                    ReaderConfig config = ReaderConfig())
+template<typename K, typename V, typename UT> KeyReader<K, V, UT>
+makeSingleKeyReader(Topic<K, V, UT>& topic, typename Topic<K, V, UT>::KeyType key, ReaderConfig config = ReaderConfig())
 {
-    return KeyReader<K, V, void, UT>(topic, key, config);
+    return KeyReader<K, V, UT>(topic, key, config);
 }
 
 /**
@@ -665,14 +631,15 @@ makeSingleKeyReader(Topic<K, V, KF, KFC, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-KeyReader<K, V, SFC, UT>
-makeSingleKeyReader(Topic<K, V, KF, KFC, UT>& topic,
-                    typename Topic<K, V, KF, KFC, UT>::KeyType key,
-                    SFC sampleFilterCriteria,
+template<typename SFC, typename SFCV, typename K, typename V, typename UT>
+KeyReader<K, V, UT>
+makeSingleKeyReader(Topic<K, V, UT>& topic,
+                    typename Topic<K, V, UT>::KeyType key,
+                    const std::string& sampleFilter,
+                    SFCV sampleFilterCriteria,
                     ReaderConfig config = ReaderConfig())
 {
-    return KeyReader<K, V, SFC, UT>(topic, key, sampleFilterCriteria, config);
+    return KeyReader<K, V, UT>(topic, key, sampleFilter, SFC(sampleFilterCriteria), config);
 }
 
 /**
@@ -685,13 +652,12 @@ makeSingleKeyReader(Topic<K, V, KF, KFC, UT>& topic,
  * @param keys The keys.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyReader<K, V, void, UT>
-makeMultiKeyReader(Topic<K, V, KF, KFC, UT>& topic,
-                   std::vector<typename Topic<K, V, KF, KFC, UT>::KeyType> keys,
+template<typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
+makeMultiKeyReader(Topic<K, V, UT>& topic,
+                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
                    ReaderConfig config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, void, UT>(topic, keys, config);
+    return MultiKeyReader<K, V, UT>(topic, keys, config);
 }
 
 /**
@@ -706,30 +672,30 @@ makeMultiKeyReader(Topic<K, V, KF, KFC, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyReader<K, V, SFC, UT>
-makeMultiKeyReader(Topic<K, V, KF, KFC, UT>& topic,
-                   std::vector<typename Topic<K, V, KF, KFC, UT>::KeyType> keys,
-                   SFC sampleFilterCriteria,
+template<typename SFC, typename SFCV, typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
+makeMultiKeyReader(Topic<K, V, UT>& topic,
+                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
+                   const std::string& sampleFilter,
+                   SFCV sampleFilterCriteria,
                    ReaderConfig config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, SFC, UT>(topic, keys, sampleFilterCriteria, config);
+    return MultiKeyReader<K, V, UT>(topic, keys, sampleFilter, SFC(sampleFilterCriteria), config);
 }
 
 /**
- * Creates an any-key reader for the given topic. This helper method deduces the
- * topic Key and Value types from the topic argument.
+ * Creates an any-key reader for the given topic. This helper method deduces
+ * the topic Key and Value types from the topic argument.
  *
- * The reader will receive samples for the keys from the topic.
+ * The reader will receive samples for any keys from the topic.
  *
  * @param topic The topic.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyReader<K, V, void, UT>
-makeAnyKeyReader(Topic<K, V, KF, KFC, UT>& topic, ReaderConfig config = ReaderConfig())
+template<typename K, typename V, typename UT>
+MultiKeyReader<K, V, UT>
+makeAnyKeyReader(Topic<K, V, UT>& topic, ReaderConfig config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, void, UT>(topic, {}, config);
+    return MultiKeyReader<K, V, UT>(topic, {}, config);
 }
 
 /**
@@ -743,87 +709,20 @@ makeAnyKeyReader(Topic<K, V, KF, KFC, UT>& topic, ReaderConfig config = ReaderCo
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyReader<K, V, SFC, UT>
-makeAnyKeyReader(Topic<K, V, KF, KFC, UT>& topic, SFC sampleFilterCriteria, ReaderConfig config = ReaderConfig())
+template<typename SFC, typename SFCV, typename K, typename V, typename UT>
+MultiKeyReader<K, V, UT>
+makeAnyKeyReader(Topic<K, V, UT>& topic,
+                 const std::string& sampleFilter,
+                 SFCV sampleFilterCriteria,
+                 ReaderConfig config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, SFC, UT>(topic, {}, sampleFilterCriteria, config);
+    return MultiKeyReader<K, V, UT>(topic, {}, sampleFilter, SFC(sampleFilterCriteria), config);
 }
-
-/**
- * Key reader template specialization for key readers with no sample filter.
- */
-template<typename Key, typename Value, typename UpdateTag>
-class KeyReader<Key, Value, void, UpdateTag> : public Reader<Key, Value, UpdateTag>
-{
-public:
-
-    /**
-     * Construct a new reader for the given key. The construction of the reader
-     * connects the reader to writers with a matching key.
-     *
-     * @param topic The topic.
-     * @param key The key of the data element to read.
-     * @param config The reader configuration.
-     */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    KeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&, Key, ReaderConfig = ReaderConfig());
-
-    /**
-     * Transfers the given reader to this reader.
-     *
-     * @param reader The reader.
-     **/
-    KeyReader(KeyReader<Key, Value, void, UpdateTag>&&);
-
-    /**
-     * Move assignement operator.
-     *
-     * @param reader The reader.
-     **/
-    KeyReader& operator=(KeyReader&&);
-};
-
-/**
- * Key reader template specialization for key readers with no sample filter.
- */
-template<typename Key, typename Value, typename UpdateTag>
-class MultiKeyReader<Key, Value, void, UpdateTag> : public Reader<Key, Value, UpdateTag>
-{
-public:
-
-    /**
-     * Construct a new reader for the given keys. The construction of the reader
-     * connects the reader to writers with matching keys.
-     *
-     * @param topic The topic.
-     * @param keys The keys.
-     * @param config The reader configuration.
-     */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    MultiKeyReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-                   std::vector<Key>,
-                   ReaderConfig = ReaderConfig());
-
-    /**
-     * Transfers the given reader to this reader.
-     *
-     * @param reader The reader.
-     **/
-    MultiKeyReader(MultiKeyReader<Key, Value, void, UpdateTag>&&);
-
-    /**
-     * Move assignement operator.
-     *
-     * @param reader The reader.
-     **/
-    MultiKeyReader& operator=(MultiKeyReader&&);
-};
 
 /**
  * The filtered reader to read data elements whose key match a given filter.
  */
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag=std::string>
+template<typename Key, typename Value, typename UpdateTag=std::string>
 class FilteredReader : public Reader<Key, Value, UpdateTag>
 {
 public:
@@ -836,9 +735,10 @@ public:
      * @param criteria The filter criteria.
      * @param config The reader configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    FilteredReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-                   typename Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::KeyFilterCriteriaType,
+    template<typename KeyFilterCriteria>
+    FilteredReader(Topic<Key, Value, UpdateTag>&,
+                   const std::string&,
+                   KeyFilterCriteria,
                    ReaderConfig = ReaderConfig());
 
     /**
@@ -851,9 +751,11 @@ public:
      * @param sampleCriteria The sample filter criteria used by writers to filter the samples
      * @param config The reader configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    FilteredReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-                   typename Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::KeyFilterCriteriaType,
+    template<typename KeyFilterCriteria, typename SampleFilterCriteria>
+    FilteredReader(Topic<Key, Value, UpdateTag>&,
+                   const std::string&,
+                   KeyFilterCriteria,
+                   const std::string&,
                    SampleFilterCriteria,
                    ReaderConfig = ReaderConfig());
 
@@ -880,13 +782,13 @@ public:
  * @param filter The key filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-FilteredReader<K, V, void, UT>
-makeFilteredReader(Topic<K, V, KF, KFC, UT>& topic,
-                   typename Topic<K, V, KF, KFC, UT>::KeyFilterCriteriaType filter,
+template<typename KFC, typename KFCV, typename K, typename V, typename UT> FilteredReader<K, V, UT>
+makeFilteredReader(Topic<K, V, UT>& topic,
+                   const std::string& keyFilter,
+                   KFCV keyFilterCriteria,
                    ReaderConfig config = ReaderConfig())
 {
-    return FilteredReader<K, V, void, UT>(topic, filter, config);
+    return FilteredReader<K, V, UT>(topic, keyFilter, KFC(keyFilterCriteria), config);
 }
 
 /**
@@ -898,51 +800,16 @@ makeFilteredReader(Topic<K, V, KF, KFC, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-FilteredReader<K, V, SFC, UT>
-makeFilteredReader(Topic<K, V, KF, KFC, UT>& topic,
-                   typename Topic<K, V, KF, KFC, UT>::KeyFilterCriteriaType filter,
-                   SFC sampleFilterCriteria,
+template<typename KFC, typename SFC, typename KFCV, typename SFCV, typename K, typename V, typename UT> FilteredReader<K, V, UT>
+makeFilteredReader(Topic<K, V, UT>& topic,
+                   const std::string& keyFilter,
+                   KFCV keyFilterCriteria,
+                   const std::string& sampleFilter,
+                   SFCV sampleFilterCriteria,
                    ReaderConfig config = ReaderConfig())
 {
-    return FilteredReader<K, V, SFC, UT>(topic, filter, sampleFilterCriteria, config);
+    return FilteredReader<K, V, UT>(topic, keyFilter, KFC(keyFilterCriteria), sampleFilter, SFC(sampleFilterCriteria), config);
 }
-
-/**
- * Filtered reader template specialization for filtered readers with no sample filter.
- */
-template<typename Key, typename Value, typename UpdateTag>
-class FilteredReader<Key, Value, void, UpdateTag> : public Reader<Key, Value, UpdateTag>
-{
-public:
-
-    /**
-     * Construct a new reader for the given key filter. The construction of the reader
-     * connects the reader to writers whose key matches the key filter criteria.
-     *
-     * @param topic The topic.
-     * @param criteria The filter criteria.
-     * @param config The reader configuration.
-     */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    FilteredReader(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-                   typename Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::KeyFilterCriteriaType,
-                   ReaderConfig = ReaderConfig());
-
-    /**
-     * Transfers the given reader to this reader.
-     *
-     * @param reader The reader.
-     **/
-    FilteredReader(FilteredReader<Key, Value, void, UpdateTag>&&);
-
-    /**
-     * Move assignement operator.
-     *
-     * @param reader The reader.
-     **/
-    FilteredReader& operator=(FilteredReader&&);
-};
 
 /**
  * The Writer class is used to write samples for a data element.
@@ -1050,8 +917,7 @@ protected:
 /**
  * The key writer to write the data element associated with a given key.
  */
-template<typename Key, typename Value, typename SampleFilter=void, typename SampleFilterCriteria=void,
-         typename UpdateTag=std::string>
+template<typename Key, typename Value, typename UpdateTag=std::string>
 class KeyWriter : public Writer<Key, Value, UpdateTag>
 {
 public:
@@ -1064,8 +930,7 @@ public:
      * @param key The key of the data element to write.
      * @param config The writer configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    KeyWriter(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&, Key, WriterConfig = WriterConfig());
+    KeyWriter(Topic<Key, Value, UpdateTag>&, Key, WriterConfig = WriterConfig());
 
     /**
      * Move constructor.
@@ -1120,8 +985,7 @@ private:
 /**
  * The key writer to write data elements associated with a given set of keys.
  */
-template<typename Key, typename Value, typename SampleFilter=void, typename SampleFilterCriteria=void,
-         typename UpdateTag=std::string>
+template<typename Key, typename Value, typename UpdateTag=std::string>
 class MultiKeyWriter : public Writer<Key, Value, UpdateTag>
 {
 public:
@@ -1134,10 +998,7 @@ public:
      * @param keys The keys.
      * @param config The writer configuration.
      */
-    template<typename KeyFilter, typename KeyFilterCriteria>
-    MultiKeyWriter(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&,
-                   std::vector<Key>,
-                   WriterConfig = WriterConfig());
+    MultiKeyWriter(Topic<Key, Value, UpdateTag>&, std::vector<Key>, WriterConfig = WriterConfig());
 
     /**
      * Transfers the given writer to this writer.
@@ -1204,30 +1065,10 @@ private:
  * @param key The key.
  * @param config The optional writer configuration.
  */
-template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-KeyWriter<K, V, SF, SFC, UT>
-makeSingleKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
-                    typename Topic<K, V, KF, KFC, UT>::KeyType key,
-                    WriterConfig config = WriterConfig())
+template<typename K, typename V, typename UT> KeyWriter<K, V, UT>
+makeSingleKeyWriter(Topic<K, V, UT>& topic, typename Topic<K, V, UT>::KeyType key, WriterConfig config = WriterConfig())
 {
-    return KeyWriter<K, V, SF, SFC, UT>(topic, key, config);
-}
-
-/**
- * Creates a key writer for the given topic. This helper method deduces
- * the topic Key and Value types from the topic argument.
- *
- * @param topic The topic.
- * @param key The key.
- * @param config The optional writer configuration.
- */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-KeyWriter<K, V, void, void, UT>
-makeSingleKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
-                    typename Topic<K, V, KF, KFC, UT>::KeyType key,
-                    WriterConfig config = WriterConfig())
-{
-    return KeyWriter<K, V, void, void, UT>(topic, key, config);
+    return KeyWriter<K, V, UT>(topic, key, config);
 }
 
 /**
@@ -1239,30 +1080,13 @@ makeSingleKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
  * @param keys The keys.
  * @param config The optional writer configuration.
  */
-template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyWriter<K, V, SF, SFC, UT>
-makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
-                   std::vector<typename Topic<K, V, KF, KFC, UT>::KeyType> keys,
+template<typename K, typename V, typename UT>
+MultiKeyWriter<K, V, UT>
+makeMultiKeyWriter(Topic<K, V, UT>& topic,
+                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
                    WriterConfig config = WriterConfig())
 {
-    return MultiKeyWriter<K, V, SF, SFC, UT>(topic, keys, config);
-}
-
-/**
- * Creates a multi-key writer for the given topic. This helper method deduces
- * the topic Key and Value types from the topic argument.
- *
- * @param topic The topic.
- * @param keys The keys.
- * @param config The optional writer configuration.
- */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyWriter<K, V, void, void, UT>
-makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
-                   std::vector<typename Topic<K, V, KF, KFC, UT>::KeyType> keys,
-                   WriterConfig config = WriterConfig())
-{
-    return MultiKeyWriter<K, V, void, void, UT>(topic, keys, config);
+    return MultiKeyWriter<K, V, UT>(topic, keys, config);
 }
 
 /**
@@ -1273,25 +1097,10 @@ makeMultiKeyWriter(Topic<K, V, KF, KFC, UT>& topic,
  * @param topic The topic.
  * @param config The optional writer configuration.
  */
-template<typename SF, typename SFC, typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyWriter<K, V, SF, SFC, UT>
-makeAnyKeyWriter(Topic<K, V, KF, KFC, UT>& topic, WriterConfig config = WriterConfig())
+template<typename K, typename V, typename UT> MultiKeyWriter<K, V, UT>
+makeAnyKeyWriter(Topic<K, V, UT>& topic, WriterConfig config = WriterConfig())
 {
-    return MultiKeyWriter<K, V, SF, SFC, UT>(topic, {}, config);
-}
-
-/**
- * Creates an any-key writer for the given topic. This helper method deduces
- * the topic Key and Value types from the topic argument.
- *
- * @param topic The topic.
- * @param config The optional writer configuration.
- */
-template<typename K, typename V, typename KF, typename KFC, typename UT>
-MultiKeyWriter<K, V, void, void, UT>
-makeAnyKeyWriter(Topic<K, V, KF, KFC, UT>& topic, WriterConfig config = WriterConfig())
-{
-    return MultiKeyWriter<K, V, void, void, UT>(topic, {}, config);
+    return MultiKeyWriter<K, V, UT>(topic, {}, config);
 }
 
 }
@@ -1472,188 +1281,107 @@ Reader<Key, Value, UpdateTag>::onSample(std::function<void(Sample<Key, Value, Up
     });
 }
 
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::KeyReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        Key key,
-        SampleFilterCriteria criteria,
-        ReaderConfig config) :
+template<typename Key, typename Value, typename UpdateTag>
+KeyReader<Key, Value, UpdateTag>::KeyReader(Topic<Key, Value, UpdateTag>& topic,
+                                            Key key,
+                                            ReaderConfig config) :
+    Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(std::move(key)) }, config))
+{
+}
+
+template<typename Key, typename Value, typename UpdateTag> template<typename SFC>
+KeyReader<Key, Value, UpdateTag>::KeyReader(Topic<Key, Value, UpdateTag>& topic,
+                                            Key key,
+                                            const std::string& filter,
+                                            SFC criteria,
+                                            ReaderConfig config) :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(std::move(key)) },
                                                             std::move(config),
-                                                            Encoder<SampleFilterCriteria>::encode(topic.getCommunicator(),
-                                                                                                  criteria)))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::KeyReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        Key key,
-        ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(std::move(key)) }, config))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::KeyReader(
-        KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>&& reader) :
-    Reader<Key, Value, UpdateTag>(std::move(reader))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>&
-KeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::operator=(KeyReader&& reader)
-{
-    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
-    return *this;
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::MultiKeyReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        std::vector<Key> keys,
-        SampleFilterCriteria criteria,
-        ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->create(topic._keyFactory->create(std::move(keys)),
-                                                            std::move(config),
-                                                            Encoder<SampleFilterCriteria>::encode(topic.getCommunicator(),
-                                                                                                  criteria)))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::MultiKeyReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        std::vector<Key> keys,
-        ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->create(topic._keyFactory->create(std::move(keys)), config))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::MultiKeyReader(
-        MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>&& reader) :
-    Reader<Key, Value, UpdateTag>(std::move(reader))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>&
-MultiKeyReader<Key, Value, SampleFilterCriteria, UpdateTag>::operator=(MultiKeyReader&& reader)
-{
-    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
-    return *this;
-}
-
-template<typename Key, typename Value, typename UpdateTag> template<typename KeyFilter, typename KeyFilterCriteria>
-KeyReader<Key, Value, void, UpdateTag>::KeyReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        Key key,
-        ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(std::move(key)) }, config))
+                                                            filter,
+                                                            Encoder<SFC>::encode(topic.getCommunicator(), criteria)))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-KeyReader<Key, Value, void, UpdateTag>::KeyReader(KeyReader<Key, Value, void, UpdateTag>&& reader) :
+KeyReader<Key, Value, UpdateTag>::KeyReader(KeyReader<Key, Value, UpdateTag>&& reader) :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
-template<typename Key, typename Value, typename UpdateTag>
-KeyReader<Key, Value, void, UpdateTag>&
-KeyReader<Key, Value, void, UpdateTag>::operator=(KeyReader&& reader)
+template<typename Key, typename Value, typename UpdateTag> KeyReader<Key, Value, UpdateTag>&
+KeyReader<Key, Value, UpdateTag>::operator=(KeyReader&& reader)
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
 }
 
-template<typename Key, typename Value, typename UpdateTag> template<typename KeyFilter, typename KeyFilterCriteria>
-MultiKeyReader<Key, Value, void, UpdateTag>::MultiKeyReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        std::vector<Key> keys,
-        ReaderConfig config) :
+template<typename Key, typename Value, typename UpdateTag> template<typename SFC>
+MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(Topic<Key, Value, UpdateTag>& topic,
+                                                      std::vector<Key> keys,
+                                                      const std::string& sampleFilter,
+                                                      SFC sampleFilterCriteria,
+                                                      ReaderConfig config) :
+    Reader<Key, Value, UpdateTag>(topic.getReader()->create(
+        topic._keyFactory->create(std::move(keys)), std::move(config),
+        sampleFilter, Encoder<SFC>::encode(topic.getCommunicator(), sampleFilterCriteria)))
+{
+}
+
+template<typename Key, typename Value, typename UpdateTag>
+MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(Topic<Key, Value, UpdateTag>& topic,
+                                                      std::vector<Key> keys,
+                                                      ReaderConfig config) :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create(topic._keyFactory->create(std::move(keys)), config))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-MultiKeyReader<Key, Value, void, UpdateTag>::MultiKeyReader(MultiKeyReader<Key, Value, void, UpdateTag>&& reader) :
+MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(MultiKeyReader<Key, Value, UpdateTag>&& reader) :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-MultiKeyReader<Key, Value, void, UpdateTag>&
-MultiKeyReader<Key, Value, void, UpdateTag>::operator=(MultiKeyReader&& reader)
+MultiKeyReader<Key, Value, UpdateTag>&
+MultiKeyReader<Key, Value, UpdateTag>::operator=(MultiKeyReader&& reader)
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
 }
 
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>::FilteredReader(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        typename Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::KeyFilterCriteriaType criteria,
-        SampleFilterCriteria sampleCriteria,
-        ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(topic._filterFactory->create(std::move(criteria)),
-                                                                    std::move(config),
-                                                                    Encoder<SampleFilterCriteria>::encode(topic.getCommunicator(),
-                                                                                                          sampleCriteria)))
+template<typename Key, typename Value, typename UpdateTag> template<typename KFC>
+FilteredReader<Key, Value, UpdateTag>::FilteredReader(Topic<Key, Value, UpdateTag>& topic,
+                                                      const std::string& keyFilter,
+                                                      KFC keyFilterCriteria,
+                                                      ReaderConfig config) :
+    Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(
+        topic._keyFilterFactories->template create<KFC>(keyFilter, std::move(keyFilterCriteria)),
+        std::move(config)))
 {
 }
 
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>::FilteredReader(
-    Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-    typename Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::KeyFilterCriteriaType criteria,
-    ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(topic._filterFactory->create(std::move(criteria)),
-                                                                    std::move(config)))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>::FilteredReader(
-    FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>&& reader) :
-    Reader<Key, Value, UpdateTag>(std::move(reader))
-{
-}
-
-template<typename Key, typename Value, typename SampleFilterCriteria, typename UpdateTag>
-FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>&
-FilteredReader<Key, Value, SampleFilterCriteria, UpdateTag>::operator=(FilteredReader&& reader)
-{
-    Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
-    return *this;
-}
-
-template<typename Key, typename Value, typename UpdateTag> template<typename KeyFilter, typename KeyFilterCriteria>
-FilteredReader<Key, Value, void, UpdateTag>::FilteredReader(
-    Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-    typename Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::KeyFilterCriteriaType criteria,
-    ReaderConfig config) :
-    Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(topic._filterFactory->create(std::move(criteria)), config))
+template<typename Key, typename Value, typename UpdateTag> template<typename KFC, typename SFC>
+FilteredReader<Key, Value, UpdateTag>::FilteredReader(Topic<Key, Value, UpdateTag>& topic,
+                                                      const std::string& keyFilter,
+                                                      KFC keyFilterCriteria,
+                                                      const std::string& sampleFilter,
+                                                      SFC sampleFilterCriteria,
+                                                      ReaderConfig config) :
+    Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(
+        topic._keyFilterFactories->template create<KFC>(keyFilter, std::move(keyFilterCriteria)),
+        std::move(config),
+        sampleFilter, Encoder<SFC>::encode(topic.getCommunicator(), sampleFilterCriteria)))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-FilteredReader<Key, Value, void, UpdateTag>::FilteredReader(FilteredReader<Key, Value, void, UpdateTag>&& reader) :
+FilteredReader<Key, Value, UpdateTag>::FilteredReader(FilteredReader<Key, Value, UpdateTag>&& reader) :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
-template<typename Key, typename Value, typename UpdateTag>
-FilteredReader<Key, Value, void, UpdateTag>&
-FilteredReader<Key, Value, void, UpdateTag>::operator=(FilteredReader&& reader)
+template<typename Key, typename Value, typename UpdateTag> FilteredReader<Key, Value, UpdateTag>&
+FilteredReader<Key, Value, UpdateTag>::operator=(FilteredReader&& reader)
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
@@ -1750,128 +1478,110 @@ Writer<Key, Value, UpdateTag>::onDisconnect(std::function<void(std::tuple<std::s
     _impl->onDisconnect(std::move(callback));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::KeyWriter(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        Key key,
-        WriterConfig config) :
+template<typename Key, typename Value, typename UpdateTag>
+KeyWriter<Key, Value, UpdateTag>::KeyWriter(Topic<Key, Value, UpdateTag>& topic,
+                                            Key key,
+                                            WriterConfig config) :
     Writer<Key, Value, UpdateTag>(topic.getWriter()->create({ topic._keyFactory->create(std::move(key)) },
-                                                 std::move(config),
-                                                 DataStormInternal::FilterFactoryT<
-                                                     SampleFilter,
-                                                     SampleFilterCriteria,
-                                                     DataStormInternal::SampleT<Key, Value, UpdateTag>>::createFactory())),
+                                                            std::move(config))),
     _tagFactory(topic._tagFactory)
 {
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::KeyWriter(
-        KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>&& writer) :
+template<typename Key, typename Value, typename UpdateTag>
+KeyWriter<Key, Value, UpdateTag>::KeyWriter(KeyWriter<Key, Value, UpdateTag>&& writer) :
     Writer<Key, Value, UpdateTag>(std::move(writer)),
     _tagFactory(std::move(writer._tagFactory))
 {
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>&
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::operator=(KeyWriter&& writer)
+template<typename Key, typename Value, typename UpdateTag> KeyWriter<Key, Value, UpdateTag>&
+KeyWriter<Key, Value, UpdateTag>::operator=(KeyWriter&& writer)
 {
     Writer<Key, Value, UpdateTag>::operator=(std::move(writer));
     return *this;
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::add(const Value& value)
+template<typename Key, typename Value, typename UpdateTag> void
+KeyWriter<Key, Value, UpdateTag>::add(const Value& value)
 {
    Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Add, value));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const Value& value)
+template<typename Key, typename Value, typename UpdateTag> void
+KeyWriter<Key, Value, UpdateTag>::update(const Value& value)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Update, value));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
+template<typename Key, typename Value, typename UpdateTag>
 template<typename UpdateValue, typename Update> void
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const UpdateTag& tag, const Update& value)
+KeyWriter<Key, Value, UpdateTag>::update(const UpdateTag& tag, const Update& value)
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
-KeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::remove()
+template<typename Key, typename Value, typename UpdateTag> void
+KeyWriter<Key, Value, UpdateTag>::remove()
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
-template<typename KeyFilter, typename KeyFilterCriteria>
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::MultiKeyWriter(
-        Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>& topic,
-        std::vector<Key> keys,
-        WriterConfig config) :
-    Writer<Key, Value, UpdateTag>(topic.getWriter()->create(
-        topic._keyFactory->create(std::move(keys)),
-        std::move(config),
-        DataStormInternal::FilterFactoryT<
-            SampleFilter,
-            SampleFilterCriteria,
-            DataStormInternal::SampleT<Key, Value, UpdateTag>>::createFactory())),
+template<typename Key, typename Value, typename UpdateTag>
+MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(Topic<Key, Value, UpdateTag>& topic,
+                                                      std::vector<Key> keys,
+                                                      WriterConfig config) :
+    Writer<Key, Value, UpdateTag>(topic.getWriter()->create(topic._keyFactory->create(std::move(keys)), std::move(config))),
     _keyFactory(topic._keyFactory),
     _tagFactory(topic._tagFactory)
 {
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::MultiKeyWriter(
-        MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>&& writer) :
+template<typename Key, typename Value, typename UpdateTag>
+MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(MultiKeyWriter<Key, Value, UpdateTag>&& writer) :
     Writer<Key, Value, UpdateTag>(std::move(writer)),
     _keyFactory(std::move(writer._keyFactory)),
     _tagFactory(std::move(writer._tagFactory))
 {
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>&
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::operator=(MultiKeyWriter&& writer)
+template<typename Key, typename Value, typename UpdateTag> MultiKeyWriter<Key, Value, UpdateTag>&
+MultiKeyWriter<Key, Value, UpdateTag>::operator=(MultiKeyWriter&& writer)
 {
     Writer<Key, Value, UpdateTag>::operator=(std::move(writer));
     return *this;
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::add(const Key& key, const Value& value)
+template<typename Key, typename Value, typename UpdateTag> void
+MultiKeyWriter<Key, Value, UpdateTag>::add(const Key& key, const Value& value)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Add, value));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const Key& key, const Value& value)
+template<typename Key, typename Value, typename UpdateTag> void
+MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const Value& value)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Update, value));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag>
+template<typename Key, typename Value, typename UpdateTag>
 template<typename UpdateValue, typename Update> void
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::update(const Key& key,
-                                                                                  const UpdateTag& tag,
-                                                                                  const Update& value)
+MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const UpdateTag& tag, const Update& value)
 {
     auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
 }
 
-template<typename Key, typename Value, typename SampleFilter, typename SampleFilterCriteria, typename UpdateTag> void
-MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::remove(const Key& key)
+template<typename Key, typename Value, typename UpdateTag> void
+MultiKeyWriter<Key, Value, UpdateTag>::remove(const Key& key)
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
@@ -1880,31 +1590,31 @@ MultiKeyWriter<Key, Value, SampleFilter, SampleFilterCriteria, UpdateTag>::remov
 //
 // Topic template implementation
 //
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::Topic(Node& node, const std::string& name) :
+template<typename Key, typename Value, typename UpdateTag>
+Topic<Key, Value, UpdateTag>::Topic(Node& node, const std::string& name) :
     _name(name),
     _topicFactory(node._factory),
     _keyFactory(DataStormInternal::KeyFactoryT<Key>::createFactory()),
-    _filterFactory(DataStormInternal::FilterFactoryT<KeyFilter,
-                                                     KeyFilterCriteria,
-                                                     DataStormInternal::KeyT<Key>>::createFactory()),
-    _tagFactory(DataStormInternal::TagFactoryT<UpdateTag>::createFactory())
+    _tagFactory(DataStormInternal::TagFactoryT<UpdateTag>::createFactory()),
+    _keyFilterFactories(DataStormInternal::FilterFactoryManagerT<DataStormInternal::KeyT<Key>>::create()),
+    _sampleFilterFactories(DataStormInternal::FilterFactoryManagerT<DataStormInternal::SampleT<Key, Value, UpdateTag>>::create())
 {
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::Topic(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&& topic) :
+template<typename Key, typename Value, typename UpdateTag>
+Topic<Key, Value, UpdateTag>::Topic(Topic<Key, Value, UpdateTag>&& topic) :
     _topicFactory(std::move(topic._topicFactory)),
     _keyFactory(std::move(topic._keyFactory)),
-    _filterFactory(std::move(topic._filterFactory)),
     _tagFactory(std::move(topic._tagFactory)),
+    _keyFilterFactories(std::move(topic._keyFilterFactories)),
+    _sampleFilterFactories(std::move(topic._sampleFilterFactories)),
     _reader(std::move(topic._reader)),
     _writer(std::move(topic._writer))
 {
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::~Topic()
+template<typename Key, typename Value, typename UpdateTag>
+Topic<Key, Value, UpdateTag>::~Topic()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     if(_reader)
@@ -1917,71 +1627,69 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::~Topic()
     }
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::operator=(Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>&& topic)
+template<typename Key, typename Value, typename UpdateTag> Topic<Key, Value, UpdateTag>&
+Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic)
 {
     _topicFactory = std::move(topic._topicFactory);
     _keyFactory = std::move(topic._keyFactory);
-    _filterFactory = std::move(topic._filterFactory);
     _tagFactory = std::move(topic._tagFactory);
+    _keyFilterFactories = std::move(topic._keyFilterFactories);
+    _sampleFilterFactories = std::move(topic._sampleFilterFactories);
     _reader = std::move(topic._reader);
     _writer = std::move(topic._writer);
     return *this;
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> bool
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::hasWriters() const
+template<typename Key, typename Value, typename UpdateTag> bool
+Topic<Key, Value, UpdateTag>::hasWriters() const
 {
     return getReader()->hasWriters();
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::waitForWriters(unsigned int count) const
+template<typename Key, typename Value, typename UpdateTag> void
+Topic<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const
 {
     getReader()->waitForWriters(count);
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::waitForNoWriters() const
+template<typename Key, typename Value, typename UpdateTag> void
+Topic<Key, Value, UpdateTag>::waitForNoWriters() const
 {
     getReader()->waitForWriters(-1);
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setReaderDefaultConfig(ReaderConfig config)
+template<typename Key, typename Value, typename UpdateTag> void
+Topic<Key, Value, UpdateTag>::setReaderDefaultConfig(ReaderConfig config)
 {
     getReader()->setDefaultConfig(std::move(config));
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> bool
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::hasReaders() const
+template<typename Key, typename Value, typename UpdateTag> bool
+Topic<Key, Value, UpdateTag>::hasReaders() const
 {
     return getWriter()->hasReaders();
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::waitForReaders(unsigned int count) const
+template<typename Key, typename Value, typename UpdateTag> void
+Topic<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const
 {
     getWriter()->waitForReaders(count);
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::waitForNoReaders() const
+template<typename Key, typename Value, typename UpdateTag> void
+Topic<Key, Value, UpdateTag>::waitForNoReaders() const
 {
     getWriter()->waitForReaders(-1);
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setWriterDefaultConfig(WriterConfig config)
+template<typename Key, typename Value, typename UpdateTag> void
+Topic<Key, Value, UpdateTag>::setWriterDefaultConfig(WriterConfig config)
 {
     getWriter()->setDefaultConfig(std::move(config));
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-template<typename UpdateValue> void
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setUpdater(const UpdateTag& tag,
-                                                                       std::function<void (Value&, UpdateValue)> updater)
+template<typename Key, typename Value, typename UpdateTag> template<typename UpdateValue> void
+Topic<Key, Value, UpdateTag>::setUpdater(const UpdateTag& tag, std::function<void (Value&, UpdateValue)> updater)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto tagI = _tagFactory->create(std::move(tag));
@@ -2018,41 +1726,53 @@ Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::setUpdater(const Upd
     }
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-std::shared_ptr<DataStormInternal::TopicReader>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::getReader() const
+template<typename Key, typename Value, typename UpdateTag> template<typename Criteria> void
+Topic<Key, Value, UpdateTag>::setKeyFilter(const std::string& name,
+    std::function<std::function<bool (const Key&)>(const Criteria&)> factory)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _keyFilterFactories->set(name, factory);
+}
+
+template<typename Key, typename Value, typename UpdateTag> template<typename Criteria> void
+Topic<Key, Value, UpdateTag>::setSampleFilter(const std::string& name,
+    std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)>(const Criteria&)> factory)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _sampleFilterFactories->set(name, factory);
+}
+
+template<typename Key, typename Value, typename UpdateTag> std::shared_ptr<DataStormInternal::TopicReader>
+Topic<Key, Value, UpdateTag>::getReader() const
 {
     std::lock_guard<std::mutex> lock(_mutex);
     if(!_reader)
     {
-        _reader = _topicFactory->createTopicReader(_name,
-                                                   _keyFactory,
-                                                   _filterFactory,
-                                                   _tagFactory,
-                                                   std::make_shared<DataStormInternal::SampleFactoryT<Key, Value, UpdateTag>>());
+        auto sampleFactory = std::make_shared<DataStormInternal::SampleFactoryT<Key, Value, UpdateTag>>();
+        _reader = _topicFactory->createTopicReader(_name, _keyFactory, _tagFactory, sampleFactory, _keyFilterFactories,
+                                                   _sampleFilterFactories);
         _reader->setUpdaters(_writer ? _writer->getUpdaters() : _updaters);
         _updaters.clear();
     }
     return _reader;
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-std::shared_ptr<DataStormInternal::TopicWriter>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::getWriter() const
+template<typename Key, typename Value, typename UpdateTag> std::shared_ptr<DataStormInternal::TopicWriter>
+Topic<Key, Value, UpdateTag>::getWriter() const
 {
     std::lock_guard<std::mutex> lock(_mutex);
     if(!_writer)
     {
-        _writer = _topicFactory->createTopicWriter(_name, _keyFactory, _filterFactory, _tagFactory, nullptr);
+        _writer = _topicFactory->createTopicWriter(_name, _keyFactory, _tagFactory, nullptr, _keyFilterFactories,
+                                                   _sampleFilterFactories);
         _writer->setUpdaters(_reader ? _reader->getUpdaters() : _updaters);
         _updaters.clear();
     }
     return _writer;
 }
 
-template<typename Key, typename Value, typename KeyFilter, typename KeyFilterCriteria, typename UpdateTag>
-std::shared_ptr<Ice::Communicator>
-Topic<Key, Value, KeyFilter, KeyFilterCriteria, UpdateTag>::getCommunicator() const
+template<typename Key, typename Value, typename UpdateTag> std::shared_ptr<Ice::Communicator>
+Topic<Key, Value, UpdateTag>::getCommunicator() const
 {
     return _topicFactory->getCommunicator();
 }

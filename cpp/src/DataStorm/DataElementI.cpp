@@ -96,7 +96,12 @@ DataElementI::attach(long long int topicId,
                      const chrono::time_point<chrono::system_clock>& now,
                      ElementDataAckSeq& acks)
 {
-    auto sampleFilter = data.config->sampleFilter ? createSampleFilter(*data.config->sampleFilter) : nullptr;
+    shared_ptr<Filter> sampleFilter;
+    if(data.config->sampleFilter)
+    {
+        auto info = *data.config->sampleFilter;
+        sampleFilter = _parent->getSampleFilterFactories()->decode(getCommunicator(), info.name, info.criteria);
+    }
     string facet = data.config->facet ? *data.config->facet : string();
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
@@ -115,7 +120,12 @@ DataElementI::attach(long long int topicId,
                      const chrono::time_point<chrono::system_clock>& now,
                      DataSamplesSeq& samples)
 {
-    auto sampleFilter = data.config->sampleFilter ? createSampleFilter(*data.config->sampleFilter) : nullptr;
+    shared_ptr<Filter> sampleFilter;
+    if(data.config->sampleFilter)
+    {
+        auto info = *data.config->sampleFilter;
+        sampleFilter = _parent->getSampleFilterFactories()->decode(getCommunicator(), info.name, info.criteria);
+    }
     string facet = data.config->facet ? *data.config->facet : string();
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
@@ -301,12 +311,6 @@ DataElementI::queue(const shared_ptr<Sample>&, const string&, const chrono::time
     assert(false);
 }
 
-shared_ptr<Filter>
-DataElementI::createSampleFilter(vector<unsigned char>) const
-{
-    return nullptr;
-}
-
 void
 DataElementI::waitForListeners(int count) const
 {
@@ -388,14 +392,14 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
     }
 }
 
-DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, vector<unsigned char> sampleFilterCriteria,
-                         const DataStorm::ReaderConfig& config) :
+DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, const string& sampleFilter,
+                         vector<unsigned char> sampleFilterCriteria, const DataStorm::ReaderConfig& config) :
     DataElementI(topic, id, config),
     _parent(topic)
 {
-    if(!sampleFilterCriteria.empty())
+    if(!sampleFilter.empty())
     {
-        _config->sampleFilter = move(sampleFilterCriteria);
+        _config->sampleFilter = FilterInfo { sampleFilter, move(sampleFilterCriteria) };
     }
 }
 
@@ -619,12 +623,9 @@ DataReaderI::onSample(function<void(const shared_ptr<Sample>&)> callback)
     _onSample = move(callback);
 }
 
-DataWriterI::DataWriterI(TopicWriterI* topic, long long int id,
-                         const shared_ptr<FilterFactory>& sampleFilterFactory,
-                         const DataStorm::WriterConfig& config) :
+DataWriterI::DataWriterI(TopicWriterI* topic, long long int id, const DataStorm::WriterConfig& config) :
     DataElementI(topic, id, config),
     _parent(topic),
-    _sampleFilterFactory(sampleFilterFactory),
     _subscribers(Ice::uncheckedCast<SubscriberSessionPrx>(_forwarder))
 {
 }
@@ -682,22 +683,13 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     _samples.push_back(sample);
 }
 
-shared_ptr<Filter>
-DataWriterI::createSampleFilter(vector<unsigned char> sampleFilter) const
-{
-    if(_sampleFilterFactory && !sampleFilter.empty())
-    {
-        return _sampleFilterFactory->decode(_parent->getInstance()->getCommunicator(), move(sampleFilter));
-    }
-    return nullptr;
-}
-
 KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
+                               const string& sampleFilter,
                                const vector<unsigned char> sampleFilterCriteria,
                                const DataStorm::ReaderConfig& config) :
-    DataReaderI(topic, id, sampleFilterCriteria, config),
+    DataReaderI(topic, id, sampleFilter, sampleFilterCriteria, config),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -762,9 +754,8 @@ KeyDataReaderI::toString() const
 KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
-                               const shared_ptr<FilterFactory>& sampleFilterFactory,
                                const DataStorm::WriterConfig& config) :
-    DataWriterI(topic, id, sampleFilterFactory, config),
+    DataWriterI(topic, id, config),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -914,9 +905,10 @@ KeyDataWriterI::send(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
 FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
                                          long long int id,
                                          const shared_ptr<Filter>& filter,
+                                         const string& sampleFilter,
                                          vector<unsigned char> sampleFilterCriteria,
                                          const DataStorm::ReaderConfig& config) :
-    DataReaderI(topic, id, sampleFilterCriteria, config),
+    DataReaderI(topic, id, sampleFilter, sampleFilterCriteria, config),
     _filter(filter)
 {
     if(_traceLevels->data > 0)

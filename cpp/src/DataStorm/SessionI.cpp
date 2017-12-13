@@ -108,7 +108,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                 auto& subscriber = _topics.at(spec.id).getSubscriber(topic.get());
                 for(const auto& tag : spec.tags)
                 {
-                    subscriber.tags[tag.valueId] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
+                    subscriber.tags[tag.id] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
                 }
             }
 
@@ -174,7 +174,7 @@ SessionI::attachTags(long long int topicId, ElementInfoSeq tags, const Ice::Curr
 
         for(const auto& tag : tags)
         {
-            subscriber.tags[tag.valueId] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
+            subscriber.tags[tag.id] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
         }
     });
 }

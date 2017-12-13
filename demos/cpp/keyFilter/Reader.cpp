@@ -21,7 +21,8 @@ main(int argc, char* argv[])
     // and also supports key filtering with the DataStorm::RegexFilter regular
     // expression filter.
     //
-    DataStorm::Topic<string, string, DataStorm::RegexFilter, string> topic(node, "hello");
+    DataStorm::Topic<string, string> topic(node, "hello");
+    topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
     //
     // Wait for a writer to connect.
@@ -32,7 +33,7 @@ main(int argc, char* argv[])
     // Instantiate a filtered reader that matches the writer key using the foo[ace]
     // regular expression.
     //
-    auto reader = DataStorm::makeFilteredReader(topic, "foo[ace]", DataStorm::ReaderConfig(-1));
+    auto reader = DataStorm::makeFilteredReader<string>(topic, "regex", "foo[ace]", DataStorm::ReaderConfig(-1));
 
     //
     // Get the 3 samples published by the writers fooa, fooc and fooe.

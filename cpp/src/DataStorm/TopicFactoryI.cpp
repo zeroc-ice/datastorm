@@ -25,18 +25,20 @@ TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReader
 shared_ptr<TopicReader>
 TopicFactoryI::createTopicReader(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
-                                 const shared_ptr<FilterFactory>& filterFactory,
                                  const shared_ptr<TagFactory>& tagFactory,
-                                 const shared_ptr<SampleFactory>& sampleFactory)
+                                 const shared_ptr<SampleFactory>& sampleFactory,
+                                 const shared_ptr<FilterFactoryManager>& keyFilterFactories,
+                                 const shared_ptr<FilterFactoryManager>& sampleFilterFactories)
 {
     shared_ptr<TopicReaderI> reader;
     {
         lock_guard<mutex> lock(_mutex);
         reader = make_shared<TopicReaderI>(shared_from_this(),
                                            keyFactory,
-                                           filterFactory,
                                            tagFactory,
-                                           move(sampleFactory),
+                                           sampleFactory,
+                                           keyFilterFactories,
+                                           sampleFilterFactories,
                                            name,
                                            _nextReaderId++);
         _readers[name].push_back(reader);
@@ -54,18 +56,20 @@ TopicFactoryI::createTopicReader(const string& name,
 shared_ptr<TopicWriter>
 TopicFactoryI::createTopicWriter(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
-                                 const shared_ptr<FilterFactory>& filterFactory,
                                  const shared_ptr<TagFactory>& tagFactory,
-                                 const shared_ptr<SampleFactory>& sampleFactory)
+                                 const shared_ptr<SampleFactory>& sampleFactory,
+                                 const shared_ptr<FilterFactoryManager>& keyFilterFactories,
+                                 const shared_ptr<FilterFactoryManager>& sampleFilterFactories)
 {
     shared_ptr<TopicWriterI> writer;
     {
         lock_guard<mutex> lock(_mutex);
         writer = make_shared<TopicWriterI>(shared_from_this(),
                                            keyFactory,
-                                           filterFactory,
                                            tagFactory,
-                                           move(sampleFactory),
+                                           sampleFactory,
+                                           keyFilterFactories,
+                                           sampleFilterFactories,
                                            name,
                                            _nextWriterId++);
         _writers[name].push_back(writer);

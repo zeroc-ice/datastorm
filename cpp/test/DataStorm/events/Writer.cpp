@@ -154,8 +154,8 @@ main(int argc, char* argv[])
 
     cout << "testing filtered reader... " << flush;
     {
-        Topic<string, shared_ptr<Test::Base>, RegexFilter, string> topic(node, "baseclass3");
-
+        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass3");
+        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
         auto writer5 = makeSingleKeyWriter(topic, "elem5", config);
         writer5.add(make_shared<Test::Base>("value1"));
         writer5.update(make_shared<Test::Base>("value2"));
@@ -185,16 +185,19 @@ main(int argc, char* argv[])
 
     cout << "testing filtered sample reader... " << flush;
     {
-        Topic<string, string, RegexFilter, string> topic(node, "filtered reader key/value filter");
+        Topic<string, string> topic(node, "filtered reader key/value filter");
+        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
+        topic.setSampleFilter("regex", makeSampleRegexFilter(topic));
+        topic.setSampleFilter("event", makeSampleEventFilter(topic));
 
-        auto writer1 = makeSingleKeyWriter<SampleEventFilter, SampleEventSeq>(topic, "elem1", config);
+        auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
         writer1.waitForReaders(3);
         test(writer1.hasReaders());
         writer1.add("value1");
         writer1.update("value2");
         writer1.remove();
 
-        auto writer2 = makeSingleKeyWriter<RegexFilter, string>(topic, "elem2", config);
+        auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
         writer2.waitForReaders(1);
         writer2.update("value1");
         writer2.update("value2");

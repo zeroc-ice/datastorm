@@ -21,7 +21,8 @@ main(int argc, char* argv[])
     // and also supports key filtering with the DataStorm::RegexFilter regular
     // expression filter.
     //
-    DataStorm::Topic<string, string, DataStorm::RegexFilter, string> topic(node, "hello");
+    DataStorm::Topic<string, string> topic(node, "hello");
+    topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
     //
     // Instantiate writers

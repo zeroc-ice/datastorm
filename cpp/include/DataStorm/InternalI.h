@@ -128,6 +128,7 @@ class Filter : virtual public Element
 public:
 
     virtual bool match(const std::shared_ptr<Filterable>&) const = 0;
+    virtual const std::string& getName() const = 0;
 };
 
 class FilterFactory
@@ -136,6 +137,16 @@ public:
 
     virtual std::shared_ptr<Filter> get(long long int) const = 0;
     virtual std::shared_ptr<Filter> decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+};
+
+class FilterFactoryManager
+{
+public:
+
+    virtual std::shared_ptr<Filter> get(const std::string&, long long int) const = 0;
+
+    virtual std::shared_ptr<Filter>
+    decode(const std::shared_ptr<Ice::Communicator>&, const std::string&, const std::vector<unsigned char>&) = 0;
 };
 
 class DataElement
@@ -203,9 +214,12 @@ public:
 
     virtual std::shared_ptr<DataReader> createFiltered(const std::shared_ptr<Filter>&,
                                                        DataStorm::ReaderConfig,
+                                                       const std::string& = std::string(),
                                                        std::vector<unsigned char> = {}) = 0;
+
     virtual std::shared_ptr<DataReader> create(const std::vector<std::shared_ptr<Key>>&,
                                                DataStorm::ReaderConfig,
+                                               const std::string& = std::string(),
                                                std::vector<unsigned char> = {}) = 0;
 
     virtual void setDefaultConfig(DataStorm::ReaderConfig) = 0;
@@ -217,9 +231,7 @@ class TopicWriter : virtual public Topic
 {
 public:
 
-    virtual std::shared_ptr<DataWriter> create(const std::vector<std::shared_ptr<Key>>&,
-                                               DataStorm::WriterConfig,
-                                               const std::shared_ptr<FilterFactory>& = nullptr) = 0;
+    virtual std::shared_ptr<DataWriter> create(const std::vector<std::shared_ptr<Key>>&, DataStorm::WriterConfig) = 0;
 
     virtual void setDefaultConfig(DataStorm::WriterConfig) = 0;
     virtual bool hasReaders() const = 0;
@@ -232,15 +244,17 @@ public:
 
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
-                                                           const std::shared_ptr<SampleFactory>&) = 0;
+                                                           const std::shared_ptr<SampleFactory>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&) = 0;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
-                                                           const std::shared_ptr<SampleFactory>&) = 0;
+                                                           const std::shared_ptr<SampleFactory>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&) = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };

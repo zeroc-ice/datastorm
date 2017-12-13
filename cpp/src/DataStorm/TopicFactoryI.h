@@ -30,15 +30,17 @@ public:
 
     virtual std::shared_ptr<TopicReader> createTopicReader(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
-                                                           const std::shared_ptr<SampleFactory>&) override;
+                                                           const std::shared_ptr<SampleFactory>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&) override;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
-                                                           const std::shared_ptr<FilterFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
-                                                           const std::shared_ptr<SampleFactory>&) override;
+                                                           const std::shared_ptr<SampleFactory>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&,
+                                                           const std::shared_ptr<FilterFactoryManager>&) override;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 

@@ -30,7 +30,7 @@ main(int argc, char* argv[])
     //
     // Create a reader that connects to all the writer but doesn't receive any samples.
     //
-    auto stocks = makeMultiKeyReader<vector<SampleEvent>>(topic, {}, {});
+    auto stocks = makeAnyKeyReader<SampleEventSeq>(topic, "event", SampleEventSeq {});
     stocks.waitForWriters();
 
     cout << "Available stocks: " << endl;

@@ -28,14 +28,9 @@ main(int argc, char* argv[])
         Topic<StructKey, string> t3(node, "t3");
         Topic<ClassKey, string> t4(node, "t4");
 
-        Topic<int, string, RegexFilter, string> t11(node, "t1");
-        Topic<int, string, RegexFilter, string, int> t12(node, "t1");
-
         Topic<int, string>::KeyType k1 = 5;
         Topic<int, string>::ValueType v1("string");
         Topic<int, string>::UpdateTagType tag1("string");
-        Topic<int, string, RegexFilter, string>::KeyFilterCriteriaType criteria(".*");
-        Topic<int, string, RegexFilter, string>::KeyFilterType filter(criteria);
 
         Topic<int, string>::WriterType* writer = nullptr;
         if(writer != nullptr)
@@ -62,7 +57,6 @@ main(int argc, char* argv[])
         tc1.setReaderDefaultConfig(ReaderConfig());
 
         tc1.setUpdater<string>("test", [](string& value, string v) {});
-        t12.setUpdater<string>(13, [](string& value, string v) {});
     }
     cout << "ok" << endl;
 
@@ -71,18 +65,12 @@ main(int argc, char* argv[])
         Topic<string, string> topic(node, "topic");
         auto skw = makeSingleKeyWriter(topic, "key");
         skw = makeSingleKeyWriter(topic, "key", WriterConfig());
-        auto skwsf = makeSingleKeyWriter<RegexFilter, string>(topic, "key");
-        skwsf = makeSingleKeyWriter<RegexFilter, string>(topic, "key", WriterConfig());
 
         auto mkw = makeMultiKeyWriter(topic, { "key" });
         mkw = makeMultiKeyWriter(topic, { "key" }, WriterConfig());
-        auto mkwsf = makeMultiKeyWriter<RegexFilter, string>(topic, { "key" });
-        mkwsf = makeMultiKeyWriter<RegexFilter, string>(topic, { "key" }, WriterConfig());
 
         auto akw = makeAnyKeyWriter(topic);
         akw = makeAnyKeyWriter(topic, WriterConfig());
-        auto akwsf = makeAnyKeyWriter<RegexFilter, string>(topic);
-        akwsf = makeAnyKeyWriter<RegexFilter, string>(topic, WriterConfig());
     }
     cout << "ok" << endl;
 
@@ -91,18 +79,12 @@ main(int argc, char* argv[])
         Topic<string, string> topic(node, "topic");
         auto skw = makeSingleKeyReader(topic, "key");
         skw = makeSingleKeyReader(topic, "key", ReaderConfig());
-        auto skwsf = makeSingleKeyReader<string>(topic, "key");
-        skwsf = makeSingleKeyReader<string>(topic, "key", ReaderConfig());
 
         auto mkw = makeMultiKeyReader(topic, { "key" });
         mkw = makeMultiKeyReader(topic, { "key" }, ReaderConfig());
-        auto mkwsf = makeMultiKeyReader<string>(topic, { "key" });
-        mkwsf = makeMultiKeyReader<string>(topic, { "key" }, ReaderConfig());
 
         auto akw = makeAnyKeyReader(topic);
         akw = makeAnyKeyReader(topic, ReaderConfig());
-        auto akwsf = makeAnyKeyReader<string>(topic);
-        akwsf = makeAnyKeyReader<string>(topic, ReaderConfig());
     }
     cout << "ok" << endl;
 

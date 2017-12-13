@@ -79,7 +79,7 @@ endef
 #
 # Returns the tests which don't have a Makefile.mk fragment specified
 #
-tests-without-project-makefile = $(call unique,$(foreach d,$(call dirname,$(shell find $(lang_srcdir)/test -name *.cpp)),\
+tests-without-project-makefile = $(call unique,$(foreach d,$(call dirname,$(shell find $(lang_srcdir)/test -name "*.cpp")),\
                                      $(if $(or $(wildcard $d/Makefile.mk),$(filter %/generated,$d)),,$(call test,$d))))
 
 #

@@ -21,6 +21,7 @@ main(int argc, char* argv[])
     //
     DataStorm::Topic<string, string> topic(node, "hello");
     topic.setWriterDefaultConfig(DataStorm::WriterConfig(-1)); // Keeps all the samples in the history.
+    topic.setSampleFilter("regex", makeSampleRegexFilter(topic));
 
     //
     // Instantiate writer, the writer sample filter criteria type must match the
@@ -29,7 +30,7 @@ main(int argc, char* argv[])
     // Here, the criteria is a string and we use the DataStorm::RegexFilter filter
     // to filter the sample with a regular expression initiliazed from the criteria.
     //
-    auto writer = DataStorm::makeSingleKeyWriter<DataStorm::RegexFilter, string>(topic, "foo");
+    auto writer = DataStorm::makeSingleKeyWriter(topic, "foo");
 
     //
     // Publish samples

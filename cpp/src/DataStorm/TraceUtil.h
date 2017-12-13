@@ -128,7 +128,7 @@ valueIdToString(long long int valueId)
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const DataStormContract::ElementInfo& info)
 {
-    return os << valueIdToString(info.valueId);
+    return os << valueIdToString(info.id);
 }
 
 inline LoggerOutputBase&
@@ -151,7 +151,7 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpec& spec)
         {
             os << ',';
         }
-        os << *q << ':' << valueIdToString(spec.valueId) << ":pv" << valueIdToString(spec.peerValueId);
+        os << *q << ':' << valueIdToString(spec.id) << ":pv" << valueIdToString(spec.peerId);
     }
     return os;
 }
@@ -180,7 +180,7 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpecAck& spec)
         {
             os << ',';
         }
-        os << *q << ':' << valueIdToString(spec.valueId) << ":pv" << valueIdToString(spec.peerValueId);
+        os << *q << ':' << valueIdToString(spec.id) << ":pv" << valueIdToString(spec.peerId);
     }
     return os;
 }

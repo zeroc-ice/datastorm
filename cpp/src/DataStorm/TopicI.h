@@ -47,9 +47,10 @@ public:
 
     TopicI(const std::weak_ptr<TopicFactoryI>&,
            const std::shared_ptr<KeyFactory>&,
-           const std::shared_ptr<FilterFactory>&,
            const std::shared_ptr<TagFactory>&,
            const std::shared_ptr<SampleFactory>&,
+           const std::shared_ptr<FilterFactoryManager>&,
+           const std::shared_ptr<FilterFactoryManager>&,
            const std::string&,
            long long int);
 
@@ -96,22 +97,24 @@ public:
         return _id;
     }
 
-    std::mutex&
-    getMutex()
+    std::mutex& getMutex()
     {
         return _mutex;
     }
 
-    const std::shared_ptr<TagFactory>&
-    getTagFactory() const
+    const std::shared_ptr<TagFactory>& getTagFactory() const
     {
         return _tagFactory;
     }
 
-    const std::shared_ptr<SampleFactory>&
-    getSampleFactory() const
+    const std::shared_ptr<SampleFactory>& getSampleFactory() const
     {
         return _sampleFactory;
+    }
+
+    const std::shared_ptr<FilterFactoryManager>& getSampleFilterFactories() const
+    {
+        return _sampleFilterFactories;
     }
 
 protected:
@@ -137,9 +140,10 @@ protected:
 
     const std::weak_ptr<TopicFactoryI> _factory;
     const std::shared_ptr<KeyFactory> _keyFactory;
-    const std::shared_ptr<FilterFactory> _filterFactory;
     const std::shared_ptr<TagFactory> _tagFactory;
     const std::shared_ptr<SampleFactory> _sampleFactory;
+    const std::shared_ptr<FilterFactoryManager> _keyFilterFactories;
+    const std::shared_ptr<FilterFactoryManager> _sampleFilterFactories;
     const std::string _name;
     const std::shared_ptr<Instance> _instance;
     const std::shared_ptr<TraceLevels> _traceLevels;
@@ -167,17 +171,20 @@ public:
 
     TopicReaderI(const std::shared_ptr<TopicFactoryI>&,
                  const std::shared_ptr<KeyFactory>&,
-                 const std::shared_ptr<FilterFactory>&,
                  const std::shared_ptr<TagFactory>&,
                  const std::shared_ptr<SampleFactory>&,
+                 const std::shared_ptr<FilterFactoryManager>&,
+                 const std::shared_ptr<FilterFactoryManager>&,
                  const std::string&,
                  long long int);
 
     virtual std::shared_ptr<DataReader> createFiltered(const std::shared_ptr<Filter>&,
                                                        DataStorm::ReaderConfig,
+                                                       const std::string&,
                                                        std::vector<unsigned char>) override;
     virtual std::shared_ptr<DataReader> create(const std::vector<std::shared_ptr<Key>>&,
                                                DataStorm::ReaderConfig,
+                                               const std::string&,
                                                std::vector<unsigned char>) override;
 
     virtual void setDefaultConfig(DataStorm::ReaderConfig) override;
@@ -202,15 +209,15 @@ public:
 
     TopicWriterI(const std::shared_ptr<TopicFactoryI>&,
                  const std::shared_ptr<KeyFactory>&,
-                 const std::shared_ptr<FilterFactory>&,
                  const std::shared_ptr<TagFactory>&,
                  const std::shared_ptr<SampleFactory>&,
+                 const std::shared_ptr<FilterFactoryManager>&,
+                 const std::shared_ptr<FilterFactoryManager>&,
                  const std::string&,
                  long long int);
 
     virtual std::shared_ptr<DataWriter> create(const std::vector<std::shared_ptr<Key>>&,
-                                               DataStorm::WriterConfig,
-                                               const std::shared_ptr<FilterFactory>&) override;
+                                               DataStorm::WriterConfig) override;
 
     virtual void setDefaultConfig(DataStorm::WriterConfig) override;
     virtual void waitForReaders(int) const override;

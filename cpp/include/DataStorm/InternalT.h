@@ -127,18 +127,18 @@ public:
         _deleter = { std::enable_shared_from_this<AbstractFactoryT<K, V>>::shared_from_this() };
     }
 
-    template<typename F> std::shared_ptr<typename V::ClassType>
-    create(F&& value)
+    template<typename F, typename... Args> std::shared_ptr<typename V::BaseClassType>
+    create(F&& value, Args&&... args)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        return createImpl(std::forward<F>(value));
+        return createImpl(std::forward<F>(value), std::forward<Args>(args)...);
     }
 
-    std::vector<std::shared_ptr<typename V::ClassType>>
+    std::vector<std::shared_ptr<typename V::BaseClassType>>
     create(std::vector<K> values)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        std::vector<std::shared_ptr<typename V::ClassType>> seq;
+        std::vector<std::shared_ptr<typename V::BaseClassType>> seq;
         for(auto& v : values)
         {
             seq.push_back(createImpl(std::move(v)));
@@ -150,7 +150,7 @@ protected:
 
     friend struct Deleter;
 
-    std::shared_ptr<typename V::ClassType>
+    std::shared_ptr<typename V::BaseClassType>
     getImpl(long long id) const
     {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -166,8 +166,8 @@ protected:
         return nullptr;
     }
 
-    template<typename F> std::shared_ptr<V>
-    createImpl(F&& value)
+    template<typename F, typename... Args> std::shared_ptr<V>
+    createImpl(F&& value, Args&&... args)
     {
         auto p = _elements.find(value);
         if(p != _elements.end())
@@ -186,7 +186,7 @@ protected:
             _elements.erase(p);
         }
 
-        auto k = std::shared_ptr<V>(new V(std::forward<F>(value), ++_nextId), _deleter);
+        auto k = std::shared_ptr<V>(new V(std::forward<F>(value), std::forward<Args>(args)..., ++_nextId), _deleter);
         _elements[k->get()] = k;
         _elementsById[k->getId()] = k;
         return k;
@@ -223,7 +223,7 @@ public:
     }
 
     using AbstractElementT<K>::AbstractElementT;
-    using ClassType = Key;
+    using BaseClassType = Key;
 };
 
 template<typename K> class KeyFactoryT : public KeyFactory, public AbstractFactoryT<K, KeyT<K>>
@@ -262,7 +262,7 @@ public:
     }
 
     using AbstractElementT<T>::AbstractElementT;
-    using ClassType = Tag;
+    using BaseClassType = Tag;
 };
 
 template<typename T> class TagFactoryT : public TagFactory, public AbstractFactoryT<T, TagT<T>>
@@ -431,16 +431,12 @@ public:
     }
 };
 
-template<typename F, typename C, typename V> class FilterT : public Filter, public AbstractElementT<C>
+template<typename C, typename V> class FilterT : public Filter, public AbstractElementT<C>
 {
 public:
 
-    using ClassType = Filter;
-
-    template<typename FF>
-    FilterT(FF&& v, long long int id) :
-        AbstractElementT<C>::AbstractElementT(std::forward<FF>(v), id),
-        _filter(AbstractElementT<C>::_value)
+    template<typename CC>
+    FilterT(CC&& criteria, long long int id) : AbstractElementT<C>::AbstractElementT(std::forward<CC>(criteria), id)
     {
     }
 
@@ -451,16 +447,30 @@ public:
 
     virtual bool match(const std::shared_ptr<Filterable>& value) const override
     {
-        return _filter.match(std::static_pointer_cast<V>(value)->get());
+        return _lambda(std::static_pointer_cast<V>(value)->get());
     }
+
+    virtual const std::string& getName() const override
+    {
+        return _name;
+    }
+
+    template<typename FF> void
+    init(const std::string& name, FF&& lambda)
+    {
+        _name = name;
+        _lambda = std::forward<FF>(lambda);
+    }
+
+    using BaseClassType = Filter;
 
 private:
 
-    F _filter;
+    std::string _name;
+    std::function<bool(const decltype(std::declval<V>().get())&)> _lambda;
 };
 
-template<typename F, typename C, typename V> class FilterFactoryT : public FilterFactory,
-                                                                    public AbstractFactoryT<C, FilterT<F, C, V>>
+template<typename C, typename V> class FilterFactoryT : public FilterFactory, public AbstractFactoryT<C, FilterT<C, V>>
 {
 public:
 
@@ -471,38 +481,137 @@ public:
     virtual std::shared_ptr<Filter>
     get(long long int id) const override
     {
-        return AbstractFactoryT<C, FilterT<F, C, V>>::getImpl(id);
+        return AbstractFactoryT<C, FilterT<C, V>>::getImpl(id);
     }
 
     virtual std::shared_ptr<Filter>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<C, FilterT<F, C, V>>::create(DataStorm::Decoder<C>::decode(communicator, data));
+        return AbstractFactoryT<C, FilterT<C, V>>::create(DataStorm::Decoder<C>::decode(communicator, data));
     }
 
-    static std::shared_ptr<FilterFactoryT<F, C, V>> createFactory()
+    static std::shared_ptr<FilterFactoryT<C, V>> createFactory()
     {
-        auto f = std::make_shared<FilterFactoryT<F, C, V>>();
+        auto f = std::make_shared<FilterFactoryT<C, V>>();
         f->init();
         return f;
     }
 };
 
-template<typename V> class FilterFactoryT<void, void, V> : public FilterFactory
+template<typename ValueT> class FilterFactoryManagerT : public FilterFactoryManager
 {
+    using Value = decltype(std::declval<ValueT>().get());
+
+    struct Factory
+    {
+        virtual std::shared_ptr<Filter> get(long long int) const = 0;
+
+        virtual std::shared_ptr<Filter>
+        decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+    };
+
+    template<typename Criteria> struct FactoryT : Factory
+    {
+        FactoryT(const std::string& name, std::function<std::function<bool(const Value&)>(const Criteria&)> lambda) :
+            name(name), lambda(std::move(lambda))
+        {
+        }
+
+        std::shared_ptr<Filter> create(Criteria&& criteria)
+        {
+            auto filter = std::static_pointer_cast<FilterT<Criteria, ValueT>>(filterFactory.create(std::forward<Criteria>(criteria)));
+            filter->init(name, lambda(filter->get()));
+            return filter;
+        }
+
+        virtual std::shared_ptr<Filter>
+        get(long long int id) const
+        {
+            return filterFactory.get(id);
+        }
+
+        virtual std::shared_ptr<Filter>
+        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data)
+        {
+            return create(DataStorm::Decoder<Criteria>::decode(communicator, data));
+        }
+
+        const std::string name;
+        std::function<std::function<bool(const Value&)>(const Criteria&)> lambda;
+        FilterFactoryT<Criteria, ValueT> filterFactory;
+    };
+
 public:
 
-    virtual std::shared_ptr<Filter>
-    decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
+    FilterFactoryManagerT()
     {
-        assert(false);
-        return nullptr;
     }
 
-    static std::shared_ptr<FilterFactoryT<void, void, V>> createFactory()
+    template<typename Criteria> std::shared_ptr<Filter>
+    create(const std::string& name, Criteria&& criteria)
     {
-        return nullptr;
+        auto p = _factories.find(name);
+        if(p == _factories.end())
+        {
+            throw std::invalid_argument("unknown filter `" + name + "'");
+        }
+
+        auto factory = dynamic_cast<FactoryT<Criteria>*>(p->second.get());
+        if(!factory)
+        {
+            throw std::invalid_argument("filter `" + name + "'");
+        }
+
+        return factory->create(std::forward<Criteria>(criteria));
     }
+
+    virtual std::shared_ptr<Filter>
+    decode(const std::shared_ptr<Ice::Communicator>& communicator,
+           const std::string& name,
+           const std::vector<unsigned char>& data) override
+    {
+        auto p = _factories.find(name);
+        if(p == _factories.end())
+        {
+            return nullptr;
+        }
+
+        return p->second->decode(communicator, data);
+    }
+
+    virtual std::shared_ptr<Filter>
+    get(const std::string& name, long long int id) const override
+    {
+        auto p = _factories.find(name);
+        if(p == _factories.end())
+        {
+            return nullptr;
+        }
+
+        return p->second->get(id);
+    }
+
+    template<typename Criteria> void
+    set(const std::string& name, std::function<std::function<bool(const Value&)>(const Criteria&)> lambda)
+    {
+        if(lambda)
+        {
+            _factories[name] = std::unique_ptr<Factory>(new FactoryT<Criteria>(name, std::move(lambda)));
+        }
+        else
+        {
+            _factories.erase(name);
+        }
+    }
+
+    static std::shared_ptr<FilterFactoryManagerT<ValueT>> create()
+    {
+        return std::make_shared<FilterFactoryManagerT<ValueT>>();
+    }
+
+private:
+
+    std::map<std::string, std::unique_ptr<Factory>> _factories;
 };
 
 }

@@ -149,7 +149,6 @@ public:
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
     virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&);
-    virtual std::shared_ptr<Filter> createSampleFilter(std::vector<unsigned char>) const;
     virtual std::string toString() const = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 
@@ -201,7 +200,8 @@ class DataReaderI : public DataElementI, public DataReader
 {
 public:
 
-    DataReaderI(TopicReaderI*, long long int, std::vector<unsigned char>, const DataStorm::ReaderConfig&);
+    DataReaderI(TopicReaderI*, long long int, const std::string&, std::vector<unsigned char>,
+                const DataStorm::ReaderConfig&);
 
     virtual int getInstanceCount() const override;
 
@@ -232,17 +232,15 @@ class DataWriterI : public DataElementI, public DataWriter
 {
 public:
 
-    DataWriterI(TopicWriterI*, long long int, const std::shared_ptr<FilterFactory>&, const DataStorm::WriterConfig&);
+    DataWriterI(TopicWriterI*, long long int, const DataStorm::WriterConfig&);
 
     virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) override;
-    virtual std::shared_ptr<Filter> createSampleFilter(std::vector<unsigned char>) const override;
 
 protected:
 
     virtual void send(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) const = 0;
 
     TopicWriterI* _parent;
-    std::shared_ptr<FilterFactory> _sampleFilterFactory;
     std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
     std::deque<std::shared_ptr<Sample>> _samples;
 };
@@ -251,8 +249,8 @@ class KeyDataReaderI : public DataReaderI
 {
 public:
 
-    KeyDataReaderI(TopicReaderI*, long long int, const std::vector<std::shared_ptr<Key>>&, std::vector<unsigned char>,
-                   const DataStorm::ReaderConfig&);
+    KeyDataReaderI(TopicReaderI*, long long int, const std::vector<std::shared_ptr<Key>>&, const std::string&,
+                   std::vector<unsigned char>, const DataStorm::ReaderConfig&);
 
     virtual void destroyImpl() override;
 
@@ -271,7 +269,7 @@ class KeyDataWriterI : public DataWriterI
 public:
 
     KeyDataWriterI(TopicWriterI*, long long int, const std::vector<std::shared_ptr<Key>>&,
-                   const std::shared_ptr<FilterFactory>&, const DataStorm::WriterConfig&);
+                   const DataStorm::WriterConfig&);
 
     virtual void destroyImpl() override;
 
@@ -298,8 +296,8 @@ class FilteredDataReaderI : public DataReaderI
 {
 public:
 
-    FilteredDataReaderI(TopicReaderI*, long long int, const std::shared_ptr<Filter>&, std::vector<unsigned char>,
-                        const DataStorm::ReaderConfig&);
+    FilteredDataReaderI(TopicReaderI*, long long int, const std::shared_ptr<Filter>&, const std::string&,
+                        std::vector<unsigned char>, const DataStorm::ReaderConfig&);
 
     virtual void destroyImpl() override;
 

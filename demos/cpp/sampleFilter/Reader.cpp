@@ -34,7 +34,7 @@ main(int argc, char* argv[])
     // Here, the criteria is the string "good.*". This string is provided to writers
     // to perform the sample filtering.
     //
-    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "good.*");
+    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "regex", "good.*");
 
     //
     // Get the 2 samples published by the writer which starts with good

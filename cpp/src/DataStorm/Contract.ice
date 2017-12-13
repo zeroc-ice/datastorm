@@ -48,7 +48,8 @@ sequence<DataSamples> DataSamplesSeq;
 
 struct ElementInfo
 {
-    long valueId;
+    long id;
+    string name;
     ByteSeq value;
 }
 sequence<ElementInfo> ElementInfoSeq;
@@ -68,10 +69,16 @@ struct TopicSpec
     ElementInfoSeq tags;
 };
 
+struct FilterInfo
+{
+    string name;
+    ByteSeq criteria;
+};
+
 class ElementConfig(1)
 {
     optional(1) string facet;
-    optional(2) ByteSeq sampleFilter;
+    optional(2) FilterInfo sampleFilter;
     optional(3) long lastId;
 
     optional(10) int sampleCount;
@@ -89,9 +96,11 @@ sequence<ElementData> ElementDataSeq;
 struct ElementSpec
 {
     ElementDataSeq elements;
-    long valueId;
+    long id;
+    string name;
     ByteSeq value;
-    long peerValueId;
+    long peerId;
+    string peerName;
 }
 sequence<ElementSpec> ElementSpecSeq;
 
@@ -107,9 +116,11 @@ sequence<ElementDataAck> ElementDataAckSeq;
 struct ElementSpecAck
 {
     ElementDataAckSeq elements;
-    long valueId;
+    long id;
+    string name;
     ByteSeq value;
-    long peerValueId;
+    long peerId;
+    string peerName;
 }
 sequence<ElementSpecAck> ElementSpecAckSeq;
 

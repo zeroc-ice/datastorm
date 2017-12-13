@@ -19,16 +19,16 @@ namespace
 
 std::random_device random;
 
-KeyWriter<string, Stock, SampleEventFilter, vector<SampleEvent>>
+KeyWriter<string, Stock>
 makeStock(Topic<string, Stock>& topic, string ticker, Stock stock)
 {
-    auto writer = makeSingleKeyWriter<SampleEventFilter, vector<SampleEvent>>(topic, move(ticker));
+    auto writer = makeSingleKeyWriter(topic, move(ticker));
     writer.add(move(stock));
     return writer;
 }
 
 void
-updateStock(KeyWriter<string, Stock, SampleEventFilter, vector<SampleEvent>>& stock)
+updateStock(KeyWriter<string, Stock>& stock)
 {
     if(uniform_int_distribution<int>(1, 10)(random) < 8)
     {
@@ -58,11 +58,12 @@ main(int argc, char* argv[])
     Topic<string, Stock> topic(node, "stocks");
     topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
     topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
+    topic.setSampleFilter("event", makeSampleEventFilter(topic));
 
     //
     // Instantiate writers for few stocks.
     //
-    vector<KeyWriter<string, Stock, SampleEventFilter, vector<SampleEvent>>> stocks;
+    vector<KeyWriter<string, Stock>> stocks;
     stocks.push_back(makeStock(topic, "GOOG", Stock("Google", 1040.61, 1035, 1043.178, 723018024728, 1035.96, 536996)));
     stocks.push_back(makeStock(topic, "AAPL", Stock("Apple", 174.74, 174.44, 175.50, 898350570640, 174.96, 14026673)));
     stocks.push_back(makeStock(topic, "FB", Stock("Facebook", 182.78, 180.29, 183.15,  531123722959, 180.87, 9426283)));
