@@ -1652,13 +1652,15 @@ Topic<Key, Value, UpdateTag>::Topic(Node& node, const std::string& name) :
 
 template<typename Key, typename Value, typename UpdateTag>
 Topic<Key, Value, UpdateTag>::Topic(Topic<Key, Value, UpdateTag>&& topic) :
+    _name(std::move(topic._name)),
     _topicFactory(std::move(topic._topicFactory)),
     _keyFactory(std::move(topic._keyFactory)),
     _tagFactory(std::move(topic._tagFactory)),
     _keyFilterFactories(std::move(topic._keyFilterFactories)),
     _sampleFilterFactories(std::move(topic._sampleFilterFactories)),
     _reader(std::move(topic._reader)),
-    _writer(std::move(topic._writer))
+    _writer(std::move(topic._writer)),
+    _updaters(std::move(topic._updaters))
 {
 }
 
@@ -1679,6 +1681,7 @@ Topic<Key, Value, UpdateTag>::~Topic()
 template<typename Key, typename Value, typename UpdateTag> Topic<Key, Value, UpdateTag>&
 Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic)
 {
+    _name = std::move(topic._name);
     _topicFactory = std::move(topic._topicFactory);
     _keyFactory = std::move(topic._keyFactory);
     _tagFactory = std::move(topic._tagFactory);
@@ -1686,6 +1689,7 @@ Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic)
     _sampleFilterFactories = std::move(topic._sampleFilterFactories);
     _reader = std::move(topic._reader);
     _writer = std::move(topic._writer);
+    _updaters = std::move(topic._updaters);
     return *this;
 }
 

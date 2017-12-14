@@ -844,6 +844,10 @@ SessionI::runWithTopics(const std::string& name,
     {
         retained.push_back(topic);
         unique_lock<mutex> l(topic->getMutex());
+        if(topic->isDestroyed())
+        {
+            continue;
+        }
         _topicLock = &l;
         fn(topic);
         _topicLock = nullptr;
@@ -861,6 +865,10 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
         for(auto& s : t->second.getSubscribers())
         {
             unique_lock<mutex> l(s.first->getMutex());
+            if(s.first->isDestroyed())
+            {
+                continue;
+            }
             _topicLock = &l;
             fn(s.first, s.second);
             _topicLock = nullptr;
@@ -878,6 +886,10 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
     {
         for(auto& s : t->second.getSubscribers())
         {
+            if(s.first->isDestroyed())
+            {
+                continue;
+            }
             unique_lock<mutex> l(s.first->getMutex());
             _topicLock = &l;
             fn(s.first, s.second, t->second);
@@ -898,6 +910,10 @@ SessionI::runWithTopic(long long int id, TopicI* topic, function<void (TopicSubs
         if(p != t->second.getSubscribers().end())
         {
             unique_lock<mutex> l(topic->getMutex());
+            if(topic->isDestroyed())
+            {
+                return;
+            }
             _topicLock = &l;
             fn(p->second);
             _topicLock = nullptr;

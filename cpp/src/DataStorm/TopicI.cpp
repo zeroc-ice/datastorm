@@ -101,6 +101,7 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
     _traceLevels(_instance->getTraceLevels()),
     _id(id),
     _forwarder(Ice::uncheckedCast<SessionPrx>(_instance->getForwarderManager()->add(this))),
+    _destroyed(false),
     _listenerCount(0),
     _waiters(0),
     _notified(0),
@@ -112,7 +113,7 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
 
 TopicI::~TopicI()
 {
-    disconnect();
+    assert(_destroyed);
     _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
 }
 
@@ -127,6 +128,8 @@ TopicI::destroy()
 {
     {
         lock_guard<mutex> lock(_mutex);
+        assert(!_destroyed);
+        _destroyed = true;
         _forwarder->detachTopic(_id); // Must be called before disconnect()
     }
     disconnect();

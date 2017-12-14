@@ -92,6 +92,11 @@ public:
     virtual void setUpdaters(std::map<std::shared_ptr<Tag>, Updater>) override;
     virtual std::map<std::shared_ptr<Tag>, Updater> getUpdaters() const override;
 
+    bool isDestroyed() const
+    {
+        return _destroyed;
+    }
+
     long long int getId() const
     {
         return _id;
@@ -152,6 +157,7 @@ protected:
 
     mutable std::mutex _mutex;
     mutable std::condition_variable _cond;
+    bool _destroyed;
     std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<DataElementI>>> _keyElements;
     std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<DataElementI>>> _filteredElements;
     std::map<ListenerKey, Listener> _listeners;

@@ -31,7 +31,7 @@ public:
 
     virtual shared_ptr<Ice::Object> locate(const Ice::Current& current, std::shared_ptr<void>&) override
     {
-        return _node->getServant(current.id);
+        return _node->getSession(current.id);
     }
 
     virtual void finished(const Ice::Current&, const Ice::ObjectPtr&, const std::shared_ptr<void>&) override
@@ -194,7 +194,7 @@ NodeI::removeSubscriberSession(SubscriberSessionI* session)
     unique_lock<mutex> lock(_mutex);
     if(_subscribers.erase(session->getNode()->ice_getIdentity()))
     {
-        _sessions.erase(session->getProxy()->ice_getIdentity());
+        _subscriberSessions.erase(session->getProxy()->ice_getIdentity());
         session->destroyImpl();
     }
 }
@@ -300,7 +300,7 @@ NodeI::removePublisherSession(PublisherSessionI* session)
     unique_lock<mutex> lock(_mutex);
     if(_publishers.erase(session->getNode()->ice_getIdentity()))
     {
-        _sessions.erase(session->getProxy()->ice_getIdentity());
+        _publisherSessions.erase(session->getProxy()->ice_getIdentity());
         session->destroyImpl();
     }
 }
@@ -309,12 +309,7 @@ shared_ptr<Ice::Connection>
 NodeI::getSessionConnection(const string& id) const
 {
     unique_lock<mutex> lock(_mutex);
-    auto p = _sessions.find(Ice::stringToIdentity(id));
-    if(p != _sessions.end())
-    {
-        return p->second->getConnection();
-    }
-    return nullptr;
+    return getSession(Ice::stringToIdentity(id))->getConnection();
 }
 
 shared_ptr<SubscriberSessionI>
@@ -334,7 +329,7 @@ NodeI::createSubscriberSessionServant(const shared_ptr<NodePrx>& node)
             os << ++_nextSubscriberSessionId;
             session->init(Ice::uncheckedCast<SessionPrx>(_instance->getObjectAdapter()->createProxy({ os.str(), "s" })));
             _subscribers.emplace(node->ice_getIdentity(), session);
-            _sessions.emplace(session->getProxy()->ice_getIdentity(), session);
+            _subscriberSessions.emplace(session->getProxy()->ice_getIdentity(), session);
             return session;
         }
         catch(const Ice::ObjectAdapterDeactivatedException&)
@@ -361,7 +356,7 @@ NodeI::createPublisherSessionServant(const shared_ptr<NodePrx>& node)
             os << ++_nextPublisherSessionId;
             session->init(Ice::uncheckedCast<SessionPrx>(_instance->getObjectAdapter()->createProxy({ os.str(), "p" })));
             _publishers.emplace(node->ice_getIdentity(), session);
-            _sessions.emplace(session->getProxy()->ice_getIdentity(), session);
+            _publisherSessions.emplace(session->getProxy()->ice_getIdentity(), session);
             return session;
         }
         catch(const Ice::ObjectAdapterDeactivatedException&)
@@ -399,13 +394,24 @@ NodeI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
     }
 }
 
-shared_ptr<Ice::Object>
-NodeI::getServant(const Ice::Identity& ident) const
+shared_ptr<SessionI>
+NodeI::getSession(const Ice::Identity& ident) const
 {
-    auto p = _sessions.find(ident);
-    if(p != _sessions.end())
+    if(ident.category == "s")
     {
-        return p->second;
+        auto p = _subscriberSessions.find(ident);
+        if(p != _subscriberSessions.end())
+        {
+            return p->second;
+        }
+    }
+    else if(ident.category == "p")
+    {
+        auto p = _publisherSessions.find(ident);
+        if(p != _publisherSessions.end())
+        {
+            return p->second;
+        }
     }
     return nullptr;
 }

@@ -66,7 +66,7 @@ public:
 
     std::shared_ptr<Ice::Connection> getSessionConnection(const std::string&) const;
 
-    std::shared_ptr<Ice::Object> getServant(const Ice::Identity&) const;
+    std::shared_ptr<SessionI> getSession(const Ice::Identity&) const;
 
     std::shared_ptr<DataStormContract::NodePrx> getProxy() const
     {
@@ -103,7 +103,8 @@ private:
     std::shared_ptr<DataStormContract::PublisherSessionPrx> _publisherForwarder;
     std::map<Ice::Identity, std::shared_ptr<SubscriberSessionI>> _subscribers;
     std::map<Ice::Identity, std::shared_ptr<PublisherSessionI>> _publishers;
-    std::map<Ice::Identity, std::shared_ptr<SessionI>> _sessions;
+    std::map<Ice::Identity, std::shared_ptr<SubscriberSessionI>> _subscriberSessions;
+    std::map<Ice::Identity, std::shared_ptr<PublisherSessionI>> _publisherSessions;
     long long int _nextSubscriberSessionId;
     long long int _nextPublisherSessionId;
 };
