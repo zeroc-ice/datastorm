@@ -193,11 +193,10 @@ main(int argc, char* argv[])
 
     // Reader clearHistory
     {
+        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
         readers.update(false);
 
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
-
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::Never;
             auto reader = makeSingleKeyReader(topic, "elem1");

@@ -49,12 +49,12 @@ main(int argc, char* argv[])
         tc1.waitForWriters(0);
         tc1.waitForNoWriters();
 
-        test(!tc1.hasReaders());
-        tc1.waitForReaders(0);
-        tc1.waitForNoReaders();
+        test(!t2.hasReaders());
+        t2.waitForReaders(0);
+        t2.waitForNoReaders();
 
         tc1.setWriterDefaultConfig(WriterConfig());
-        tc1.setReaderDefaultConfig(ReaderConfig());
+        t2.setReaderDefaultConfig(ReaderConfig());
 
         tc1.setUpdater<string>("test", [](string& value, string v) {});
     }
