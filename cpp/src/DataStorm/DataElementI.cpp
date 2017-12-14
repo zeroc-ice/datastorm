@@ -477,7 +477,12 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
 
     if(_onInit)
     {
-        _parent->queue(shared_from_this(), [this, samples] { _onInit(samples); });
+        _parent->queue(shared_from_this(), [this, &samples] { _onInit(samples); });
+    }
+
+    if(samples.empty())
+    {
+        return;
     }
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
