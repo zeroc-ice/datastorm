@@ -56,8 +56,19 @@ main(int argc, char* argv[])
     // Instantiates the "stock" topic.
     //
     Topic<string, Stock> topic(node, "stocks");
+
+    //
+    // Setup partial update updaters. The updater is responsiable for updating the
+    // element value when a partial update is received. Updaters must be set on
+    // both the topic reader and writer.
+    //
     topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
     topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
+
+    //
+    // Setup the event sample filters to allow filtering samples based
+    // on the sample event (Add, Update, PartialUpdate, Remove, ...).
+    //
     topic.setSampleFilter("event", makeSampleEventFilter(topic));
 
     //

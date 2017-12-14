@@ -17,11 +17,14 @@ main(int argc, char* argv[])
     DataStorm::Node node(argc, argv);
 
     //
-    // Instantiates the "hello" topic. The topic uses strings for keys and values
-    // and also supports key filtering with the DataStorm::RegexFilter regular
-    // expression filter.
+    // Instantiates the "hello" topic. The topic uses strings for keys and values.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
+
+    //
+    // Setup the regex filter to allow filtering element keys based on a regular
+    // expression. Key filters must be set both on the topic reader and writer.
+    //
     topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
     //

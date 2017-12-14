@@ -29,7 +29,8 @@ main(int argc, char* argv[])
 
     //
     // Instantiate reader, the reader sample filter criteria type must match the
-    // criteria type specified for the writer.
+    // criteria type specified by the "regex" sample filter setup on the writer
+    // topic.
     //
     // Here, the criteria is the string "good.*". This string is provided to writers
     // to perform the sample filtering.

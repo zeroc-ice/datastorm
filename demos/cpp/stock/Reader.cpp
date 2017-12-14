@@ -24,15 +24,26 @@ main(int argc, char* argv[])
     // Instantiates the "stocks" topic.
     //
     Topic<string, Demo::Stock> topic(node, "stocks");
+
+    //
+    // Setup partial update updaters. The updater is responsiable for updating the
+    // element value when a partial update is received. Updaters must be set on
+    // both the topic reader and writer.
+    //
     topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
     topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
 
     //
-    // Create a reader that connects to all the writer but doesn't receive any samples.
+    // Create a reader that connects to all the keys but doesn't receive any samples
+    // (we use the `event' sample filter with an empty set of sample events to discard
+    // events on the writer).
     //
     auto stocks = makeAnyKeyReader<SampleEventSeq>(topic, "event", SampleEventSeq {});
     stocks.waitForWriters();
 
+    //
+    // Get the set of stocks connected with the any reader and display their ticker.
+    //
     cout << "Available stocks: " << endl;
     vector<string> tickers = stocks.getConnectedKeys();
     for(auto ticker : tickers)
@@ -44,6 +55,9 @@ main(int argc, char* argv[])
     cout << "Please enter the stock to follow: ";
     cin >> stock;
 
+    //
+    // Read values for the given stock using a key reader.
+    //
     auto reader = makeSingleKeyReader(topic, stock);
     auto value = reader.getNextUnread().getValue();
 

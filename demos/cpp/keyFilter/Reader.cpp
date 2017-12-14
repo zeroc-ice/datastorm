@@ -22,6 +22,11 @@ main(int argc, char* argv[])
     // expression filter.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
+
+    //
+    // Setup the regex filter to allow filtering element keys based on a regular
+    // expression. Key filters must be set both on the topic reader and writer.
+    //
     topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
     //

@@ -21,14 +21,17 @@ main(int argc, char* argv[])
     //
     DataStorm::Topic<string, string> topic(node, "hello");
     topic.setWriterDefaultConfig(DataStorm::WriterConfig(-1)); // Keeps all the samples in the history.
+
+    //
+    // Setup a regular expression sample filter. The regular regular expression
+    // is matched against the stringified sample value. Readers must provide the
+    // regular expression as a string. Sample filters only need to be set on the
+    // topic writer.
+    //
     topic.setSampleFilter("regex", makeSampleRegexFilter(topic));
 
     //
-    // Instantiate writer, the writer sample filter criteria type must match the
-    // criteria type specified for the reader.
-    //
-    // Here, the criteria is a string and we use the DataStorm::RegexFilter filter
-    // to filter the sample with a regular expression initiliazed from the criteria.
+    // Instantiate the foo writer.
     //
     auto writer = DataStorm::makeSingleKeyWriter(topic, "foo");
 
