@@ -41,10 +41,10 @@ template<typename, typename, typename> class KeyWriter;
 template<typename, typename, typename> class FilteredReader;
 
 /**
- * A sample provides information about an update of a data element.
+ * A sample provides information about a data element update.
  *
- * The Sample template provides access to key, value and type of
- * an update to a data element.
+ * The Sample template provides access to the key and updated value as well
+ * as additional information such as the event, timestamp, update tag, etc.
  */
 template<typename Key, typename Value, typename UpdateTag=std::string> class Sample
 {
@@ -52,6 +52,7 @@ public:
 
     using KeyType = Key;
     using ValueType = Value;
+    using UpdateTagType = UpdateTag;
 
     /**
      * The event of the sample.
@@ -116,35 +117,60 @@ private:
     std::shared_ptr<DataStormInternal::SampleT<Key, Value, UpdateTag>> _impl;
 };
 
-/**
- * The RegexKeyFilter template filters keys matching a regular expression.
- **/
 #if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
 
 #include <regex.h>
 
-template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
-makeRegexFilter()
+/** @private */
+class RegExp
 {
-    return [](const std::string& criteria) {
-        regex_t expr; // TODO: XXX: fix leak
-        if(regcomp(&expr, criteria.c_str(), REG_EXTENDED) != 0)
+public:
+
+    RegExp(const std::string& criteria)
+    {
+        if(regcomp(&_expr, criteria.c_str(), REG_EXTENDED) != 0)
         {
             throw std::invalid_argument(criteria);
         }
-        return [expr](const Value& value) {
-            std::ostringstream os;
-            os << value;
-            return regexec(&expr, os.str().c_str(), 0, 0, 0) == 0;
-        };
-    };
-}
+    }
 
-#else
+    ~RegExp()
+    {
+        regfree(&_expr);
+    }
 
+    bool match(const std::string& value) const
+    {
+        return regexec(&_expr, value.c_str(), 0, 0, 0) == 0;
+    }
+
+private:
+
+    regex_t _expr;
+};
+
+#endif
+
+/**
+ * Returns a regular expression filter to filter values of the given type.
+ *
+ * @return Returns a function that accepts a criteria and returns a
+ *         function which can be used to filter a value based on the
+ *         criteria.
+ */
 template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
 makeRegexFilter()
 {
+#if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
+    return [](const std::string& criteria) {
+        auto expr = std::make_shared<RegExp>(criteria);
+        return [expr](const Value& value) {
+            std::ostringstream os;
+            os << value;
+            return expr->match(os.str());
+        };
+    };
+#else
     return [](const std::string& criteria) {
         std::regex expr(criteria);
         return [expr](const Value& value) {
@@ -153,10 +179,21 @@ makeRegexFilter()
             return std::regex_match(os.str(), expr);
         };
     };
+#endif
 }
 
-#endif
-
+/**
+ * Returns a regular expression filter to filter keys of the given topic key
+ * type. The topic is provided solely to infer the key type necessary to create
+ * the filter.
+ *
+ * Calling this function is equivalent to calling @{link makeRegexFilter<Key>() }
+ * where Key is the topic key type.
+ *
+ * @param topic The topic
+ * @return Returns a lambda that accepts a criteria and returns a filter
+ *         function which can be used to filter the key based on the criteria.
+ */
 template<typename Key, typename Value, typename UpdateTag>
 std::function<std::function<bool (const Key&)> (const std::string&)>
 makeKeyRegexFilter(const Topic<Key, Value, UpdateTag>&)
@@ -164,6 +201,18 @@ makeKeyRegexFilter(const Topic<Key, Value, UpdateTag>&)
     return makeRegexFilter<Key>();
 }
 
+/**
+ * Returns a regular expression filter to filter samples from the given topic.
+ * The topic is provided solely to infer the sample type necessary to create
+ * the filter.
+ *
+ * It's equivalent to calling makeRegexFilter<Sample<Key, Value, UpdateTag>>()
+ * where Key, Value and UpdateTag are the topic key, value and udpate tag types.
+ *
+ * @param topic The topic
+ * @return Returns a lambda that accepts a criteria and returns a filter
+ *         function which can be used to filter the key based on the criteria.
+ */
 template<typename Key, typename Value, typename UpdateTag>
 std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::string&)>
 makeSampleRegexFilter(const Topic<Key, Value, UpdateTag>&)

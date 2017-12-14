@@ -467,7 +467,7 @@ public:
 private:
 
     std::string _name;
-    std::function<bool(const decltype(std::declval<V>().get())&)> _lambda;
+    std::function<bool(const typename std::remove_reference<decltype(std::declval<V>().get())>::type&)> _lambda;
 };
 
 template<typename C, typename V> class FilterFactoryT : public FilterFactory, public AbstractFactoryT<C, FilterT<C, V>>
@@ -500,7 +500,7 @@ public:
 
 template<typename ValueT> class FilterFactoryManagerT : public FilterFactoryManager
 {
-    using Value = decltype(std::declval<ValueT>().get());
+    using Value = typename std::remove_reference<decltype(std::declval<ValueT>().get())>::type;
 
     struct Factory
     {
