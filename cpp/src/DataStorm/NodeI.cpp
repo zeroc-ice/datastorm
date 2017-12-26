@@ -309,7 +309,15 @@ shared_ptr<Ice::Connection>
 NodeI::getSessionConnection(const string& id) const
 {
     unique_lock<mutex> lock(_mutex);
-    return getSession(Ice::stringToIdentity(id))->getConnection();
+    auto session = getSession(Ice::stringToIdentity(id));
+    if(session)
+    {
+        return session->getConnection();
+    }
+    else
+    {
+        return nullptr;
+    }
 }
 
 shared_ptr<SubscriberSessionI>

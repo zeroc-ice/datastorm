@@ -22,7 +22,7 @@ using namespace DataStormInternal;
 Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator)
 {
     shared_ptr<Ice::Properties> properties = _communicator->getProperties();
-    if(properties->getProperty("DataStorm.Endpoints").empty())
+    if(properties->getProperty("DataStormAdapter.Endpoints").empty())
     {
         properties->setProperty("DataStormAdapter.Endpoints", "tcp");
     }

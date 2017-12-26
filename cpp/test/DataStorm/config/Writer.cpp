@@ -241,5 +241,27 @@ main(int argc, char* argv[])
     }
     cout << "ok" << endl;
 
+    cout << "testing send time discard policy... " << flush;
+    {
+        writers.update(false); // Not ready
+        vector<tuple<Node, Topic<string, int>, KeyWriter<string, int>>> w;
+        int writerCount = 10;
+        for(int i = 0; i < writerCount; ++i)
+        {
+            Node node(argc, argv);
+            Topic<string, int> topic(node, "sendTimeTopic");
+            w.emplace_back(move(node), move(topic), makeSingleKeyWriter(topic, "elem"));
+        }
+        for(int i = 0; i < writerCount; ++i)
+        {
+            this_thread::sleep_for(chrono::microseconds(200));
+            get<2>(w[i]).update(i);
+        }
+        writers.update(true); // Ready
+
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+    }
+    cout << "ok" << endl;
+
     return 0;
 }

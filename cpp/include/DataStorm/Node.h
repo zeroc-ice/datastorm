@@ -59,9 +59,23 @@ public:
     Node(int& argc, char* argv[]);
 
     /**
+     * Construct a new Node by taking ownership of the given node.
+     *
+     * @param node The node to transfer ownership from.
+     */
+    Node(Node&&);
+
+    /**
      * Destruct the node. The node destruction releases associated resources.
      */
     ~Node();
+
+    /**
+     * Move assignement operator.
+     *
+     * @param node The node.
+     **/
+    Node& operator=(Node&&);
 
     /**
      * Returns the Ice communicator associated with the node.
@@ -79,10 +93,9 @@ private:
 
     std::shared_ptr<DataStormInternal::Instance> _instance;
     std::shared_ptr<DataStormInternal::TopicFactory> _factory;
+    bool _ownsCommunicator;
 
     template<typename, typename, typename> friend class Topic;
-
-    const bool _ownsCommunicator;
 };
 
 }

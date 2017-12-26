@@ -21,6 +21,16 @@ main(int argc, char* argv[])
 {
     Node node(argc, argv);
 
+    cout << "testing node..." << flush;
+    {
+        Node n;
+        Node nm(move(n));
+        auto nm2 = move(nm);
+        nm2.getCommunicator();
+        nm2.getSessionConnection("s");
+    }
+    cout << endl;
+
     cout << "testing topic... " << flush;
     {
         Topic<int, string> t1(node, "t1");
@@ -63,28 +73,87 @@ main(int argc, char* argv[])
     cout << "testing writer... " << flush;
     {
         Topic<string, string> topic(node, "topic");
+
+        auto testWriter = [](Topic<string, string>::WriterType& writer)
+        {
+            writer.hasReaders();
+            writer.waitForReaders(0);
+            writer.waitForNoReaders();
+            writer.getConnectedKeys();
+            try
+            {
+                writer.getLast();
+            }
+            catch(const std::invalid_argument&)
+            {
+            }
+            writer.getAll();
+            writer.onConnect([](tuple<string, long long int, long long int> origin) {});
+            writer.onDisconnect([](tuple<string, long long int, long long int> origin) {});
+        };
+
         auto skw = makeSingleKeyWriter(topic, "key");
         skw = makeSingleKeyWriter(topic, "key", WriterConfig());
+
+        auto skwm = move(skw);
+        testWriter(skwm);
+        skwm.add("test");
+        skwm.update(string("test"));
+        skwm.update<int>("updatetag", 10);
+        skwm.remove();
 
         auto mkw = makeMultiKeyWriter(topic, { "key" });
         mkw = makeMultiKeyWriter(topic, { "key" }, WriterConfig());
 
+        auto mkwm = move(mkw);
+        testWriter(mkwm);
+        mkwm.add("key", "test");
+        mkwm.update("key", string("test"));
+        mkwm.update<int>("key", "updatetag", 10);
+        mkwm.remove("key");
+
         auto akw = makeAnyKeyWriter(topic);
         akw = makeAnyKeyWriter(topic, WriterConfig());
+
+        auto akwm = move(akw);
+        testWriter(akwm);
     }
     cout << "ok" << endl;
 
     cout << "testing reader... " << flush;
     {
         Topic<string, string> topic(node, "topic");
-        auto skw = makeSingleKeyReader(topic, "key");
-        skw = makeSingleKeyReader(topic, "key", ReaderConfig());
 
-        auto mkw = makeMultiKeyReader(topic, { "key" });
-        mkw = makeMultiKeyReader(topic, { "key" }, ReaderConfig());
+        auto testReader = [](Topic<string, string>::ReaderType& reader)
+        {
+            reader.hasWriters();
+            reader.waitForWriters(0);
+            reader.waitForNoWriters();
+            reader.getConnectedKeys();
+            reader.getAllUnread();
+            reader.waitForUnread(0);
+            reader.hasUnread();
+            if(false)
+            {
+                reader.getNextUnread();
+            }
+            reader.onConnect([](tuple<string, long long int, long long int> origin) {});
+            reader.onDisconnect([](tuple<string, long long int, long long int> origin) {});
+            reader.onInit([](vector<Sample<string, string>> samples) {});
+            reader.onSample([](Sample<string, string> sample) {});
+        };
 
-        auto akw = makeAnyKeyReader(topic);
-        akw = makeAnyKeyReader(topic, ReaderConfig());
+        auto skr = makeSingleKeyReader(topic, "key");
+        skr = makeSingleKeyReader(topic, "key", ReaderConfig());
+        testReader(skr);
+
+        auto mkr = makeMultiKeyReader(topic, { "key" });
+        mkr = makeMultiKeyReader(topic, { "key" }, ReaderConfig());
+        testReader(mkr);
+
+        auto akr = makeAnyKeyReader(topic);
+        akr = makeAnyKeyReader(topic, ReaderConfig());
+        testReader(akr);
     }
     cout << "ok" << endl;
 

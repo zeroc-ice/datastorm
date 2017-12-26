@@ -395,7 +395,8 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
 DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, const string& sampleFilter,
                          vector<unsigned char> sampleFilterCriteria, const DataStorm::ReaderConfig& config) :
     DataElementI(topic, id, config),
-    _parent(topic)
+    _parent(topic),
+    _discardPolicy(config.discardPolicy ? *config.discardPolicy : DataStorm::DiscardPolicy::None)
 {
     if(!sampleFilter.empty())
     {
@@ -458,9 +459,16 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         out << this << ": initialized " << samples.size() << " samples from `" << element << '@' << topic << "'";
     }
 
+    vector<shared_ptr<Sample>> valid;
     shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
     for(const auto& sample : samples)
     {
+        if(_discardPolicy == DataStorm::DiscardPolicy::SendTime && sample->timestamp <= _lastSendTime)
+        {
+            continue;
+        }
+        valid.push_back(sample);
+
         if(sample->event == DataStorm::SampleEvent::PartialUpdate)
         {
             if(!sample->hasValue())
@@ -475,15 +483,22 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         previous = sample;
     }
 
-    if(_onInit)
+    if(_traceLevels->data > 2 && valid.size() < samples.size())
     {
-        _parent->queue(shared_from_this(), [this, &samples] { _onInit(samples); });
+        Trace out(_traceLevels, _traceLevels->dataCat);
+        out << this << ": discarded " << samples.size() - valid.size() << " samples from `" << element << '@' << topic << "'";
     }
 
-    if(samples.empty())
+    if(_onInit)
+    {
+        _parent->queue(shared_from_this(), [this, valid] { _onInit(valid); });
+    }
+
+    if(valid.empty())
     {
         return;
     }
+    _lastSendTime = valid.back()->timestamp;
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
     {
@@ -496,14 +511,14 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         {
             size_t count = _samples.size();
             size_t maxCount = static_cast<size_t>(*_config->sampleCount);
-            if(count + samples.size() > maxCount)
+            if(count + valid.size() > maxCount)
             {
-                count = count + samples.size() - maxCount;
+                count = count + valid.size() - maxCount;
                 while(!_samples.empty() && count-- > 0)
                 {
                     _samples.pop_front();
                 }
-                assert(_samples.size() + samples.size() == maxCount);
+                assert(_samples.size() + valid.size() == maxCount);
             }
         }
         else if(*_config->sampleCount == 0)
@@ -515,11 +530,11 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
     if(_config->clearHistory && *_config->clearHistory == ClearHistoryPolicy::OnAll)
     {
         _samples.clear();
-        _samples.push_back(samples.back());
+        _samples.push_back(valid.back());
     }
     else
     {
-        for(const auto& s : samples)
+        for(const auto& s : valid)
         {
             if(_config->clearHistory &&
                ((s->event == DataStorm::SampleEvent::Add && *_config->clearHistory == ClearHistoryPolicy::OnAdd) ||
@@ -533,10 +548,8 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         }
     }
 
-    if(!samples.empty())
-    {
-        _config->lastId = samples.back()->id;
-    }
+    // TODO: XXX: this doesn't work multiple writers
+    //_config->lastId = valid.back()->id;
     _parent->_cond.notify_all();
 }
 
@@ -568,6 +581,17 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
             sample->decode(_parent->getInstance()->getCommunicator());
         }
     }
+
+    if(_discardPolicy == DataStorm::DiscardPolicy::SendTime && sample->timestamp <= _lastSendTime)
+    {
+        if(_traceLevels->data > 2)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": discarded sample " << sample->id;
+        }
+        return;
+    }
+    _lastSendTime = sample->timestamp;
 
     if(_onSample)
     {
@@ -610,7 +634,8 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
         _samples.clear();
     }
     _samples.push_back(sample);
-    _config->lastId = sample->id;
+    // TODO: XXX: this doesn't work multiple writers
+    //_config->lastId = sample->id;
     _parent->_cond.notify_all();
 }
 

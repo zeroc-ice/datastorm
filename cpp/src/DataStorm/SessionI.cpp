@@ -226,7 +226,7 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": matched elements `[" << specs << "]@" << topicId << "' on topic `" << topic << "'";
+                out << _id << ": announcing elements matched `[" << specs << "]@" << topicId << "' on topic `" << topic << "'";
             }
             _session->attachElementsAsync(topic->getId(), specs);
         }
@@ -257,7 +257,7 @@ SessionI::attachElements(long long int id, ElementSpecSeq elements, const Ice::C
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": matched elements `[" << specAck << "]@" << id << "' on topic `" << topic << "'";
+                out << _id << ": attaching elements matched `[" << specAck << "]@" << id << "' on topic `" << topic << "'";
             }
             _session->attachElementsAckAsync(topic->getId(), specAck);
         }

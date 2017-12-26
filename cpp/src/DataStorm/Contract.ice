@@ -80,6 +80,7 @@ class ElementConfig(1)
     optional(1) string facet;
     optional(2) FilterInfo sampleFilter;
     optional(3) long lastId;
+    optional(4) int priority;
 
     optional(10) int sampleCount;
     optional(11) int sampleLifetime;

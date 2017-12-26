@@ -164,10 +164,7 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementDataAck& data)
     {
         os << ':' << *data.config->facet;
     }
-    if(!data.samples.empty())
-    {
-        os << ":sz" << data.samples.size();
-    }
+    os << ":sz" << data.samples.size();
     return os;
 }
 

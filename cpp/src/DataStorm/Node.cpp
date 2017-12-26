@@ -20,7 +20,7 @@ using namespace DataStorm;
 Node::Node(const std::shared_ptr<Ice::Communicator>& communicator) :
     _ownsCommunicator(communicator == nullptr)
 {
-    _instance = make_shared<DataStormInternal::Instance>(communicator);
+    _instance = make_shared<DataStormInternal::Instance>(communicator == nullptr ? Ice::initialize() : communicator);
     _instance->init();
 
     _factory = _instance->getTopicFactory();
@@ -40,9 +40,28 @@ Node::Node(int& argc, char* argv[]) :
     _factory = _instance->getTopicFactory();
 }
 
+Node::Node(Node&& node)
+{
+    _instance = move(node._instance);
+    _factory = move(node._factory);
+    _ownsCommunicator = move(node._ownsCommunicator);
+}
+
 Node::~Node()
 {
-    _instance->destroy(_ownsCommunicator);
+    if(_instance)
+    {
+        _instance->destroy(_ownsCommunicator);
+    }
+}
+
+Node&
+Node::operator=(Node&& node)
+{
+    _instance = move(node._instance);
+    _factory = move(node._factory);
+    _ownsCommunicator = move(node._ownsCommunicator);
+    return *this;
 }
 
 shared_ptr<Ice::Communicator>

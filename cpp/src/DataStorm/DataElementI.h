@@ -224,6 +224,8 @@ protected:
 
     std::deque<std::shared_ptr<Sample>> _samples;
     int _instanceCount;
+    DataStorm::DiscardPolicy _discardPolicy;
+    std::chrono::time_point<std::chrono::system_clock> _lastSendTime;
     std::function<void(const std::vector<std::shared_ptr<Sample>>&)> _onInit;
     std::function<void(const std::shared_ptr<Sample>&)> _onSample;
 };
