@@ -24,8 +24,9 @@ main(int argc, char* argv[])
 
     {
         Topic<string, string> topic(node, "string");
-        auto reader = makeSingleKeyReader(topic, "element", config);
         auto barrier = makeSingleKeyWriter(topic, "barrier");
+        barrier.waitForReaders();
+        auto reader = makeSingleKeyReader(topic, "element", config);
         test(reader.getNextUnread().getValue() == "add");
         test(reader.getNextUnread().getValue() == "update1");
         test(reader.getNextUnread().getValue() == "update2");

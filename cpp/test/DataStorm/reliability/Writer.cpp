@@ -26,7 +26,6 @@ main(int argc, char* argv[])
     {
         Topic<string, string> topic(node, "string");
         auto writer = makeSingleKeyWriter(topic, "element", config);
-        auto barrier = makeSingleKeyReader(topic, "barrier");
         writer.add("add");
         writer.update("update1");
         std::promise<shared_ptr<Ice::Connection>> promise;
@@ -35,6 +34,7 @@ main(int argc, char* argv[])
             promise.set_value(node.getSessionConnection(get<0>(reader)));
             writer.onConnect(nullptr);
         });
+        auto barrier = makeSingleKeyReader(topic, "barrier");
         writer.waitForReaders();
         auto connection = promise.get_future().get();
         test(connection);
