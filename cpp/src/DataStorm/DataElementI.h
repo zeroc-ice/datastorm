@@ -22,6 +22,7 @@ class SessionI;
 class TopicI;
 class TopicReaderI;
 class TopicWriterI;
+class CallbackExecutor;
 
 class TraceLevels;
 
@@ -146,6 +147,7 @@ public:
     virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
                                                         const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
+                                                        long long int,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
     virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&);
@@ -157,17 +159,14 @@ public:
         return _id;
     }
 
-    std::shared_ptr<DataStormContract::ElementConfig> getConfig() const
-    {
-        return _config;
-    }
+    std::shared_ptr<DataStormContract::ElementConfig> getConfig() const;
 
     void waitForListeners(int count) const;
     bool hasListeners() const;
 
     TopicI* getTopic() const
     {
-        return _parent;
+        return _parent.get();
     }
 
 protected:
@@ -182,12 +181,13 @@ protected:
     long long int _id;
     size_t _listenerCount;
     std::shared_ptr<DataStormContract::ElementConfig> _config;
+    std::shared_ptr<CallbackExecutor> _executor;
 
 private:
 
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
-    TopicI* _parent;
+    std::shared_ptr<TopicI> _parent;
     std::map<ListenerKey, Listener> _listeners;
     mutable size_t _waiters;
     mutable size_t _notified;
@@ -285,6 +285,7 @@ public:
     virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
                                                         const std::shared_ptr<Filter>&,
                                                         const std::shared_ptr<DataStormContract::ElementConfig>&,
+                                                        long long int,
                                                         const std::chrono::time_point<std::chrono::system_clock>&) override;
 
 private:

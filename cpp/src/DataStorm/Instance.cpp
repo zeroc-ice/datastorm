@@ -13,6 +13,7 @@
 #include <DataStorm/TraceUtil.h>
 #include <DataStorm/TopicFactoryI.h>
 #include <DataStorm/NodeI.h>
+#include <DataStorm/CallbackExecutor.h>
 
 #include <IceUtil/UUID.h>
 
@@ -42,6 +43,8 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
     _collocatedAdapter->addDefaultServant(_forwarderManager, "forwarders");
 
     _traceLevels = make_shared<TraceLevels>(_communicator);
+
+    _executor = make_shared<CallbackExecutor>();
 }
 
 void
@@ -67,4 +70,5 @@ Instance::destroy(bool ownsCommunicator)
     {
         _communicator->destroy();
     }
+    _node->destroy();
 }

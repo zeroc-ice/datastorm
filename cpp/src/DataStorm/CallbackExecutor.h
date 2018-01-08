@@ -9,28 +9,28 @@
 
 #pragma once
 
-#include <Ice/Ice.h>
+#include <vector>
+#include <memory>
+#include <mutex>
 
 namespace DataStormInternal
 {
 
-class SessionI;
+class DataElementI;
 
-class SessionManager
+class CallbackExecutor
 {
 public:
 
-    SessionManager();
+    CallbackExecutor();
 
-    void add(const std::shared_ptr<SessionI>&, std::shared_ptr<Ice::Connection>);
-    void remove(const std::shared_ptr<SessionI>&, std::shared_ptr<Ice::Connection>);
-    void remove(std::shared_ptr<Ice::Connection>);
-    void destroy();
+    void queue(const std::shared_ptr<DataElementI>&, std::function<void()>);
+    void flush();
 
 private:
 
     std::mutex _mutex;
-    std::map<std::shared_ptr<Ice::Connection>, std::set<std::shared_ptr<SessionI>>> _connections;
+    std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _queue;
 };
 
 }

@@ -1,0 +1,66 @@
+// **********************************************************************
+//
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+//
+// This copy of Ice is licensed to you under the terms described in the
+// ICE_LICENSE file included in this distribution.
+//
+// **********************************************************************
+
+#include <DataStorm/DataStorm.h>
+
+#include <TestCommon.h>
+
+using namespace DataStorm;
+using namespace std;
+
+int
+main(int argc, char* argv[])
+{
+    Node node(argc, argv);
+
+    ReaderConfig config;
+    config.clearHistory = ClearHistoryPolicy::Never;
+
+    {
+        Topic<string, string> topic(node, "string");
+        auto reader = makeSingleKeyReader(topic, "element", config);
+        auto barrier = makeSingleKeyWriter(topic, "barrier");
+        test(reader.getNextUnread().getValue() == "add");
+        test(reader.getNextUnread().getValue() == "update1");
+        test(reader.getNextUnread().getValue() == "update2");
+        barrier.update("");
+        test(reader.getNextUnread().getValue() == "update3");
+        barrier.update("");
+        barrier.waitForNoReaders();
+    }
+
+    {
+        Topic<string, int> topic(node, "int");
+        auto reader = makeSingleKeyReader(topic, "element", config);
+        for(int i = 0; i < 1000; ++i)
+        {
+            auto sample = reader.getNextUnread();
+            if(sample.getValue() != i)
+            {
+                cerr << "unexpected sample: " << sample.getValue() << " expected:" << i << endl;
+                test(false);
+            }
+            if((i % 50) == 0)
+            {
+                auto connection = node.getSessionConnection(get<0>(sample.getOrigin()));
+                while(!connection)
+                {
+                    this_thread::sleep_for(chrono::milliseconds(200));
+                    connection = node.getSessionConnection(get<0>(sample.getOrigin()));
+                }
+                connection->close(Ice::ConnectionClose::Gracefully);
+            }
+        }
+        auto writer = makeSingleKeyWriter(topic, "barrier");
+        writer.waitForReaders();
+        writer.update(0);
+        writer.waitForNoReaders();
+    }
+    return 0;
+}

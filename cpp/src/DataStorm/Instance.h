@@ -28,6 +28,7 @@ class SessionManager;
 class TraceLevels;
 class ForwarderManager;
 class NodeI;
+class CallbackExecutor;
 
 class Instance : public std::enable_shared_from_this<Instance>
 {
@@ -91,6 +92,12 @@ public:
         return _node;
     }
 
+    std::shared_ptr<CallbackExecutor>
+    getCallbackExecutor()
+    {
+        return _executor;
+    }
+
     void destroy(bool);
 
 private:
@@ -105,6 +112,7 @@ private:
     std::shared_ptr<Ice::ObjectAdapter> _multicastAdapter;
     std::shared_ptr<DataStormContract::TopicLookupPrx> _lookup;
     std::shared_ptr<TraceLevels> _traceLevels;
+    std::shared_ptr<CallbackExecutor> _executor;
 };
 
 }

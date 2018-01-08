@@ -29,43 +29,73 @@ sequence<byte> ByteSeq;
 /** A sequence of long */
 sequence<long> LongSeq;
 
+/** A dictionary of <long, long> */
+dictionary<long, long> LongLongDict;
+
 struct DataSample
 {
+    /** The sample id. */
     long id;
+
+    /** The timestamp of the sample (write time). */
     long timestamp;
+
+    /** The update tag if the sample event is PartialUpdate. */
     long tag;
+
+    /** The sample event. */
     DataStorm::SampleEvent event;
+
+    /** The value of the sample. */
     ByteSeq value;
 }
 ["cpp:type:std::deque<DataSample>"] sequence<DataSample> DataSampleSeq;
 
 struct DataSamples
 {
+    /** The id of the writer or reader. */
     long id;
+
+    /** The samples. */
     DataSampleSeq samples;
 }
 sequence<DataSamples> DataSamplesSeq;
 
 struct ElementInfo
 {
+    /** The key or filter id. */
     long id;
+
+    /** The filter name. */
     string name;
+
+    /** The key or filter value. */
     ByteSeq value;
 }
 sequence<ElementInfo> ElementInfoSeq;
 
 struct TopicInfo
 {
+    /** The topic name. */
     string name;
+
+    /** The id of topic writers or readers. */
     LongSeq ids;
 }
 sequence<TopicInfo> TopicInfoSeq;
 
 struct TopicSpec
 {
+    /** The id of the topic. */
     long id;
+
+    /* The name of the topic. */
     string name;
+
+    /** The topic keys or filters. */
     ElementInfoSeq elements;
+
+    /** The topic update tags. */
     ElementInfoSeq tags;
 };
 
@@ -79,7 +109,6 @@ class ElementConfig(1)
 {
     optional(1) string facet;
     optional(2) FilterInfo sampleFilter;
-    optional(3) long lastId;
     optional(4) int priority;
 
     optional(10) int sampleCount;
@@ -89,53 +118,91 @@ class ElementConfig(1)
 
 struct ElementData
 {
+    /** The id of the writer or reader */
     long id;
+
+    /** The config of the writer or reader */
     ElementConfig config;
+
+    /** The lastIds received by the reader. */
+    LongLongDict lastIds;
 }
 sequence<ElementData> ElementDataSeq;
 
 struct ElementSpec
 {
+    /** The readers and writers associated with the key or filter. */
     ElementDataSeq elements;
+
+    /** The id of the key or filter */
     long id;
+
+    /** The name of the filter. */
     string name;
+
+    /** The value of the key or filter. */
     ByteSeq value;
+
+    /** The id of the key or filter from the peer. */
     long peerId;
+
+    /** The name of the filter from the peer. */
     string peerName;
 }
 sequence<ElementSpec> ElementSpecSeq;
 
 struct ElementDataAck
 {
+    /** The id of the writer or filter. */
     long id;
+
+    /** The config of the writer or reader */
     ElementConfig config;
+
+    /** The lastIds received by the reader. */
+    LongLongDict lastIds;
+
+    /** The samples of the writer or reader */
     DataSampleSeq samples;
+
+    /** The id of the writer or reader on the peer. */
     long peerId;
 }
 sequence<ElementDataAck> ElementDataAckSeq;
 
 struct ElementSpecAck
 {
+    /** The readers or writers assocatied with the key or filter. */
     ElementDataAckSeq elements;
+
+    /** The id of the key or filter. */
     long id;
+
+    /** The name of the filter. */
     string name;
+
+    /** The key or filter value. */
     ByteSeq value;
+
+    /** The id of the key or filter on the peer. */
     long peerId;
+
+    /** The name of the filter on the peer. */
     string peerName;
 }
 sequence<ElementSpecAck> ElementSpecAckSeq;
 
 interface Session
 {
-    void announceTopics(TopicInfoSeq topics);
+    void announceTopics(TopicInfoSeq topics, bool initialize);
     void attachTopic(TopicSpec topic);
     void detachTopic(long topic);
 
-    void attachTags(long topic, ElementInfoSeq tags);
+    void attachTags(long topic, ElementInfoSeq tags, bool initialize);
     void detachTags(long topic, LongSeq tags);
 
     void announceElements(long topic, ElementInfoSeq keys);
-    void attachElements(long topic, ElementSpecSeq elements);
+    void attachElements(long topic, ElementSpecSeq elements, bool initialize);
     void attachElementsAck(long topic, ElementSpecAckSeq elements);
     void detachElements(long topic, LongSeq keys);
 
@@ -153,10 +220,18 @@ interface SubscriberSession extends Session
     void s(long topic, long element, DataSample sample);
 }
 
+exception CannotCreateSessionException
+{
+    string reason;
+};
+
 interface Node
 {
-    ["amd"] SubscriberSession* createSubscriberSession(Node* publisher, PublisherSession* session);
-    ["amd"] PublisherSession* createPublisherSession(Node* subscriber, SubscriberSession* session);
+    ["amd"] SubscriberSession* createSubscriberSession(Node* publisher, PublisherSession* session)
+        throws CannotCreateSessionException;
+
+    ["amd"] PublisherSession* createPublisherSession(Node* subscriber, SubscriberSession* session)
+        throws CannotCreateSessionException;
 }
 
 interface TopicLookup

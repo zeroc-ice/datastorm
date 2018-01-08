@@ -48,7 +48,7 @@ TopicFactoryI::createTopicReader(const string& name,
             out << name << ": created topic reader";
         }
     }
-    _instance->getNode()->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } });
+    _instance->getNode()->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
     _instance->getTopicLookup()->announceTopicReaderAsync(name, _instance->getNode()->getProxy());
     return reader;
 }
@@ -79,7 +79,7 @@ TopicFactoryI::createTopicWriter(const string& name,
             out << name << ": created topic writer";
         }
     }
-    _instance->getNode()->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } });
+    _instance->getNode()->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
     _instance->getTopicLookup()->announceTopicWriterAsync(name, _instance->getNode()->getProxy());
     return writer;
 }

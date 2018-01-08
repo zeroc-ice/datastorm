@@ -126,11 +126,22 @@ TopicI::getName() const
 void
 TopicI::destroy()
 {
+    std::map<std::shared_ptr<Key>, std::set<std::shared_ptr<DataElementI>>> keyElements;
+    std::map<std::shared_ptr<Filter>, std::set<std::shared_ptr<DataElementI>>> filteredElements;
     {
         lock_guard<mutex> lock(_mutex);
         assert(!_destroyed);
         _destroyed = true;
-        _forwarder->detachTopic(_id); // Must be called before disconnect()
+        try
+        {
+            _forwarder->detachTopic(_id); // Must be called before disconnect()
+        }
+        catch(const std::exception&)
+        {
+            forwarderException();
+        }
+        _keyElements.swap(keyElements);
+        _filteredElements.swap(filteredElements);
     }
     disconnect();
 }
@@ -167,7 +178,7 @@ TopicI::getTags() const
 }
 
 ElementSpecSeq
-TopicI::getElementSpecs(const ElementInfoSeq& infos)
+TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, SessionI* session)
 {
     ElementSpecSeq specs;
     for(const auto& info : infos)
@@ -181,7 +192,7 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                 ElementDataSeq elements;
                 for(auto k : p->second)
                 {
-                    elements.push_back({ k->getId(), k->getConfig() });
+                    elements.push_back({ k->getId(), k->getConfig(), session->getLastIds(topicId, key, k.get()) });
                 }
                 specs.push_back({ move(elements), key->getId(), "", {}, info.id });
             }
@@ -192,7 +203,7 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                     ElementDataSeq elements;
                     for(auto f : e.second)
                     {
-                        elements.push_back({ f->getId(), f->getConfig() });
+                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, key, f.get()) });
                     }
                     specs.push_back({ move(elements),
                                       -e.first->getId(),
@@ -221,7 +232,7 @@ TopicI::getElementSpecs(const ElementInfoSeq& infos)
                     ElementDataSeq elements;
                     for(auto k : e.second)
                     {
-                        elements.push_back({ k->getId(), k->getConfig() });
+                        elements.push_back({ k->getId(), k->getConfig(), {} });
                     }
                     specs.push_back({ move(elements),
                                       e.first->getId(),
@@ -470,41 +481,32 @@ TopicI::attachElementsAck(long long int topicId,
 }
 
 void
-TopicI::queue(const shared_ptr<DataElementI>& element, function<void()> callback)
-{
-    _callbackQueue.push_back(make_pair(element, callback));
-}
-
-void
-TopicI::flushQueue()
-{
-    for(auto p : _callbackQueue)
-    {
-        try
-        {
-            p.second();
-        }
-        catch(...)
-        {
-            assert(false); // TODO: XXX
-        }
-    }
-    _callbackQueue.clear();
-}
-
-void
 TopicI::setUpdater(const shared_ptr<Tag>& tag, Updater updater)
 {
     unique_lock<mutex> lock(_mutex);
     if(updater)
     {
         _updaters[tag] = updater;
-        _forwarder->attachTags(_id, { { tag->getId(), "", tag->encode(_instance->getCommunicator()) } });
+        try
+        {
+            _forwarder->attachTags(_id, { { tag->getId(), "", tag->encode(_instance->getCommunicator()) } }, false);
+        }
+        catch(const std::exception&)
+        {
+            forwarderException();
+        }
     }
     else
     {
         _updaters.erase(tag);
-        _forwarder->detachTags(_id, { tag->getId() });
+        try
+        {
+            _forwarder->detachTags(_id, { tag->getId() });
+        }
+        catch(const std::exception&)
+        {
+            forwarderException();
+        }
     }
 }
 
@@ -604,6 +606,23 @@ TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 }
 
 void
+TopicI::forwarderException() const
+{
+    try
+    {
+        rethrow_exception(current_exception());
+    }
+    catch(const Ice::CommunicatorDestroyedException&)
+    {
+        // Ignore
+    }
+    catch(const Ice::ObjectAdapterDeactivatedException&)
+    {
+        // Ignore
+    }
+}
+
+void
 TopicI::add(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key>>& keys)
 {
     ElementInfoSeq infos;
@@ -620,7 +639,14 @@ TopicI::add(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key
     }
     if(!infos.empty())
     {
-        _forwarder->announceElements(_id, infos);
+        try
+        {
+            _forwarder->announceElements(_id, infos);
+        }
+        catch(const std::exception&)
+        {
+            forwarderException();
+        }
     }
 }
 
@@ -634,9 +660,16 @@ TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Fi
     }
     assert(element);
     p->second.insert(element);
-    _forwarder->announceElements(_id, { { -filter->getId(),
-                                          filter->getName(),
-                                          filter->encode(_instance->getCommunicator()) } });
+    try
+    {
+        _forwarder->announceElements(_id, { { -filter->getId(),
+                                              filter->getName(),
+                                              filter->encode(_instance->getCommunicator()) } });
+    }
+    catch(const std::exception&)
+    {
+        forwarderException();
+    }
 }
 
 void

@@ -1227,7 +1227,7 @@ Sample<Key, Value, UpdateTag>::getTimeStamp() const
 template<typename Key, typename Value, typename UpdateTag> std::tuple<std::string, long long int, long long int>
 Sample<Key, Value, UpdateTag>::getOrigin() const
 {
-    return std::make_tuple<std::string, long long int, long long int>(_impl->session, _impl->topic, _impl->element);
+    return std::make_tuple(_impl->session, _impl->topic, _impl->element);
 }
 
 template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>::Sample(

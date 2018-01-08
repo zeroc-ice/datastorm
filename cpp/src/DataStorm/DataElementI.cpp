@@ -12,6 +12,7 @@
 #include <DataStorm/NodeI.h>
 #include <DataStorm/Instance.h>
 #include <DataStorm/TraceUtil.h>
+#include <DataStorm/CallbackExecutor.h>
 
 using namespace std;
 using namespace DataStormInternal;
@@ -52,7 +53,8 @@ DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Co
     _id(id),
     _listenerCount(0),
     _config(make_shared<ElementConfig>()),
-    _parent(parent),
+    _executor(parent->getInstance()->getCallbackExecutor()),
+    _parent(parent->shared_from_this()),
     _waiters(0),
     _notified(0)
 {
@@ -106,7 +108,10 @@ DataElementI::attach(long long int topicId,
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        acks.push_back({ _id, _config, getSamples(key, sampleFilter, data.config, now), data.id });
+        auto q = data.lastIds.find(_id);
+        long long lastId = q != data.lastIds.end() ? q->second : 0;
+        LongLongDict lastIds = key ? session->getLastIds(topicId, key, this) : LongLongDict();
+        acks.push_back({ _id, _config, lastIds, getSamples(key, sampleFilter, data.config, lastId, now), data.id });
     }
 }
 
@@ -130,7 +135,7 @@ DataElementI::attach(long long int topicId,
     if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
        (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        samples.push_back({ _id, getSamples(key, sampleFilter, data.config, now) });
+        samples.push_back({ _id, getSamples(key, sampleFilter, data.config, 0, now) });
     }
     auto samplesI = session->subscriberInitialized(topicId, data.id, data.samples, key, this);
     if(!samplesI.empty())
@@ -161,7 +166,7 @@ DataElementI::attachKey(long long int topicId,
         notifyListenerWaiters(session->getTopicLock());
         if(_onConnect)
         {
-            _parent->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
+            _executor->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
         }
         return true;
     }
@@ -189,7 +194,7 @@ DataElementI::detachKey(long long int topicId,
         }
         if(_onDisconnect)
         {
-            _parent->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
+            _executor->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
         }
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.empty())
@@ -220,7 +225,7 @@ DataElementI::attachFilter(long long int topicId,
         session->subscribeToFilter(topicId, elementId, filter, this, facet);
         if(_onConnect)
         {
-            _parent->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
+            _executor->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
         }
         notifyListenerWaiters(session->getTopicLock());
         return true;
@@ -249,7 +254,7 @@ DataElementI::detachFilter(long long int topicId,
         }
         if(_onDisconnect)
         {
-            _parent->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
+            _executor->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
         }
         notifyListenerWaiters(session->getTopicLock());
         if(p->second.empty())
@@ -300,6 +305,7 @@ DataSampleSeq
 DataElementI::getSamples(const shared_ptr<Key>&,
                          const shared_ptr<Filter>&,
                          const shared_ptr<DataStormContract::ElementConfig>&,
+                         long long int,
                          const chrono::time_point<chrono::system_clock>&)
 {
     return {};
@@ -309,6 +315,12 @@ void
 DataElementI::queue(const shared_ptr<Sample>&, const string&, const chrono::time_point<chrono::system_clock>&)
 {
     assert(false);
+}
+
+shared_ptr<DataStormContract::ElementConfig>
+DataElementI::getConfig() const
+{
+    return _config;
 }
 
 void
@@ -491,7 +503,7 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
 
     if(_onInit)
     {
-        _parent->queue(shared_from_this(), [this, valid] { _onInit(valid); });
+        _executor->queue(shared_from_this(), [this, valid] { _onInit(valid); });
     }
 
     if(valid.empty())
@@ -548,8 +560,6 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         }
     }
 
-    // TODO: XXX: this doesn't work multiple writers
-    //_config->lastId = valid.back()->id;
     _parent->_cond.notify_all();
 }
 
@@ -595,7 +605,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
 
     if(_onSample)
     {
-        _parent->queue(shared_from_this(), [this, sample] { _onSample(sample); });
+        _executor->queue(shared_from_this(), [this, sample] { _onSample(sample); });
     }
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
@@ -634,8 +644,6 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
         _samples.clear();
     }
     _samples.push_back(sample);
-    // TODO: XXX: this doesn't work multiple writers
-    //_config->lastId = sample->id;
     _parent->_cond.notify_all();
 }
 
@@ -748,7 +756,14 @@ KeyDataReaderI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed key reader";
     }
-    _forwarder->detachElements(_parent->getId(), { _id });
+    try
+    {
+        _forwarder->detachElements(_parent->getId(), { _id });
+    }
+    catch(const std::exception&)
+    {
+        _parent->forwarderException();
+    }
     _parent->remove(_keys, shared_from_this());
 }
 
@@ -803,7 +818,14 @@ KeyDataWriterI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed key writer";
     }
-    _forwarder->detachElements(_parent->getId(), { _id });
+    try
+    {
+        _forwarder->detachElements(_parent->getId(), { _id });
+    }
+    catch(const std::exception&)
+    {
+        _parent->forwarderException();
+    }
     _parent->remove(_keys, shared_from_this());
 }
 
@@ -855,6 +877,7 @@ DataSampleSeq
 KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
                            const shared_ptr<Filter>& filter,
                            const shared_ptr<DataStormContract::ElementConfig>& config,
+                           long long int lastId,
                            const chrono::time_point<chrono::system_clock>& now)
 {
     DataSampleSeq samples;
@@ -881,7 +904,7 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
         {
             break;
         }
-        else if(config->lastId && (*p)->id <= *config->lastId)
+        if((*p)->id <= lastId)
         {
             break;
         }
@@ -967,7 +990,14 @@ FilteredDataReaderI::destroyImpl()
         Trace out(_traceLevels, _traceLevels->dataCat);
         out << this << ": destroyed filter reader";
     }
-    _forwarder->detachElements(_parent->getId(), { -_id });
+    try
+    {
+        _forwarder->detachElements(_parent->getId(), { -_id });
+    }
+    catch(const std::exception&)
+    {
+        _parent->forwarderException();
+    }
     _parent->removeFiltered(_filter, shared_from_this());
 }
 

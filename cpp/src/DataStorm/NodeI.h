@@ -35,6 +35,7 @@ public:
     virtual ~NodeI();
 
     void init();
+    void destroy();
 
     bool createSubscriberSession(const std::shared_ptr<DataStormContract::NodePrx>&);
 
@@ -48,7 +49,7 @@ public:
                                     const std::shared_ptr<DataStormContract::SubscriberSessionPrx>&,
                                     const std::shared_ptr<DataStormContract::NodePrx>&);
 
-    void removeSubscriberSession(SubscriberSessionI*);
+    void removeSubscriberSession(const std::shared_ptr<SubscriberSessionI>&, const std::exception_ptr&);
 
     bool createPublisherSession(const std::shared_ptr<DataStormContract::NodePrx>&);
 
@@ -62,7 +63,7 @@ public:
                                    const std::shared_ptr<DataStormContract::PublisherSessionPrx>&,
                                    const std::shared_ptr<DataStormContract::NodePrx>&);
 
-    void removePublisherSession(PublisherSessionI*);
+    void removePublisherSession(const std::shared_ptr<PublisherSessionI>&, const std::exception_ptr&);
 
     std::shared_ptr<Ice::Connection> getSessionConnection(const std::string&) const;
 

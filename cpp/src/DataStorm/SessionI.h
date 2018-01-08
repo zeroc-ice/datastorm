@@ -30,25 +30,37 @@ protected:
 
     struct Subscriber
     {
-        Subscriber(const std::string& facet) : facet(facet), initialized(false)
+        Subscriber(const std::string& facet, bool visited) :
+            facet(facet), initialized(false), lastId(0), visited(visited)
         {
         }
 
         const std::string facet;
         bool initialized;
+        long long int lastId;
+        bool visited;
     };
 
     template<typename K> class Subscribers
     {
     public:
 
-        Subscribers(const std::shared_ptr<K>& key) : _key(key)
+        Subscribers(const std::shared_ptr<K>& key) : _key(key), _visited(false)
         {
         }
 
-        void add(DataElementI* element, const std::string& facet)
+        void add(DataElementI* element, const std::string& facet, bool trackVisits)
         {
-            _subscribers.emplace(element, Subscriber { facet });
+            _visited = trackVisits;
+            auto p = _subscribers.find(element);
+            if(p != _subscribers.end())
+            {
+                p->second.visited = trackVisits;
+            }
+            else
+            {
+                _subscribers.emplace(element, Subscriber { facet, trackVisits });
+            }
         }
 
         void remove(DataElementI* element)
@@ -56,7 +68,7 @@ protected:
             _subscribers.erase(element);
         }
 
-        std::shared_ptr<K>
+        const std::shared_ptr<K>&
         get() const
         {
             return _key;
@@ -68,10 +80,35 @@ protected:
             return _subscribers;
         }
 
+        bool
+        reap()
+        {
+            if(!_visited)
+            {
+                return true;
+            }
+            _visited = false;
+            auto p = _subscribers.begin();
+            while(p != _subscribers.end())
+            {
+                if(!p->second.visited)
+                {
+                    _subscribers.erase(p++);
+                }
+                else
+                {
+                    p->second.visited = false;
+                    ++p;
+                }
+            }
+            return _subscribers.empty();
+        }
+
     private:
 
         const std::shared_ptr<K> _key;
         std::map<DataElementI*, Subscriber> _subscribers;
+        bool _visited;
     };
 
     template<typename K> class SubscribersFactory
@@ -96,6 +133,24 @@ protected:
             }
         }
 
+        DataStormContract::LongLongDict
+        getLastIds(const std::shared_ptr<K>& k, DataElementI* element)
+        {
+            DataStormContract::LongLongDict lastIds;
+            for(auto& e : _elements)
+            {
+                if(e.second.get() == k)
+                {
+                    auto p = e.second.getSubscribers().find(element);
+                    if(p != e.second.getSubscribers().end())
+                    {
+                        lastIds.emplace(e.first, p->second.lastId);
+                    }
+                }
+            }
+            return lastIds;
+        }
+
         Subscribers<K> remove(long long id)
         {
             auto p = _elements.find(id);
@@ -114,6 +169,23 @@ protected:
             return _elements;
         }
 
+        void
+        reap()
+        {
+            auto p = _elements.begin();
+            while(p != _elements.end())
+            {
+                if(p->second.reap())
+                {
+                    _elements.erase(p++);
+                }
+                else
+                {
+                    ++p;
+                }
+            }
+        }
+
     private:
 
         std::map<long long int, Subscribers<K>> _elements;
@@ -121,9 +193,14 @@ protected:
 
     struct TopicSubscriber
     {
+        TopicSubscriber(bool visited) : visited(visited)
+        {
+        }
+
         SubscribersFactory<Key> keys;
         SubscribersFactory<Filter> filters;
         std::map<long long int, std::shared_ptr<Tag>> tags;
+        bool visited;
     };
 
     class TopicSubscribers
@@ -135,10 +212,18 @@ protected:
         }
 
         void
-        addSubscriber(TopicI* topic)
+        addSubscriber(TopicI* topic, bool trackVisits)
         {
-            assert(_subscribers.find(topic) == _subscribers.end());
-            _subscribers[topic] = TopicSubscriber();
+            _visited = trackVisits;
+            auto p = _subscribers.find(topic);
+            if(p != _subscribers.end())
+            {
+                p->second.visited = trackVisits;
+            }
+            else
+            {
+                _subscribers.emplace(topic, TopicSubscriber(trackVisits));
+            }
         }
 
         TopicSubscriber&
@@ -160,25 +245,50 @@ protected:
             return _subscribers;
         }
 
+        bool
+        reap()
+        {
+            if(!_visited)
+            {
+                return true;
+            }
+            _visited = false;
+            auto p = _subscribers.begin();
+            while(p != _subscribers.end())
+            {
+                if(!p->second.visited)
+                {
+                    _subscribers.erase(p++);
+                }
+                else
+                {
+                    p->second.visited = false;
+                    ++p;
+                }
+            }
+            return _subscribers.empty();
+        }
+
     private:
 
         std::map<TopicI*, TopicSubscriber> _subscribers;
+        bool _visited;
     };
 
 public:
 
-    SessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
+    SessionI(const std::shared_ptr<NodeI>&, const std::shared_ptr<DataStormContract::NodePrx>&);
     void init(const std::shared_ptr<DataStormContract::SessionPrx>&);
 
-    virtual void announceTopics(DataStormContract::TopicInfoSeq, const Ice::Current&) override;
+    virtual void announceTopics(DataStormContract::TopicInfoSeq, bool, const Ice::Current&) override;
     virtual void attachTopic(DataStormContract::TopicSpec, const Ice::Current&) override;
     virtual void detachTopic(long long int, const Ice::Current&) override;
 
-    virtual void attachTags(long long int, DataStormContract::ElementInfoSeq, const Ice::Current&) override;
+    virtual void attachTags(long long int, DataStormContract::ElementInfoSeq, bool, const Ice::Current&) override;
     virtual void detachTags(long long int, DataStormContract::LongSeq, const Ice::Current&) override;
 
     virtual void announceElements(long long int, DataStormContract::ElementInfoSeq, const Ice::Current&) override;
-    virtual void attachElements(long long int, DataStormContract::ElementSpecSeq, const Ice::Current&) override;
+    virtual void attachElements(long long int, DataStormContract::ElementSpecSeq, bool, const Ice::Current&) override;
     virtual void attachElementsAck(long long int, DataStormContract::ElementSpecAckSeq, const Ice::Current&) override;
     virtual void detachElements(long long int, DataStormContract::LongSeq, const Ice::Current&) override;
 
@@ -187,8 +297,8 @@ public:
     void connected(const std::shared_ptr<DataStormContract::SessionPrx>&,
                    const std::shared_ptr<Ice::Connection>&,
                    const DataStormContract::TopicInfoSeq&);
-    void disconnected(std::exception_ptr);
-    void destroyImpl();
+    void disconnected(const std::shared_ptr<Ice::Connection>&, std::exception_ptr);
+    void destroyImpl(const std::exception_ptr&);
 
     const std::string& getId() const
     {
@@ -200,10 +310,10 @@ public:
         return _connection;
     }
 
-    void addConnectedCallback(std::function<void(std::shared_ptr<DataStormContract::SessionPrx>)>);
+    void addConnectedCallback(std::function<void(std::shared_ptr<DataStormContract::SessionPrx>)>,
+                              const std::shared_ptr<Ice::Connection>&);
 
     std::shared_ptr<DataStormContract::SessionPrx> getSession() const;
-    std::shared_ptr<DataStormContract::SessionPrx> getSessionNoLock() const;
 
     std::shared_ptr<DataStormContract::SessionPrx> getProxy() const
     {
@@ -232,6 +342,7 @@ public:
     void unsubscribeFromFilter(long long int, long long int, DataElementI*);
     void disconnectFromFilter(long long int, long long int, DataElementI*);
 
+    DataStormContract::LongLongDict getLastIds(long long int, const std::shared_ptr<Key>&, DataElementI*);
     std::vector<std::shared_ptr<Sample>> subscriberInitialized(long long int,
                                                                long long int,
                                                                const DataStormContract::DataSampleSeq&,
@@ -252,11 +363,12 @@ protected:
     const std::shared_ptr<Instance> _instance;
     std::shared_ptr<TraceLevels> _traceLevels;
     mutable std::mutex _mutex;
-    NodeI* _parent;
+    std::shared_ptr<NodeI> _parent;
     std::string _id;
     std::shared_ptr<DataStormContract::SessionPrx> _proxy;
     const std::shared_ptr<DataStormContract::NodePrx> _node;
     bool _destroyed;
+    bool _trackVisits;
 
     std::map<long long int, TopicSubscribers> _topics;
     std::unique_lock<std::mutex>* _topicLock;
@@ -270,7 +382,7 @@ class SubscriberSessionI : public SessionI, public DataStormContract::Subscriber
 {
 public:
 
-    SubscriberSessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
+    SubscriberSessionI(const std::shared_ptr<NodeI>&, const std::shared_ptr<DataStormContract::NodePrx>&);
     virtual void destroy(const Ice::Current&) override;
 
     virtual void s(long long int, long long int, DataStormContract::DataSample, const Ice::Current&) override;
@@ -285,7 +397,7 @@ class PublisherSessionI : public SessionI, public DataStormContract::PublisherSe
 {
 public:
 
-    PublisherSessionI(NodeI*, const std::shared_ptr<DataStormContract::NodePrx>&);
+    PublisherSessionI(const std::shared_ptr<NodeI>&, const std::shared_ptr<DataStormContract::NodePrx>&);
     virtual void destroy(const Ice::Current&) override;
 
 private:

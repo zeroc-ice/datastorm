@@ -18,7 +18,7 @@ SessionManager::SessionManager()
 }
 
 void
-SessionManager::add(SessionI* session, shared_ptr<Ice::Connection> connection)
+SessionManager::add(const shared_ptr<SessionI>& session, shared_ptr<Ice::Connection> connection)
 {
     lock_guard<mutex> lock(_mutex);
     auto& sessions = _connections[connection];
@@ -33,7 +33,7 @@ SessionManager::add(SessionI* session, shared_ptr<Ice::Connection> connection)
 }
 
 void
-SessionManager::remove(SessionI* session, shared_ptr<Ice::Connection> connection)
+SessionManager::remove(const shared_ptr<SessionI>& session, shared_ptr<Ice::Connection> connection)
 {
     lock_guard<mutex> lock(_mutex);
     auto& sessions = _connections[connection];
@@ -47,7 +47,7 @@ SessionManager::remove(SessionI* session, shared_ptr<Ice::Connection> connection
 void
 SessionManager::remove(shared_ptr<Ice::Connection> connection)
 {
-    set<SessionI*> sessions;
+    set<shared_ptr<SessionI>> sessions;
     {
         lock_guard<mutex> lock(_mutex);
         auto p = _connections.find(connection);
@@ -66,7 +66,7 @@ SessionManager::remove(shared_ptr<Ice::Connection> connection)
     }
     for(const auto& session : sessions)
     {
-        session->disconnected(ex);
+        session->disconnected(connection, ex);
     }
 }
 

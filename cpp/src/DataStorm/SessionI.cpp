@@ -19,18 +19,20 @@ using namespace std;
 using namespace DataStormInternal;
 using namespace DataStormContract;
 
-SessionI::SessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
+SessionI::SessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePrx>& node) :
     _instance(parent->getInstance()),
     _traceLevels(_instance->getTraceLevels()),
     _parent(parent),
     _node(node),
-    _destroyed(false)
+    _destroyed(false),
+    _trackVisits(false)
 {
 }
 
 void
 SessionI::init(const shared_ptr<SessionPrx>& prx)
 {
+    assert(_node);
     _proxy = prx;
     _id = Ice::identityToString(prx->ice_getIdentity());
     if(_traceLevels->session > 0)
@@ -41,7 +43,7 @@ SessionI::init(const shared_ptr<SessionPrx>& prx)
 }
 
 void
-SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
+SessionI::announceTopics(TopicInfoSeq topics, bool initialize, const Ice::Current& current)
 {
     //
     // Retain topics outside the synchronization. This is necessary to ensure the topic destructor
@@ -62,6 +64,7 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
             out << _id << ": announcing topics `" << topics << "'";
         }
 
+        _trackVisits = initialize;
         for(const auto& info : topics)
         {
             runWithTopics(info.name, retained, [&](const shared_ptr<TopicI>& topic)
@@ -73,6 +76,24 @@ SessionI::announceTopics(TopicInfoSeq topics, const Ice::Current& current)
 
                 _session->attachTopicAsync(topic->getTopicSpec());
             });
+        }
+
+        if(initialize)
+        {
+            // Reap un-visited topics
+            auto p = _topics.begin();
+            while(p != _topics.end())
+            {
+                if(p->second.reap())
+                {
+                    _topics.erase(p++);
+                }
+                else
+                {
+                    ++p;
+                }
+            }
+            _trackVisits = false;
         }
     }
 }
@@ -115,10 +136,10 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
             auto tags = topic->getTags();
             if(!tags.empty())
             {
-                _session->attachTagsAsync(topic->getId(), tags);
+                _session->attachTagsAsync(topic->getId(), tags, true);
             }
 
-            auto specs = topic->getElementSpecs(spec.elements);
+            auto specs = topic->getElementSpecs(spec.id, spec.elements, this);
             if(!specs.empty())
             {
                 if(_traceLevels->session > 2)
@@ -126,7 +147,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                     Trace out(_traceLevels, _traceLevels->sessionCat);
                     out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
                 }
-                _session->attachElementsAsync(topic->getId(), specs);
+                _session->attachElementsAsync(topic->getId(), specs, true);
             }
         });
     }
@@ -156,7 +177,7 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
 }
 
 void
-SessionI::attachTags(long long int topicId, ElementInfoSeq tags, const Ice::Current&)
+SessionI::attachTags(long long int topicId, ElementInfoSeq tags, bool initialize, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -172,6 +193,10 @@ SessionI::attachTags(long long int topicId, ElementInfoSeq tags, const Ice::Curr
             out << _id << ": attaching tags `[" << tags << "]@" << topicId << "' on topic `" << topic << "'";
         }
 
+        if(initialize)
+        {
+            subscriber.tags.clear();
+        }
         for(const auto& tag : tags)
         {
             subscriber.tags[tag.id] = topic->getTagFactory()->decode(_instance->getCommunicator(), tag.value);
@@ -220,7 +245,7 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
             out << _id << ": announcing elements `[" << elements << "]@" << topicId << "' on topic `" << topic << "'";
         }
 
-        auto specs = topic->getElementSpecs(elements);
+        auto specs = topic->getElementSpecs(topicId, elements, this);
         if(!specs.empty())
         {
             if(_traceLevels->session > 2)
@@ -228,13 +253,13 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": announcing elements matched `[" << specs << "]@" << topicId << "' on topic `" << topic << "'";
             }
-            _session->attachElementsAsync(topic->getId(), specs);
+            _session->attachElementsAsync(topic->getId(), specs, false);
         }
     });
 }
 
 void
-SessionI::attachElements(long long int id, ElementSpecSeq elements, const Ice::Current&)
+SessionI::attachElements(long long int id, ElementSpecSeq elements, bool initialize, const Ice::Current&)
 {
     lock_guard<mutex> lock(_mutex);
     if(!_session)
@@ -242,6 +267,7 @@ SessionI::attachElements(long long int id, ElementSpecSeq elements, const Ice::C
         return;
     }
 
+    _trackVisits = initialize;
     auto now = chrono::system_clock::now();
     runWithTopics(id, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& subscribers)
     {
@@ -252,6 +278,13 @@ SessionI::attachElements(long long int id, ElementSpecSeq elements, const Ice::C
         }
 
         auto specAck = topic->attachElements(id, elements, this, _session, now);
+        if(initialize)
+        {
+            // Reap unused keys and filters from the topic subscriber
+            subscriber.keys.reap();
+            subscriber.filters.reap();
+        }
+
         if(!specAck.empty())
         {
             if(_traceLevels->session > 2)
@@ -262,6 +295,11 @@ SessionI::attachElements(long long int id, ElementSpecSeq elements, const Ice::C
             _session->attachElementsAckAsync(topic->getId(), specAck);
         }
     });
+
+    if(initialize)
+    {
+        _trackVisits = false;
+    }
 }
 
 void
@@ -392,6 +430,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                         if(!ks.second.initialized)
                         {
                             ks.second.initialized = true;
+                            ks.second.lastId = samplesI.empty() ? 0 : samplesI.back()->id;
                             ks.first->initSamples(samplesI, topicId, samples.id, now);
                         }
                     }
@@ -441,6 +480,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                         if(!fs.second.initialized)
                         {
                             fs.second.initialized = true;
+                            fs.second.lastId = samplesI.empty() ? 0 : samplesI.back()->id;
                             fs.first->initSamples(samplesI, topicId, samples.id, now);
                         }
                     }
@@ -469,7 +509,7 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
         {
             connection->setAdapter(_instance->getObjectAdapter());
         }
-        _instance->getSessionManager()->add(this, connection);
+        _instance->getSessionManager()->add(shared_from_this(), connection);
         prx = connection->createProxy(session->ice_getIdentity());
     }
     else
@@ -493,7 +533,7 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
     {
         try
         {
-            _session->announceTopicsAsync(topics);
+            _session->announceTopicsAsync(topics, true);
         }
         catch(const Ice::LocalException&)
         {
@@ -509,12 +549,11 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
 }
 
 void
-SessionI::disconnected(exception_ptr ex)
+SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_ptr ex)
 {
     {
         lock_guard<mutex> lock(_mutex);
-        assert(_connection);
-        if(!_session)
+        if(_destroyed || (connection && _connection != connection) || !_session)
         {
             return;
         }
@@ -523,13 +562,20 @@ SessionI::disconnected(exception_ptr ex)
         {
             try
             {
-                rethrow_exception(ex);
+                if(ex)
+                {
+                    rethrow_exception(ex);
+                }
+                else
+                {
+                    throw Ice::CloseConnectionException(__FILE__, __LINE__);
+                }
             }
             catch(const std::exception& e)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
                 out << _id << ": session `" << _session->ice_getIdentity() << "' disconnected:\n";
-                out << _connection->toString() << "\n";
+                out << (_connection ? _connection->toString() : "<no connection>") << "\n";
                 out << e.what();
             }
         }
@@ -538,7 +584,7 @@ SessionI::disconnected(exception_ptr ex)
         {
             runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
         }
-        _topics.clear();
+        //_topics.clear();
 
         _session = nullptr;
         _connection = nullptr;
@@ -549,14 +595,14 @@ SessionI::disconnected(exception_ptr ex)
     //
     // TODO: Improve retry logic.
     //
-    if(!reconnect())
+    if(connection && !reconnect())
     {
         _proxy->destroy();
     }
 }
 
 void
-SessionI::destroyImpl()
+SessionI::destroyImpl(const exception_ptr& ex)
 {
     lock_guard<mutex> lock(_mutex);
     assert(!_destroyed);
@@ -566,13 +612,28 @@ SessionI::destroyImpl()
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
         out << _id << ": destroyed session";
+        if(ex)
+        {
+            try
+            {
+                rethrow_exception(ex);
+            }
+            catch(const exception& e)
+            {
+                out << "\n:" << e.what();
+            }
+            catch(...)
+            {
+                out << "\n: unexpected exception";
+            }
+        }
     }
 
     if(_session)
     {
         if(_connection)
         {
-            _instance->getSessionManager()->remove(this, _connection);
+            _instance->getSessionManager()->remove(shared_from_this(), _connection);
         }
 
         _session = nullptr;
@@ -592,12 +653,13 @@ SessionI::destroyImpl()
 }
 
 void
-SessionI::addConnectedCallback(function<void(shared_ptr<SessionPrx>)> callback)
+SessionI::addConnectedCallback(function<void(shared_ptr<SessionPrx>)> callback,
+                               const shared_ptr<Ice::Connection>& connection)
 {
     {
         lock_guard<mutex> lock(_mutex);
         assert(!_destroyed);
-        if(!_session)
+        if(!_session || connection != _connection)
         {
             _connectedCallbacks.push_back(callback);
             return;
@@ -613,12 +675,6 @@ SessionI::getSession() const
     return _session;
 }
 
-shared_ptr<SessionPrx>
-SessionI::getSessionNoLock() const
-{
-    return _session;
-}
-
 void
 SessionI::subscribe(long long id, TopicI* topic)
 {
@@ -627,7 +683,7 @@ SessionI::subscribe(long long id, TopicI* topic)
         Trace out(_traceLevels, _traceLevels->sessionCat);
         out << _id << ": subscribed topic `" << id << "' to topic `" << topic << "'";
     }
-    _topics[id].addSubscriber(topic);
+    _topics[id].addSubscriber(topic, _trackVisits);
 }
 
 void
@@ -695,7 +751,7 @@ SessionI::subscribeToKey(long long topicId, long long int elementId, const share
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.keys.get(elementId, key)->add(element, facet);
+    subscriber.keys.get(elementId, key)->add(element, facet, _trackVisits);
 }
 
 void
@@ -724,7 +780,8 @@ SessionI::disconnectFromKey(long long topicId, long long int elementId, DataElem
         return;
     }
 
-    runWithTopic(topicId, element->getTopic(), [&](TopicSubscriber&) { this->unsubscribeFromKey(topicId, elementId, element); });
+    runWithTopic(topicId, element->getTopic(),
+                 [&](TopicSubscriber&) { this->unsubscribeFromKey(topicId, elementId, element); });
 }
 
 void
@@ -742,7 +799,7 @@ SessionI::subscribeToFilter(long long topicId, long long int elementId, const sh
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.filters.get(elementId, filter)->add(element, facet);
+    subscriber.filters.get(elementId, filter)->add(element, facet, _trackVisits);
 }
 
 void
@@ -771,16 +828,30 @@ SessionI::disconnectFromFilter(long long topicId, long long int elementId, DataE
         return;
     }
 
-    runWithTopic(topicId, element->getTopic(), [&](TopicSubscriber&) { this->unsubscribeFromFilter(topicId, elementId, element); });
+    runWithTopic(topicId, element->getTopic(),
+                 [&](TopicSubscriber&) { this->unsubscribeFromFilter(topicId, elementId, element); });
+}
+
+LongLongDict
+SessionI::getLastIds(long long topicId, const shared_ptr<Key>& key, DataElementI* element)
+{
+    auto p = _topics.find(topicId);
+    if(p != _topics.end())
+    {
+        return p->second.getSubscriber(element->getTopic()).keys.getLastIds(key, element);
+    }
+    return LongLongDict();
 }
 
 vector<shared_ptr<Sample>>
-SessionI::subscriberInitialized(long long topicId, long long int elementId, const DataSampleSeq& samples,
-                                const shared_ptr<Key>& key, DataElementI* element)
+SessionI::subscriberInitialized(long long topicId,
+                                long long int elementId,
+                                const DataSampleSeq& samples,
+                                const shared_ptr<Key>& key,
+                                DataElementI* element)
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
-
     if(elementId > 0)
     {
         auto k = subscriber.keys.get(elementId);
@@ -795,6 +866,7 @@ SessionI::subscriberInitialized(long long topicId, long long int elementId, cons
                     out << _id << ": initialized `" << p->first << "' from `" << elementId << '@' << topicId << "'";
                 }
                 p->second.initialized = true;
+                p->second.lastId = samples.empty() ? 0 : samples.back().id;
             }
         }
     }
@@ -812,6 +884,7 @@ SessionI::subscriberInitialized(long long topicId, long long int elementId, cons
                     out << _id << ": initialized `" << p->first << "' from `" << elementId << '@' << topicId << "'";
                 }
                 p->second.initialized = true;
+                p->second.lastId = samples.empty() ? 0 : samples.back().id;
             }
         }
     }
@@ -852,7 +925,6 @@ SessionI::runWithTopics(const std::string& name,
         fn(topic);
         _topicLock = nullptr;
         l.unlock();
-        topic->flushQueue();
     }
 }
 
@@ -873,7 +945,6 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
             fn(s.first, s.second);
             _topicLock = nullptr;
             l.unlock();
-            s.first->flushQueue();
         }
     }
 }
@@ -895,7 +966,6 @@ SessionI::runWithTopics(long long int id, function<void (TopicI*, TopicSubscribe
             fn(s.first, s.second, t->second);
             _topicLock = nullptr;
             l.unlock();
-            s.first->flushQueue();
         }
     }
 }
@@ -918,12 +988,11 @@ SessionI::runWithTopic(long long int id, TopicI* topic, function<void (TopicSubs
             fn(p->second);
             _topicLock = nullptr;
             l.unlock();
-            topic->flushQueue();
         }
     }
 }
 
-SubscriberSessionI::SubscriberSessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
+SubscriberSessionI::SubscriberSessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePrx>& node) :
     SessionI(parent, node)
 {
 }
@@ -931,7 +1000,7 @@ SubscriberSessionI::SubscriberSessionI(NodeI* parent, const shared_ptr<NodePrx>&
 void
 SubscriberSessionI::destroy(const Ice::Current&)
 {
-    _parent->removeSubscriberSession(this);
+    _parent->removeSubscriberSession(dynamic_pointer_cast<SubscriberSessionI>(shared_from_this()), nullptr);
 }
 
 vector<shared_ptr<TopicI>>
@@ -941,28 +1010,33 @@ SubscriberSessionI::getTopics(const string& name) const
 }
 
 void
-SubscriberSessionI::s(long long int topicId, long long int element, DataSample s, const Ice::Current& current)
+SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample s, const Ice::Current& current)
 {
     lock_guard<mutex> lock(_mutex);
-    if(!_session)
+    if(!_session || current.con != _connection)
     {
+        if(current.con != _connection)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": discarding sample `" << s.id << "' from `" << elementId << '@' << topicId << "'";
+            out << current.con->toString() << " " << (_connection ? _connection->toString() : "null");
+        }
         return;
     }
-
     auto now = chrono::system_clock::now();
     runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& topicSubscribers)
     {
-        if(element <= 0)
+        if(elementId <= 0)
         {
             return;
         }
-        auto e = subscriber.keys.get(element);
+        auto e = subscriber.keys.get(elementId);
         if(e)
         {
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": queuing sample `" << s.id << "' from `" << element << '@' << topicId << "'";
+                out << _id << ": queuing sample `" << s.id << "' from `" << elementId << '@' << topicId << "'";
                 if(!current.facet.empty())
                 {
                     out << " facet=" << current.facet;
@@ -984,7 +1058,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
             }
             auto impl = topic->getSampleFactory()->create(_id,
                                                           topicId,
-                                                          element,
+                                                          elementId,
                                                           s.id,
                                                           s.event,
                                                           e->get(),
@@ -995,6 +1069,7 @@ SubscriberSessionI::s(long long int topicId, long long int element, DataSample s
             {
                 if(es.second.initialized)
                 {
+                    es.second.lastId = s.id;
                     es.first->queue(impl, current.facet, now);
                 }
             }
@@ -1008,7 +1083,7 @@ SubscriberSessionI::reconnect() const
     return _parent->createPublisherSession(_node);
 }
 
-PublisherSessionI::PublisherSessionI(NodeI* parent, const shared_ptr<NodePrx>& node) :
+PublisherSessionI::PublisherSessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePrx>& node) :
     SessionI(parent, node)
 {
 }
@@ -1016,7 +1091,7 @@ PublisherSessionI::PublisherSessionI(NodeI* parent, const shared_ptr<NodePrx>& n
 void
 PublisherSessionI::destroy(const Ice::Current&)
 {
-    _parent->removePublisherSession(this);
+    _parent->removePublisherSession(dynamic_pointer_cast<PublisherSessionI>(shared_from_this()), nullptr);
 }
 
 vector<shared_ptr<TopicI>>

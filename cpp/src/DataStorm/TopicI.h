@@ -66,7 +66,7 @@ public:
 
     DataStormContract::TopicSpec getTopicSpec() const;
     DataStormContract::ElementInfoSeq getTags() const;
-    DataStormContract::ElementSpecSeq getElementSpecs(const DataStormContract::ElementInfoSeq&);
+    DataStormContract::ElementSpecSeq getElementSpecs(long long int, const DataStormContract::ElementInfoSeq&, SessionI*);
 
     void attach(long long int, SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&);
     void detach(long long int, SessionI*);
@@ -82,9 +82,6 @@ public:
                                                         SessionI*,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
-
-    void queue(const std::shared_ptr<DataElementI>&, std::function<void()>);
-    void flushQueue();
 
     virtual void setUpdater(const std::shared_ptr<Tag>&, Updater) override;
     const Updater& getUpdater(const std::shared_ptr<Tag>&) const;
@@ -131,6 +128,7 @@ protected:
     void disconnect();
 
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
+    void forwarderException() const;
 
     void add(const std::shared_ptr<DataElementI>&, const std::vector<std::shared_ptr<Key>>&);
     void addFiltered(const std::shared_ptr<DataElementI>&, const std::shared_ptr<Filter>&);
@@ -142,6 +140,7 @@ protected:
     friend class FilteredDataReaderI;
     friend class DataWriterI;
     friend class KeyDataWriterI;
+    friend class KeyDataReaderI;
 
     const std::weak_ptr<TopicFactoryI> _factory;
     const std::shared_ptr<KeyFactory> _keyFactory;
@@ -168,7 +167,6 @@ protected:
     long long int _nextId;
     long long int _nextFilteredId;
     long long int _nextSampleId;
-    std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _callbackQueue;
 };
 
 class TopicReaderI : public TopicReader, public TopicI

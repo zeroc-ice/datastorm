@@ -19,7 +19,7 @@ main(int argc, char* argv[])
 {
     Node node(argc, argv);
 
-    Topic<string, string> topic(node, "topic");
+    Topic<string, string> topic(node, "stringtopic");
     Topic<string, bool> controller(node, "controller");
 
     auto readers = makeSingleKeyWriter(controller, "readers");
