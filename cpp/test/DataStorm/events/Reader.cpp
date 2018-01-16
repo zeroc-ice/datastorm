@@ -157,7 +157,55 @@ main(int argc, char* argv[])
     }
 
     {
-        Topic<string, string> topic(node, "anykey");
+        Topic<string, string> topic(node, "anykey1");
+
+        auto reader = makeAnyKeyReader(topic, config);
+        reader.waitForWriters(2);
+        reader.waitForUnread(6);
+        test(reader.getAllUnread().size() == 6);
+    }
+
+    {
+        Topic<string, string> topic(node, "multikey2");
+
+        auto reader1 = makeSingleKeyReader(topic, "elem1", config);
+        auto reader2 = makeSingleKeyReader(topic, "elem2", config);
+
+        reader1.waitForWriters(1);
+        reader1.waitForUnread(3);
+        test(reader1.getAllUnread().size() == 3);
+
+        reader2.waitForWriters(1);
+        reader2.waitForUnread(3);
+        test(reader2.getAllUnread().size() == 3);
+    }
+
+    {
+        Topic<string, string> topic(node, "anykey2");
+
+        auto reader1 = makeSingleKeyReader(topic, "elem1", config);
+        auto reader2 = makeSingleKeyReader(topic, "elem2", config);
+
+        reader1.waitForWriters(1);
+        reader1.waitForUnread(3);
+        test(reader1.getAllUnread().size() == 3);
+
+        reader2.waitForWriters(1);
+        reader2.waitForUnread(3);
+        test(reader2.getAllUnread().size() == 3);
+    }
+
+    {
+        Topic<string, string> topic(node, "multikey3");
+
+        auto reader = makeMultiKeyReader(topic, { "elem1", "elem2" }, config);
+        reader.waitForWriters(2);
+        reader.waitForUnread(6);
+        test(reader.getAllUnread().size() == 6);
+    }
+
+    {
+        Topic<string, string> topic(node, "anykey3");
 
         auto reader = makeAnyKeyReader(topic, config);
         reader.waitForWriters(2);

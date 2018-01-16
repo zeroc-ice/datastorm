@@ -26,7 +26,7 @@ class SessionI;
 class PublisherSessionI;
 class SubscriberSessionI;
 
-class NodeI : virtual public DataStormContract::Node, private Forwarder, public std::enable_shared_from_this<NodeI>
+class NodeI : virtual public DataStormContract::Node, public Forwarder, public std::enable_shared_from_this<NodeI>
 {
 
 public:

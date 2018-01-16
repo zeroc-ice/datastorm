@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "datastorm", "..\src\DataStorm\msbuild\datastorm\datastorm.vcxproj", "{BD2AC148-422F-49E0-9185-ACCBA7AECF26}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|Win32 = Debug|Win32
+		Release|x64 = Release|x64
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Debug|x64.ActiveCfg = Debug|x64
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Debug|x64.Build.0 = Debug|x64
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Debug|Win32.ActiveCfg = Debug|Win32
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Debug|Win32.Build.0 = Debug|Win32
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Release|x64.ActiveCfg = Release|x64
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Release|x64.Build.0 = Release|x64
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Release|Win32.ActiveCfg = Release|Win32
+		{BD2AC148-422F-49E0-9185-ACCBA7AECF26}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

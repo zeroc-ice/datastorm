@@ -22,9 +22,11 @@ namespace
 {
 
 DataSample
-toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator)
+toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator, bool marshalKey)
 {
     return { sample->id,
+             marshalKey ? 0 : sample->key->getId(),
+             marshalKey ? sample->key->encode(communicator) : Ice::ByteSeq {},
              chrono::time_point_cast<chrono::microseconds>(sample->timestamp).time_since_epoch().count(),
              sample->tag ? sample->tag->getId() : 0,
              sample->event,
@@ -49,7 +51,6 @@ cleanOldSamples(deque<shared_ptr<Sample>>& samples,
 
 DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Config& config) :
     _traceLevels(parent->getInstance()->getTraceLevels()),
-    _forwarder(Ice::uncheckedCast<SessionPrx>(parent->getInstance()->getForwarderManager()->add(this))),
     _id(id),
     _listenerCount(0),
     _config(make_shared<ElementConfig>()),
@@ -72,10 +73,16 @@ DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Co
     }
 }
 
+void
+DataElementI::init()
+{
+    _forwarder = Ice::uncheckedCast<SessionPrx>(_parent->getInstance()->getForwarderManager()->add(shared_from_this()));
+}
+
 DataElementI::~DataElementI()
 {
-    disconnect();
-    _parent->getInstance()->getForwarderManager()->remove(_forwarder->ice_getIdentity());
+    assert(_listeners.empty());
+    assert(_listenerCount == 0);
 }
 
 void
@@ -86,10 +93,12 @@ DataElementI::destroy()
         destroyImpl(); // Must be called first.
     }
     disconnect();
+    _parent->getInstance()->getForwarderManager()->remove(_forwarder->ice_getIdentity());
 }
 
 void
 DataElementI::attach(long long int topicId,
+                     long long int id,
                      const shared_ptr<Key>& key,
                      const shared_ptr<Filter>& filter,
                      SessionI* session,
@@ -105,18 +114,20 @@ DataElementI::attach(long long int topicId,
         sampleFilter = _parent->getSampleFilterFactories()->decode(getCommunicator(), info.name, info.criteria);
     }
     string facet = data.config->facet ? *data.config->facet : string();
-    if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
-       (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
+    if((id > 0 && attachKey(topicId, id, data.id, key, sampleFilter, session, prx, facet)) ||
+       (id < 0 && attachFilter(topicId, id, data.id, filter, sampleFilter, session, prx, facet)))
     {
         auto q = data.lastIds.find(_id);
         long long lastId = q != data.lastIds.end() ? q->second : 0;
-        LongLongDict lastIds = key ? session->getLastIds(topicId, key, this) : LongLongDict();
-        acks.push_back({ _id, _config, lastIds, getSamples(key, sampleFilter, data.config, lastId, now), data.id });
+        LongLongDict lastIds = key ? session->getLastIds(topicId, id, shared_from_this()) : LongLongDict();
+        DataSamples samples = getSamples(key, sampleFilter, data.config, lastId, now);
+        acks.push_back({ _id, _config, lastIds, samples.samples, data.id });
     }
 }
 
 void
 DataElementI::attach(long long int topicId,
+                     long long int id,
                      const shared_ptr<Key>& key,
                      const shared_ptr<Filter>& filter,
                      SessionI* session,
@@ -132,20 +143,23 @@ DataElementI::attach(long long int topicId,
         sampleFilter = _parent->getSampleFilterFactories()->decode(getCommunicator(), info.name, info.criteria);
     }
     string facet = data.config->facet ? *data.config->facet : string();
-    if((key && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet)) ||
-       (filter && attachFilter(topicId, data.id, filter, sampleFilter, session, prx, facet)))
+    if((id > 0 && attachKey(topicId, id, data.id, key, sampleFilter, session, prx, facet)) ||
+       (id < 0 && attachFilter(topicId, id, data.id, filter, sampleFilter, session, prx, facet)))
     {
-        samples.push_back({ _id, getSamples(key, sampleFilter, data.config, 0, now) });
+        auto q = data.lastIds.find(_id);
+        long long lastId = q != data.lastIds.end() ? q->second : 0;
+        samples.push_back(getSamples(key, sampleFilter, data.config, lastId, now));
     }
-    auto samplesI = session->subscriberInitialized(topicId, data.id, data.samples, key, this);
+    auto samplesI = session->subscriberInitialized(topicId, id > 0 ? data.id : -data.id, data.samples, key, shared_from_this());
     if(!samplesI.empty())
     {
-        initSamples(samplesI, topicId, data.id, now);
+        initSamples(samplesI, topicId, data.id, now, id < 0);
     }
 }
 
 bool
 DataElementI::attachKey(long long int topicId,
+                        long long int keyId,
                         long long int elementId,
                         const shared_ptr<Key>& key,
                         const shared_ptr<Filter>& sampleFilter,
@@ -153,6 +167,16 @@ DataElementI::attachKey(long long int topicId,
                         const shared_ptr<SessionPrx>& prx,
                         const string& facet)
 {
+    if(_traceLevels->data > 1)
+    {
+        Trace out(_traceLevels, _traceLevels->dataCat);
+        out << this << ": attachKey element " << elementId << "@" << topicId << " " << key;
+        if(!facet.empty())
+        {
+            out << " (facet = " << facet << ")";
+        }
+    }
+
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
     if(p == _listeners.end())
@@ -162,7 +186,7 @@ DataElementI::attachKey(long long int topicId,
     if(p->second.keys.add(topicId, elementId, key, sampleFilter))
     {
         ++_listenerCount;
-        session->subscribeToKey(topicId, elementId, key, this, facet);
+        session->subscribeToKey(topicId, keyId, elementId, key, shared_from_this(), facet);
         notifyListenerWaiters(session->getTopicLock());
         if(_onConnect)
         {
@@ -179,19 +203,26 @@ DataElementI::attachKey(long long int topicId,
 void
 DataElementI::detachKey(long long int topicId,
                         long long int elementId,
+                        const shared_ptr<Key>& key,
                         SessionI* session,
-                        const string& facet,
-                        bool unsubscribe)
+                        const string& facet)
 {
+
+    if(_traceLevels->data > 1)
+    {
+        Trace out(_traceLevels, _traceLevels->dataCat);
+        out << this << ": detachKey element " << elementId << "@" << topicId << " " << key;
+        if(!facet.empty())
+        {
+            out << " (facet = " << facet << ")";
+        }
+    }
+
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    if(p != _listeners.end() && p->second.keys.remove(topicId, elementId))
+    if(p != _listeners.end() && p->second.keys.remove(topicId, elementId, key))
     {
         --_listenerCount;
-        if(unsubscribe)
-        {
-            session->unsubscribeFromKey(topicId, elementId, this);
-        }
         if(_onDisconnect)
         {
             _executor->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
@@ -206,6 +237,7 @@ DataElementI::detachKey(long long int topicId,
 
 bool
 DataElementI::attachFilter(long long int topicId,
+                           long long int filterId,
                            long long int elementId,
                            const shared_ptr<Filter>& filter,
                            const shared_ptr<Filter>& sampleFilter,
@@ -213,6 +245,16 @@ DataElementI::attachFilter(long long int topicId,
                            const shared_ptr<SessionPrx>& prx,
                            const string& facet)
 {
+    if(_traceLevels->data > 1)
+    {
+        Trace out(_traceLevels, _traceLevels->dataCat);
+        out << this << ": attachFilter element " << elementId << "@" << topicId << " " << filter;
+        if(!facet.empty())
+        {
+            out << " (facet = " << facet << ")";
+        }
+    }
+
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
     if(p == _listeners.end())
@@ -222,7 +264,7 @@ DataElementI::attachFilter(long long int topicId,
     if(p->second.filters.add(topicId, elementId, filter, sampleFilter))
     {
         ++_listenerCount;
-        session->subscribeToFilter(topicId, elementId, filter, this, facet);
+        session->subscribeToFilter(topicId, filterId, elementId, filter, shared_from_this(), facet);
         if(_onConnect)
         {
             _executor->queue(shared_from_this(), [=] { _onConnect(make_tuple(session->getId(), topicId, elementId)); });
@@ -239,19 +281,25 @@ DataElementI::attachFilter(long long int topicId,
 void
 DataElementI::detachFilter(long long int topicId,
                            long long int elementId,
+                           const shared_ptr<Filter>& filter,
                            SessionI* session,
-                           const string& facet,
-                           bool unsubscribe)
+                           const string& facet)
 {
+    if(_traceLevels->data > 1)
+    {
+        Trace out(_traceLevels, _traceLevels->dataCat);
+        out << this << ": detachFilter element " << elementId << "@" << topicId << " " << filter;
+        if(!facet.empty())
+        {
+            out << " (facet = " << facet << ")";
+        }
+    }
+
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    if(p != _listeners.end() && p->second.filters.remove(topicId, elementId))
+    if(p != _listeners.end() && p->second.filters.remove(topicId, elementId, filter))
     {
         --_listenerCount;
-        if(unsubscribe)
-        {
-            session->unsubscribeFromFilter(topicId, elementId, this);
-        }
         if(_onDisconnect)
         {
             _executor->queue(shared_from_this(), [=] { _onDisconnect(make_tuple(session->getId(), topicId, elementId)); });
@@ -287,7 +335,7 @@ DataElementI::getConnectedKeys() const
     {
         for(const auto& key : listener.second.keys.subscribers)
         {
-            keys.insert(key.second.element);
+            keys.insert(key.second.elements.begin(), key.second.elements.end());
         }
     }
     return vector<shared_ptr<Key>>(keys.begin(), keys.end());
@@ -297,11 +345,12 @@ void
 DataElementI::initSamples(const vector<shared_ptr<Sample>>&,
                           long long int,
                           long long int,
-                          const chrono::time_point<chrono::system_clock>&)
+                          const chrono::time_point<chrono::system_clock>&,
+                          bool)
 {
 }
 
-DataSampleSeq
+DataSamples
 DataElementI::getSamples(const shared_ptr<Key>&,
                          const shared_ptr<Filter>&,
                          const shared_ptr<DataStormContract::ElementConfig>&,
@@ -312,7 +361,7 @@ DataElementI::getSamples(const shared_ptr<Key>&,
 }
 
 void
-DataElementI::queue(const shared_ptr<Sample>&, const string&, const chrono::time_point<chrono::system_clock>&)
+DataElementI::queue(const shared_ptr<Sample>&, const string&, const chrono::time_point<chrono::system_clock>&, bool)
 {
     assert(false);
 }
@@ -383,11 +432,11 @@ DataElementI::disconnect()
     {
         for(const auto& ks : listener.second.keys.subscribers)
         {
-            listener.first.session->disconnectFromKey(ks.first.first, ks.first.second, this);
+            listener.first.session->disconnectFromKey(ks.first.first, ks.first.second, shared_from_this());
         }
         for(const auto& fs : listener.second.filters.subscribers)
         {
-            listener.first.session->disconnectFromFilter(fs.first.first, fs.first.second, this);
+            listener.first.session->disconnectFromFilter(fs.first.first, fs.first.second, shared_from_this());
         }
     }
 }
@@ -463,7 +512,8 @@ void
 DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
                          long long int topic,
                          long long int element,
-                         const chrono::time_point<chrono::system_clock>& now)
+                         const chrono::time_point<chrono::system_clock>& now,
+                         bool checkKey)
 {
     if(_traceLevels->data > 1)
     {
@@ -475,7 +525,11 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
     shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
     for(const auto& sample : samples)
     {
-        if(_discardPolicy == DataStorm::DiscardPolicy::SendTime && sample->timestamp <= _lastSendTime)
+        if(checkKey && !matchKey(sample->key))
+        {
+            continue;
+        }
+        else if(_discardPolicy == DataStorm::DiscardPolicy::SendTime && sample->timestamp <= _lastSendTime)
         {
             continue;
         }
@@ -566,10 +620,25 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
 void
 DataReaderI::queue(const shared_ptr<Sample>& sample,
                    const string& facet,
-                   const chrono::time_point<chrono::system_clock>& now)
+                   const chrono::time_point<chrono::system_clock>& now,
+                   bool checkKey)
 {
     if(_config->facet && *_config->facet != facet)
     {
+        if(_traceLevels->data > 1)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": skipped sample " << sample->id << " (facet doesn't match)";
+        }
+        return;
+    }
+    else if(checkKey && !matchKey(sample->key))
+    {
+        if(_traceLevels->data > 1)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": skipped sample " << sample->id << " (key doesn't match)";
+        }
         return;
     }
 
@@ -663,9 +732,15 @@ DataReaderI::onSample(function<void(const shared_ptr<Sample>&)> callback)
 
 DataWriterI::DataWriterI(TopicWriterI* topic, long long int id, const DataStorm::WriterConfig& config) :
     DataElementI(topic, id, config),
-    _parent(topic),
-    _subscribers(Ice::uncheckedCast<SubscriberSessionPrx>(_forwarder))
+    _parent(topic)
 {
+}
+
+void
+DataWriterI::init()
+{
+    DataElementI::init();
+    _subscribers = Ice::uncheckedCast<DataStormContract::SubscriberSessionPrx>(_forwarder);
 }
 
 void
@@ -758,7 +833,7 @@ KeyDataReaderI::destroyImpl()
     }
     try
     {
-        _forwarder->detachElements(_parent->getId(), { _id });
+        _forwarder->detachElements(_parent->getId(), { _keys.empty() ? -_id : _id });
     }
     catch(const std::exception&)
     {
@@ -796,6 +871,12 @@ KeyDataReaderI::toString() const
     return os.str();
 }
 
+bool
+KeyDataReaderI::matchKey(const shared_ptr<Key>& key) const
+{
+    return _keys.empty() || find(_keys.begin(), _keys.end(), key) != _keys.end();
+}
+
 KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
@@ -820,7 +901,7 @@ KeyDataWriterI::destroyImpl()
     }
     try
     {
-        _forwarder->detachElements(_parent->getId(), { _id });
+        _forwarder->detachElements(_parent->getId(), { _keys.empty() ? -_id : _id });
     }
     catch(const std::exception&)
     {
@@ -873,14 +954,16 @@ KeyDataWriterI::toString() const
     return os.str();
 }
 
-DataSampleSeq
+DataSamples
 KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
-                           const shared_ptr<Filter>& filter,
+                           const shared_ptr<Filter>& sampleFilter,
                            const shared_ptr<DataStormContract::ElementConfig>& config,
                            long long int lastId,
                            const chrono::time_point<chrono::system_clock>& now)
 {
-    DataSampleSeq samples;
+    DataSamples samples;
+    samples.id = _keys.empty() ? -_id : _id;
+
     if(config->sampleCount && *config->sampleCount == 0)
     {
         return samples;
@@ -909,12 +992,12 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
             break;
         }
 
-        if((!key || key == (*p)->key) && (!filter || filter->match(*p)))
+        if((!key || key == (*p)->key) && (!sampleFilter || sampleFilter->match(*p)))
         {
             first = *p;
-            samples.push_front(toSample(*p, getCommunicator()));
+            samples.samples.push_front(toSample(*p, getCommunicator(), _keys.empty()));
             if(config->sampleCount &&
-               *config->sampleCount > 0 && static_cast<size_t>(*config->sampleCount) == samples.size())
+               *config->sampleCount > 0 && static_cast<size_t>(*config->sampleCount) == samples.samples.size())
             {
                 break;
             }
@@ -930,16 +1013,19 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
             }
         }
     }
-    if(!samples.empty())
+    if(!samples.samples.empty())
     {
         // If the first sample is a partial update, transform it to an full Update
         if(first->event == DataStorm::SampleEvent::PartialUpdate)
         {
-            samples[0] = { first->id,
-                           chrono::time_point_cast<chrono::microseconds>(first->timestamp).time_since_epoch().count(),
-                           0,
-                           DataStorm::SampleEvent::Update,
-                           first->encodeValue(getCommunicator()) };
+            samples.samples[0] = {
+                first->id,
+                samples.samples[0].keyId,
+                samples.samples[0].keyValue,
+                chrono::time_point_cast<chrono::microseconds>(first->timestamp).time_since_epoch().count(),
+                0,
+                DataStorm::SampleEvent::Update,
+                first->encodeValue(getCommunicator()) };
         }
     }
     return samples;
@@ -951,7 +1037,7 @@ KeyDataWriterI::send(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     assert(key || _keys.size() == 1);
     _sample = sample;
     _sample->key = key ? key : _keys[0];
-    _subscribers->s(_parent->getId(), _id, toSample(sample, getCommunicator()));
+    _subscribers->s(_parent->getId(), _keys.empty() ? -_id : _id, toSample(sample, getCommunicator(), _keys.empty()));
     _sample = nullptr;
 }
 
@@ -1019,4 +1105,10 @@ FilteredDataReaderI::toString() const
     ostringstream os;
     os << 'e' << _id << ":" << _filter->toString() << "@" << _parent->getId();
     return os.str();
+}
+
+bool
+FilteredDataReaderI::matchKey(const shared_ptr<Key>& key) const
+{
+    return _filter->match(key);
 }

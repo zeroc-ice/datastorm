@@ -29,7 +29,7 @@ public:
 
     ForwarderManager(const std::shared_ptr<Ice::ObjectAdapter>&);
 
-    std::shared_ptr<Ice::ObjectPrx> add(Forwarder*);
+    std::shared_ptr<Ice::ObjectPrx> add(const std::shared_ptr<Forwarder>&);
     void remove(const Ice::Identity&);
 
 private:
@@ -39,7 +39,7 @@ private:
     const std::shared_ptr<Ice::ObjectAdapter> _adapter;
 
     std::mutex _mutex;
-    std::map<std::string, Forwarder*> _forwarders;
+    std::map<std::string, std::shared_ptr<Forwarder>> _forwarders;
     unsigned int _nextId;
 };
 

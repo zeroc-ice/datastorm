@@ -37,6 +37,12 @@ struct DataSample
     /** The sample id. */
     long id;
 
+    /** The key id. */
+    long keyId;
+
+    /** The key value if the key ID <= 0. */
+    ByteSeq keyValue;
+
     /** The timestamp of the sample (write time). */
     long timestamp;
 
@@ -217,7 +223,7 @@ interface PublisherSession extends Session
 
 interface SubscriberSession extends Session
 {
-    void s(long topic, long element, DataSample sample);
+    void s(long topicId, long elementId, DataSample sample);
 }
 
 exception CannotCreateSessionException

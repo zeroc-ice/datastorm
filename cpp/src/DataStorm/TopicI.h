@@ -21,7 +21,7 @@ namespace DataStormInternal
 class SessionI;
 class TopicFactoryI;
 
-class TopicI : virtual public Topic, private Forwarder, public std::enable_shared_from_this<TopicI>
+class TopicI : virtual public Topic, public Forwarder, public std::enable_shared_from_this<TopicI>
 {
     struct ListenerKey
     {
@@ -55,6 +55,8 @@ public:
            long long int);
 
     virtual ~TopicI();
+
+    void init();
 
     virtual std::string getName() const override;
     virtual void destroy() override;
@@ -102,6 +104,11 @@ public:
     std::mutex& getMutex()
     {
         return _mutex;
+    }
+
+    const std::shared_ptr<KeyFactory>& getKeyFactory() const
+    {
+        return _keyFactory;
     }
 
     const std::shared_ptr<TagFactory>& getTagFactory() const
@@ -152,7 +159,7 @@ protected:
     const std::shared_ptr<Instance> _instance;
     const std::shared_ptr<TraceLevels> _traceLevels;
     const long long int _id;
-    const std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
+    std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
 
     mutable std::mutex _mutex;
     mutable std::condition_variable _cond;

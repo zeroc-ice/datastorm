@@ -100,7 +100,6 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
     _instance(factory.lock()->getInstance()),
     _traceLevels(_instance->getTraceLevels()),
     _id(id),
-    _forwarder(Ice::uncheckedCast<SessionPrx>(_instance->getForwarderManager()->add(this))),
     _destroyed(false),
     _listenerCount(0),
     _waiters(0),
@@ -114,7 +113,12 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
 TopicI::~TopicI()
 {
     assert(_destroyed);
-    _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
+}
+
+void
+TopicI::init()
+{
+    _forwarder = Ice::uncheckedCast<SessionPrx>(_instance->getForwarderManager()->add(shared_from_this()));
 }
 
 string
@@ -142,6 +146,7 @@ TopicI::destroy()
         }
         _keyElements.swap(keyElements);
         _filteredElements.swap(filteredElements);
+        _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
     }
     disconnect();
 }
@@ -192,7 +197,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, Sess
                 ElementDataSeq elements;
                 for(auto k : p->second)
                 {
-                    elements.push_back({ k->getId(), k->getConfig(), session->getLastIds(topicId, key, k.get()) });
+                    elements.push_back({ k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k) });
                 }
                 specs.push_back({ move(elements), key->getId(), "", {}, info.id });
             }
@@ -203,7 +208,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, Sess
                     ElementDataSeq elements;
                     for(auto f : e.second)
                     {
-                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, key, f.get()) });
+                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
                     }
                     specs.push_back({ move(elements),
                                       -e.first->getId(),
@@ -315,11 +320,11 @@ TopicI::attachElements(long long int topicId,
                     {
                         if(spec.id > 0) // Key
                         {
-                            e->attach(topicId, key, nullptr, session, prx, data, now, acks);
+                            e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, acks);
                         }
                         else if(filter->match(key))
                         {
-                            e->attach(topicId, nullptr, filter, session, prx, data, now, acks);
+                            e->attach(topicId, spec.id, key, filter, session, prx, data, now, acks);
                         }
                     }
                     if(!acks.empty())
@@ -362,11 +367,11 @@ TopicI::attachElements(long long int topicId,
                     {
                         if(spec.id < 0) // Filter
                         {
-                            e->attach(topicId, nullptr, filter, session, prx, data, now, acks);
+                            e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, acks);
                         }
                         else if(filter->match(key))
                         {
-                            e->attach(topicId, key, nullptr, session, prx, data, now, acks);
+                            e->attach(topicId, spec.id, key, filter, session, prx, data, now, acks);
                         }
                     }
                     if(!acks.empty())
@@ -423,11 +428,11 @@ TopicI::attachElementsAck(long long int topicId,
                         {
                             if(spec.id > 0) // Key
                             {
-                                e->attach(topicId, key, nullptr, session, prx, data, now, samples);
+                                e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
                             else if(filter->match(key)) // Filter
                             {
-                                e->attach(topicId, nullptr, filter, session, prx, data, now, samples);
+                                e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
                             }
                             break;
                         }
@@ -464,11 +469,11 @@ TopicI::attachElementsAck(long long int topicId,
                         {
                             if(spec.id < 0) // Filter
                             {
-                                e->attach(topicId, nullptr, filter, session, prx, data, now, samples);
+                                e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
                             }
                             else if(filter->match(key))
                             {
-                                e->attach(topicId, key, nullptr, session, prx, data, now, samples);
+                                e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
                             break;
                         }
@@ -739,6 +744,7 @@ TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, sampleFilter,
                                                     move(sampleFilterCriteria), mergeConfigs(move(config)));
+    element->init();
     addFiltered(element, filter);
     return element;
 }
@@ -752,6 +758,7 @@ TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, sampleFilter,
                                                move(sampleFilterCriteria), mergeConfigs(move(config)));
+    element->init();
     if(keys.empty())
     {
         addFiltered(element, alwaysMatchFilter);
@@ -874,6 +881,7 @@ TopicWriterI::create(const vector<shared_ptr<Key>>& keys, DataStorm::WriterConfi
 {
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<KeyDataWriterI>(this, ++_nextId, keys, mergeConfigs(move(config)));
+    element->init();
     if(keys.empty())
     {
         addFiltered(element, alwaysMatchFilter);

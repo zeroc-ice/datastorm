@@ -307,6 +307,15 @@ class Windows(Platform):
     def getPlatformToolset(self):
         return self.getCompiler().replace("VC", "v")
 
+    def getNugetPackageBinDir(self, package, process, current):
+        mapping = process.getMapping(current)
+        platform = current.driver.configs[mapping].buildPlatform
+        config = "Debug" if current.driver.configs[mapping].buildConfig.find("Debug") >= 0 else "Release"
+        package = os.path.join(mapping.path, "msbuild", "packages", package)
+        if not os.path.exists(package):
+            return None
+        return os.path.join(package, "build", "native", "bin", platform, config)
+
     def getBinSubDir(self, mapping, process, current):
         #
         # Platform/Config taget bin directories.
@@ -1860,7 +1869,6 @@ class LocalProcessController(ProcessController):
         def teardown(self, current, success):
             if self.traceFile and os.path.exists(self.traceFile):
                 if success or current.driver.isInterrupted():
-
                     os.remove(self.traceFile)
                 else:
                     current.writeln("saved {0}".format(self.traceFile))
@@ -2861,6 +2869,9 @@ class CppMapping(Mapping):
         #
         if not isinstance(platform, Darwin):
             libPaths.append(self.getLibDir(process, current))
+
+        if isinstance(platform, Windows):
+            libPaths.append(platform.getNugetPackageBinDir("zeroc.ice.v140.3.7.0", process, current))
 
         #
         # Add the test suite library directories to the platform library path environment variable.

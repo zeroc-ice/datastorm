@@ -7,6 +7,10 @@
 //
 // **********************************************************************
 
+#if defined(_MSC_VER)
+#    pragma warning(4 : 4244)
+#endif
+
 #include <DataStorm/DataStorm.h>
 
 #include <TestCommon.h>

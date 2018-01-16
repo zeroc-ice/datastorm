@@ -1,0 +1,34 @@
+<Project DefaultTargets="NugetPack" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <PropertyGroup>
+        <DataStormSrcRootDir>$(MSBuildThisFileDirectory)..\</DataStormSrcRootDir>
+    </PropertyGroup>
+
+    <!-- Dynamic libraries and import libraries -->
+    <ItemGroup>
+        <Libraries Include="$(DataStormSrcRootDir)bin\$(Platform)\$(Configuration)\*.dll"/>
+        <ImportLibraries Include="$(DataStormSrcRootDir)lib\$(Platform)\$(Configuration)\*.lib"/>
+    </ItemGroup>
+
+    <!-- Public C++ header and Slice files -->
+    <ItemGroup>
+        <Headers Include="$(DataStormSrcRootDir)include\DataStorm\*.h"
+                 Exclude="$(DataStormSrcRootDir)include\generated\**\*.h"/>
+        <Headers Include="$(DataStormSrcRootDir)include\generated\$(Platform)\$(Configuration)\**\*.h"/>
+        <Slices Include="$(DataStormSrcRootDir)..\slice\DataStorm\*.ice"/>
+    </ItemGroup>
+
+    <!-- Copy required files to the package specific directories -->
+    <Target Name="NugetPack">
+        <Copy Condition="'$(Platform)|$(Configuration)' == 'Win32|Release'"
+              SourceFiles="@(Headers)" DestinationFolder="$(PackageDirectory)\build\native\include\%(Headers.RecursiveDir)" />
+
+        <Copy Condition="'$(Platform)|$(Configuration)' == 'Win32|Release'"
+              SourceFiles="@(Slices)" DestinationFolder="$(PackageDirectory)\slice\%(Slices.RecursiveDir)" />
+        <Copy Condition="'$(Platform)|$(Configuration)' == 'x64|Release'"
+              SourceFiles="@(Tools)" DestinationFolder="$(PackageDirectory)\tools" />
+        <Copy SourceFiles="@(Executables)" DestinationFolder="$(PackageDirectory)\build\native\bin\$(Platform)\$(Configuration)" />
+        <Copy SourceFiles="@(Libraries)" DestinationFolder="$(PackageDirectory)\build\native\bin\$(Platform)\$(Configuration)" />
+        <Copy SourceFiles="@(ImportLibraries)" DestinationFolder="$(PackageDirectory)\build\native\lib\$(Platform)\$(Configuration)" />
+    </Target>
+</Project>

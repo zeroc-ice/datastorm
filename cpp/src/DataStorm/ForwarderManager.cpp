@@ -18,7 +18,7 @@ ForwarderManager::ForwarderManager(const shared_ptr<Ice::ObjectAdapter>& adapter
 }
 
 shared_ptr<Ice::ObjectPrx>
-ForwarderManager::add(Forwarder* forwarder)
+ForwarderManager::add(const shared_ptr<Forwarder>& forwarder)
 {
     lock_guard<mutex> lock(_mutex);
     ostringstream os;
@@ -44,12 +44,16 @@ ForwarderManager::remove(const Ice::Identity& id)
 bool
 ForwarderManager::ice_invoke(Ice::ByteSeq inEncaps, Ice::ByteSeq&, const Ice::Current& current)
 {
-    lock_guard<mutex> lock(_mutex);
-    auto p = _forwarders.find(current.id.name);
-    if(p == _forwarders.end())
+    shared_ptr<Forwarder> forwarder;
     {
-        throw Ice::ObjectNotExistException(__FILE__, __LINE__, current.id, current.facet, current.operation);
+        lock_guard<mutex> lock(_mutex);
+        auto p = _forwarders.find(current.id.name);
+        if(p == _forwarders.end())
+        {
+            throw Ice::ObjectNotExistException(__FILE__, __LINE__, current.id, current.facet, current.operation);
+        }
+        forwarder = p->second;
     }
-    p->second->forward(inEncaps, current);
+    forwarder->forward(inEncaps, current);
     return true;
 }

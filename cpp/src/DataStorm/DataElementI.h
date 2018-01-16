@@ -26,7 +26,7 @@ class CallbackExecutor;
 
 class TraceLevels;
 
-class DataElementI : virtual public DataElement, private Forwarder, public std::enable_shared_from_this<DataElementI>
+class DataElementI : virtual public DataElement, public Forwarder, public std::enable_shared_from_this<DataElementI>
 {
     struct ListenerKey
     {
@@ -49,7 +49,7 @@ class DataElementI : virtual public DataElement, private Forwarder, public std::
 
     template<typename T> struct Subscriber
     {
-        std::shared_ptr<T> element;
+        std::set<std::shared_ptr<T>> elements;
         std::shared_ptr<Filter> sampleFilter;
     };
 
@@ -58,12 +58,31 @@ class DataElementI : virtual public DataElement, private Forwarder, public std::
         bool add(long long int topicId, long long int elementId, const std::shared_ptr<T>& element,
                  const std::shared_ptr<Filter>& sampleFilter)
         {
-            return subscribers.emplace(std::make_pair(topicId, elementId), Subscriber<T> { element, sampleFilter }).second;
+            auto key = std::make_pair(topicId, elementId);
+            auto p = subscribers.find(key);
+            if(p == subscribers.end())
+            {
+                p = subscribers.emplace(key, Subscriber<T> { {}, sampleFilter }).first;
+            }
+            return p->second.elements.insert(element).second;
         }
 
-        bool remove(long long int topic, long long int element)
+        bool remove(long long int topicId, long long int elementId, const std::shared_ptr<T>& element)
         {
-            return subscribers.erase({ topic, element });
+            auto key = std::make_pair(topicId, elementId);
+            auto p = subscribers.find(key);
+            if(p != subscribers.end())
+            {
+                if(p->second.elements.erase(element))
+                {
+                    if(p->second.elements.empty())
+                    {
+                        subscribers.erase(p);
+                    }
+                    return true;
+                }
+            }
+            return false;
         }
 
         std::map<std::pair<long long int, long long int>, Subscriber<T>> subscribers;
@@ -110,9 +129,12 @@ public:
     DataElementI(TopicI*, long long int, const DataStorm::Config&);
     virtual ~DataElementI();
 
+    void init();
+
     virtual void destroy() override;
 
     void attach(long long int,
+                long long int,
                 const std::shared_ptr<Key>&,
                 const std::shared_ptr<Filter>&,
                 SessionI*,
@@ -122,6 +144,7 @@ public:
                 DataStormContract::ElementDataAckSeq&);
 
     void attach(long long int,
+                long long int,
                 const std::shared_ptr<Key>&,
                 const std::shared_ptr<Filter>&,
                 SessionI*,
@@ -130,27 +153,51 @@ public:
                 const std::chrono::time_point<std::chrono::system_clock>&,
                 DataStormContract::DataSamplesSeq&);
 
-    bool attachKey(long long int, long long int, const std::shared_ptr<Key>&, const std::shared_ptr<Filter>&,
-                   SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&, const std::string&);
-    void detachKey(long long int, long long int, SessionI*, const std::string&, bool = true);
+    bool attachKey(long long int,
+                   long long int,
+                   long long int,
+                   const std::shared_ptr<Key>&,
+                   const std::shared_ptr<Filter>&,
+                   SessionI*,
+                   const std::shared_ptr<DataStormContract::SessionPrx>&,
+                   const std::string&);
 
-    bool attachFilter(long long int, long long int, const std::shared_ptr<Filter>&, const std::shared_ptr<Filter>&,
-                      SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&, const std::string&);
-    void detachFilter(long long int, long long int, SessionI*, const std::string&, bool = true);
+    void detachKey(long long int,
+                   long long int,
+                   const std::shared_ptr<Key>&,
+                   SessionI*,
+                   const std::string&);
+
+    bool attachFilter(long long int,
+                      long long int,
+                      long long int,
+                      const std::shared_ptr<Filter>&,
+                      const std::shared_ptr<Filter>&,
+                      SessionI*,
+                      const std::shared_ptr<DataStormContract::SessionPrx>&,
+                      const std::string&);
+
+    void detachFilter(long long int,
+                      long long int,
+                      const std::shared_ptr<Filter>&,
+                      SessionI*,
+                      const std::string&);
 
     virtual void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
     virtual void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
-                             const std::chrono::time_point<std::chrono::system_clock>&);
-    virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
-                                                        const std::shared_ptr<Filter>&,
-                                                        const std::shared_ptr<DataStormContract::ElementConfig>&,
-                                                        long long int,
-                                                        const std::chrono::time_point<std::chrono::system_clock>&);
+                             const std::chrono::time_point<std::chrono::system_clock>&, bool);
+    virtual DataStormContract::DataSamples getSamples(const std::shared_ptr<Key>&,
+                                                      const std::shared_ptr<Filter>&,
+                                                      const std::shared_ptr<DataStormContract::ElementConfig>&,
+                                                      long long int,
+                                                      const std::chrono::time_point<std::chrono::system_clock>&);
+
     virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
-                       const std::chrono::time_point<std::chrono::system_clock>&);
+                       const std::chrono::time_point<std::chrono::system_clock>&, bool);
+
     virtual std::string toString() const = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 
@@ -176,7 +223,7 @@ protected:
     virtual void destroyImpl() = 0;
 
     std::shared_ptr<TraceLevels> _traceLevels;
-    const std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
+    std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
     mutable std::shared_ptr<Sample> _sample;
     long long int _id;
     size_t _listenerCount;
@@ -211,14 +258,16 @@ public:
     virtual std::shared_ptr<Sample> getNextUnread() override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
-                             const std::chrono::time_point<std::chrono::system_clock>&) override;
+                             const std::chrono::time_point<std::chrono::system_clock>&, bool) override;
     virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
-                       const std::chrono::time_point<std::chrono::system_clock>&) override;
+                       const std::chrono::time_point<std::chrono::system_clock>&, bool) override;
 
     virtual void onInit(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) override;
     virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) override;
 
 protected:
+
+    virtual bool matchKey(const std::shared_ptr<Key>&) const = 0;
 
     TopicReaderI* _parent;
 
@@ -235,6 +284,7 @@ class DataWriterI : public DataElementI, public DataWriter
 public:
 
     DataWriterI(TopicWriterI*, long long int, const DataStorm::WriterConfig&);
+    void init();
 
     virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) override;
 
@@ -263,6 +313,8 @@ public:
 
 private:
 
+    virtual bool matchKey(const std::shared_ptr<Key>&) const override;
+
     const std::vector<std::shared_ptr<Key>> _keys;
 };
 
@@ -282,11 +334,11 @@ public:
     virtual std::vector<std::shared_ptr<Sample>> getAll() const override;
 
     virtual std::string toString() const override;
-    virtual DataStormContract::DataSampleSeq getSamples(const std::shared_ptr<Key>&,
-                                                        const std::shared_ptr<Filter>&,
-                                                        const std::shared_ptr<DataStormContract::ElementConfig>&,
-                                                        long long int,
-                                                        const std::chrono::time_point<std::chrono::system_clock>&) override;
+    virtual DataStormContract::DataSamples getSamples(const std::shared_ptr<Key>&,
+                                                      const std::shared_ptr<Filter>&,
+                                                      const std::shared_ptr<DataStormContract::ElementConfig>&,
+                                                      long long int,
+                                                      const std::chrono::time_point<std::chrono::system_clock>&) override;
 
 private:
 
@@ -310,6 +362,8 @@ public:
     virtual std::string toString() const override;
 
 private:
+
+    virtual bool matchKey(const std::shared_ptr<Key>&) const override;
 
     const std::shared_ptr<Filter> _filter;
 };

@@ -131,7 +131,97 @@ main(int argc, char* argv[])
     cout << "testing any-key reader/writer... " << flush;
     {
         {
-            Topic<string, string> topic(node, "anykey");
+            Topic<string, string> topic(node, "anykey1");
+            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+
+            writer1.waitForReaders(1);
+            writer2.waitForReaders(1);
+
+            writer1.add("value1");
+            writer1.update("value2");
+            writer1.remove();
+
+            writer2.add("value1");
+            writer2.update("value2");
+            writer2.remove();
+
+            writer1.waitForNoReaders();
+            writer2.waitForNoReaders();
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing reader/multi-key writer... " << flush;
+    {
+        {
+            Topic<string, string> topic(node, "multikey2");
+            auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2"}, config);
+
+            writer.waitForReaders(2);
+
+            writer.add("elem1", "value1");
+            writer.update("elem1", "value2");
+            writer.remove("elem1");
+
+            writer.add("elem2", "value1");
+            writer.update("elem2", "value2");
+            writer.remove("elem2");
+
+            writer.waitForNoReaders();
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing reader/any-key writer... " << flush;
+    {
+        {
+            Topic<string, string> topic(node, "anykey2");
+            auto writer = makeAnyKeyWriter(topic, config);
+
+            writer.waitForReaders(1);
+
+            writer.add("elem1", "value1");
+            writer.update("elem1", "value2");
+            writer.remove("elem1");
+
+            writer.add("elem2", "value1");
+            writer.update("elem2", "value2");
+            writer.remove("elem2");
+
+            writer.waitForNoReaders();
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing multi-key reader/multi-key writer... " << flush;
+    {
+        {
+            Topic<string, string> topic(node, "multikey3");
+            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+
+            writer1.waitForReaders(1);
+            writer2.waitForReaders(1);
+
+            writer1.add("value1");
+            writer1.update("value2");
+            writer1.remove();
+
+            writer2.add("value1");
+            writer2.update("value2");
+            writer2.remove();
+
+            writer1.waitForNoReaders();
+            writer2.waitForNoReaders();
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing any-key reader/any-key writer... " << flush;
+    {
+        {
+            Topic<string, string> topic(node, "anykey3");
             auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
             auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
 

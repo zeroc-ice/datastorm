@@ -53,8 +53,6 @@ private:
 
 NodeI::NodeI(const shared_ptr<Instance>& instance) :
     _instance(instance),
-    _subscriberForwarder(Ice::uncheckedCast<SubscriberSessionPrx>(_instance->getForwarderManager()->add(this))),
-    _publisherForwarder(Ice::uncheckedCast<PublisherSessionPrx>(_instance->getForwarderManager()->add(this))),
     _nextSubscriberSessionId(0),
     _nextPublisherSessionId(0)
 {
@@ -62,8 +60,6 @@ NodeI::NodeI(const shared_ptr<Instance>& instance) :
 
 NodeI::~NodeI()
 {
-    _instance->getForwarderManager()->remove(_subscriberForwarder->ice_getIdentity());
-    _instance->getForwarderManager()->remove(_publisherForwarder->ice_getIdentity());
     assert(_subscribers.empty());
     assert(_publishers.empty());
 }
@@ -71,12 +67,15 @@ NodeI::~NodeI()
 void
 NodeI::init()
 {
+    auto self = shared_from_this();
+    _subscriberForwarder = Ice::uncheckedCast<SubscriberSessionPrx>(_instance->getForwarderManager()->add(self));
+    _publisherForwarder = Ice::uncheckedCast<PublisherSessionPrx>(_instance->getForwarderManager()->add(self));
     try
     {
         auto adapter = _instance->getObjectAdapter();
-        _proxy = Ice::uncheckedCast<NodePrx>(adapter->addWithUUID(shared_from_this()));
+        _proxy = Ice::uncheckedCast<NodePrx>(adapter->addWithUUID(self));
 
-        auto servantLocator = make_shared<ServantLocatorI>(shared_from_this());
+        auto servantLocator = make_shared<ServantLocatorI>(self);
         adapter->addServantLocator(servantLocator, "s");
         adapter->addServantLocator(servantLocator, "p");
     }
@@ -93,6 +92,8 @@ NodeI::destroy()
     _publishers.clear();
     _subscriberSessions.clear();
     _publisherSessions.clear();
+    _instance->getForwarderManager()->remove(_subscriberForwarder->ice_getIdentity());
+    _instance->getForwarderManager()->remove(_publisherForwarder->ice_getIdentity());
 }
 
 bool

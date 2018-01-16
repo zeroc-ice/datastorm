@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <PropertyGroup Condition="'$(Configuration)' == ''">
+      <Configuration>Release</Configuration>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Platform)' == ''">
+      <Platform>Win32</Platform>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <SymbolServer Condition="'$(SymbolServer)' == ''">$(TEMP)\SymbolCache*https://symbols.zeroc.com</SymbolServer>
+      <NugetExe>$(MSBuildThisFileDirectory)NuGet.exe</NugetExe>
+      <NugetURL>https://dist.nuget.org/win-x86-commandline/v3.4.4/NuGet.exe</NugetURL>
+    </PropertyGroup>
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+    <!-- Download nuget.exe if not present -->
+    <Target Name="GetNuget" Condition="!Exists('$(NugetExe)')">
+      <Exec Command="powershell -ExecutionPolicy ByPass -Command &quot;(New-Object Net.WebClient).DownloadFile('$(NugetURL)', '$(NugetExe)')&quot;"/>
+    </Target>
+
+    <!-- Restore Nuget packages -->
+    <Target Name="NugetRestore" DependsOnTargets="GetNuGet"  Condition="'$(DATASTORM_BIN_DIST)' == ''">
+        <Exec Command="$(NugetExe) restore $(MSBuildThisFileDirectory)datastorm.sln"/>
+    </Target>
+
+    <Target Name="RemovePackages">
+      <Exec Command="rmdir /s /q $(MSBuildThisFileDirectory)packages" Condition="Exists('$(MSBuildThisFileDirectory)packages')" />
+    </Target>
+
+    <Target Name="TestNugetRestore" DependsOnTargets="GetNuGet" Condition="'$(DATASTORM_BIN_DIST)' != ''">
+        <Exec Command="$(NugetExe) restore $(MSBuildThisFileDirectory)datastorm.test.sln"/>
+    </Target>
+
+    <!-- DataStorm for C++ builds -->
+    <Choose>
+        <!--
+            If BuildAllConfigurations is set to yes we build all configurations that are
+            part of the binary distribution, otherwise we just build the specific platform
+            and configuration.
+        -->
+        <When Condition="'$(BuildAllConfigurations)' == 'yes'">
+            <ItemGroup>
+              <DistSolution Include="datastorm.sln">
+                <Properties>Configuration=Debug;Platform=Win32</Properties>
+              </DistSolution>
+              <DistSolution Include="datastorm.sln">
+                <Properties>Configuration=Debug;Platform=x64</Properties>
+              </DistSolution>
+              <DistSolution Include="datastorm.sln">
+                <Properties>Configuration=Release;Platform=Win32</Properties>
+              </DistSolution>
+              <DistSolution Include="datastorm.sln">
+                <Properties>Configuration=Release;Platform=x64</Properties>
+              </DistSolution>
+            </ItemGroup>
+            <ItemGroup>
+              <TestSolution Include="datastorm.test.sln">
+                <Properties>Configuration=Debug;Platform=Win32</Properties>
+              </TestSolution>
+              <TestSolution Include="datastorm.test.sln">
+                <Properties>Configuration=Debug;Platform=x64</Properties>
+              </TestSolution>
+              <TestSolution Include="datastorm.test.sln">
+                <Properties>Configuration=Release;Platform=Win32</Properties>
+              </TestSolution>
+              <TestSolution Include="datastorm.test.sln">
+                <Properties>Configuration=Release;Platform=x64</Properties>
+              </TestSolution>
+            </ItemGroup>
+        </When>
+        <Otherwise>
+            <ItemGroup>
+                <DistSolution Include="datastorm.sln">
+                    <Properties>Configuration=$(Configuration);Platform=$(Platform)</Properties>
+                </DistSolution>
+
+                <TestSolution Include="datastorm.test.sln">
+                    <Properties>Configuration=$(Configuration);Platform=$(Platform)</Properties>
+                </TestSolution>
+            </ItemGroup>
+        </Otherwise>
+    </Choose>
+
+    <Target Name="BuildDist" DependsOnTargets="NugetRestore" Condition="'$(DATASTORM_BIN_DIST)' == ''">
+        <MSBuild Projects="@(DistSolution)"
+                 BuildInParallel="true"
+                 Properties="%(Properties)"/>
+    </Target>
+
+    <Target Name="CleanDist" Condition="'$(DATASTORM_BIN_DIST)' == ''">
+        <MSBuild Projects="@(DistSolution)"
+                 BuildInParallel="true"
+                 Properties="%(Properties)"
+                 Targets="Clean" />
+    </Target>
+
+    <!-- Build all the test solution configurations -->
+    <Target Name="Build" DependsOnTargets="TestNugetRestore;BuildDist">
+        <MSBuild Projects="@(TestSolution)"
+                 BuildInParallel="true"
+                 Properties="%(Properties)" />
+    </Target>
+
+    <!-- Clean all the test solution configurations -->
+    <Target Name="Clean" DependsOnTargets="CleanDist">
+        <MSBuild Projects="@(TestSolution)" BuildInParallel="true" Targets="Clean" Properties="%(Properties)" />
+    </Target>
+
+    <!-- Create nuget packages -->
+    <Target Name="NugetPack"
+            DependsOnTargets="BuildDist"
+            Condition="$(BuildAllConfigurations) == 'yes'">
+      <RemoveDir Directories="zeroc.datastorm.$(DefaultPlatformToolset)" />
+
+      <MSBuild Projects="datastorm.nuget.targets"
+               Properties="Configuration=Debug;Platform=Win32;PackageDirectory=zeroc.datastorm.$(DefaultPlatformToolset);DefaultPlatformToolset=$(DefaultPlatformToolset)" />
+      <MSBuild Projects="datastorm.nuget.targets"
+               Properties="Configuration=Debug;Platform=x64;PackageDirectory=zeroc.datastorm.$(DefaultPlatformToolset);DefaultPlatformToolset=$(DefaultPlatformToolset)" />
+      <MSBuild Projects="datastorm.nuget.targets"
+               Properties="Configuration=Release;Platform=Win32;PackageDirectory=zeroc.datastorm.$(DefaultPlatformToolset);DefaultPlatformToolset=$(DefaultPlatformToolset)" />
+      <MSBuild Projects="datastorm.nuget.targets"
+               Properties="Configuration=Release;Platform=x64;PackageDirectory=zeroc.datastorm.$(DefaultPlatformToolset);DefaultPlatformToolset=$(DefaultPlatformToolset)" />
+
+      <Copy SourceFiles="zeroc.datastorm.$(DefaultPlatformToolset).nuspec"
+            DestinationFolder="zeroc.datastorm.$(DefaultPlatformToolset)" />
+      <Copy SourceFiles="zeroc.datastorm.$(DefaultPlatformToolset).props"
+            DestinationFiles="zeroc.datastorm.$(DefaultPlatformToolset)\build\native\zeroc.datastorm.$(DefaultPlatformToolset).props" />
+      <Copy SourceFiles="zeroc.datastorm.$(DefaultPlatformToolset).targets"
+            DestinationFolder="zeroc.datastorm.$(DefaultPlatformToolset)\build\native" />
+      <Exec Command="$(NugetExe) pack -NoPackageAnalysis -NonInteractive"
+            WorkingDirectory="zeroc.datastorm.$(DefaultPlatformToolset)"/>
+  </Target>
+
+</Project>
