@@ -111,8 +111,8 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
 
-        auto testSample = [&topic](typename decltype(topic)::ReaderType& reader, SampleEvent event,
-                                   string key, string value = "")
+        auto testSample = [](typename decltype(topic)::ReaderType& reader, SampleEvent event, string key,
+                             string value = "")
         {
             reader.waitForWriters(1);
             test(reader.hasWriters());
