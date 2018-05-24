@@ -9,6 +9,7 @@
     </Filter>
     <Filter Include="Slice Files">
       <UniqueIdentifier>{fcef0a0c-3c3e-43f2-8584-8850460418b6}</UniqueIdentifier>
+      <Extensions>ice</Extensions>
     </Filter>
     <Filter Include="Source Files\Win32">
       <UniqueIdentifier>{6d35b729-7499-4927-8b1d-344747798f3a}</UniqueIdentifier>
@@ -54,36 +55,12 @@
     <ClCompile Include="..\..\Reader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Win32\Debug\Test.cpp">
-      <Filter>Source Files\Win32\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="x64\Debug\Test.cpp">
-      <Filter>Source Files\x64\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="Win32\Release\Test.cpp">
-      <Filter>Source Files\Win32\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="x64\Release\Test.cpp">
-      <Filter>Source Files\x64\Release</Filter>
-    </ClCompile>
+    <ClCompile Include="generated\Test.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <IceBuilder Include="..\..\Test.ice">
-      <Filter>Slice Files</Filter>
-    </IceBuilder>
+    <SliceCompile Include="..\..\Test.ice" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Win32\Debug\Test.h">
-      <Filter>Header Files\Win32\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="x64\Debug\Test.h">
-      <Filter>Header Files\x64\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32\Release\Test.h">
-      <Filter>Header Files\Win32\Release</Filter>
-    </ClInclude>
-    <ClInclude Include="x64\Release\Test.h">
-      <Filter>Header Files\x64\Release</Filter>
-    </ClInclude>
+    <ClInclude Include="generated\Test.h" />
   </ItemGroup>
 </Project>
