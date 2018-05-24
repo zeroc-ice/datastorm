@@ -25,9 +25,6 @@
 
         <Copy Condition="'$(Platform)|$(Configuration)' == 'Win32|Release'"
               SourceFiles="@(Slices)" DestinationFolder="$(PackageDirectory)\slice\%(Slices.RecursiveDir)" />
-        <Copy Condition="'$(Platform)|$(Configuration)' == 'x64|Release'"
-              SourceFiles="@(Tools)" DestinationFolder="$(PackageDirectory)\tools" />
-        <Copy SourceFiles="@(Executables)" DestinationFolder="$(PackageDirectory)\build\native\bin\$(Platform)\$(Configuration)" />
         <Copy SourceFiles="@(Libraries)" DestinationFolder="$(PackageDirectory)\build\native\bin\$(Platform)\$(Configuration)" />
         <Copy SourceFiles="@(ImportLibraries)" DestinationFolder="$(PackageDirectory)\build\native\lib\$(Platform)\$(Configuration)" />
     </Target>
