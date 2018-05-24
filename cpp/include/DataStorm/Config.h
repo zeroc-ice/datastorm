@@ -41,10 +41,10 @@
 // Automatically link with IceStorm[D|++11|++11D].lib
 //
 
-#if !defined(DATASTORM_BUILDING_DATASTORM_LIB) && defined(DATASTORM_API_EXPORTS)
-#   define DATASTORM_BUILDING_DATASTORM_LIB
+#if !defined(DATASTORM_BUILDING_DATASTORM) && defined(DATASTORM_API_EXPORTS)
+#   define DATASTORM_BUILDING_DATASTORM
 #endif
 
-#if defined(_MSC_VER) && !defined(DATASTORM_BUILDING_DATASTORM_LIB)
+#if defined(_MSC_VER) && !defined(DATASTORM_BUILDING_DATASTORM)
 #   pragma comment(lib, DATASTORM_LIBNAME("DataStorm"))
 #endif
