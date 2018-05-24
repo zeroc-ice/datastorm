@@ -244,18 +244,21 @@ main(int argc, char* argv[])
     cout << "testing send time discard policy... " << flush;
     {
         writers.update(false); // Not ready
-        vector<tuple<Node, Topic<string, int>, KeyWriter<string, int>>> w;
+        vector<tuple<Ice::CommunicatorHolder, Node, Topic<string, int>, KeyWriter<string, int>>> w;
         int writerCount = 10;
         for(int i = 0; i < writerCount; ++i)
         {
-            Node node(argc, argv);
+            Ice::InitializationData initData;
+            initData.properties = node.getCommunicator()->getProperties()->clone();
+            Ice::CommunicatorHolder holder(initData);
+            Node node(holder.communicator());
             Topic<string, int> topic(node, "sendTimeTopic");
-            w.emplace_back(move(node), move(topic), makeSingleKeyWriter(topic, "elem"));
+            w.emplace_back(move(holder), move(node), move(topic), makeSingleKeyWriter(topic, "elem"));
         }
         for(int i = 0; i < writerCount; ++i)
         {
             this_thread::sleep_for(chrono::microseconds(200));
-            get<2>(w[i]).update(i);
+            get<3>(w[i]).update(i);
         }
         writers.update(true); // Ready
 

@@ -11,6 +11,12 @@ import os
 
 from Util import *
 
+class Writer(IceProcess):
+    pass
+
+class Reader(IceProcess):
+    pass
+
 class DataStormCppMapping(CppMapping):
 
     def getEnv(self, process, current):
@@ -56,6 +62,9 @@ class DataStorm(Component):
 
     def getDefaultSource(self, mapping, processType):
         return { "client" : "Writer.cpp", "server" : "Reader.cpp" }[processType]
+
+    def getDefaultProcesses(self, mapping, processType, testId):
+        return { "client": [ Writer() ], "server": [ Reader() ] }[processType] if processType else None
 
     def getDefaultExe(self, mapping, processType, config):
         return { "client" : "writer", "server" : "reader" }[processType]

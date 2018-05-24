@@ -622,7 +622,7 @@ class LocalDriver(Driver):
     def getMappings(self):
         return Mapping.getAll(self) if self.allCross else [self.cross] if self.cross else []
 
-    def filterOptions(self, testcase, options):
+    def filterOptions(self, options):
         return self.runner.filterOptions(options)
 
 Driver.add("local", LocalDriver)

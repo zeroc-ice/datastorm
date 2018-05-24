@@ -3375,7 +3375,7 @@ class PhpMapping(CppBasedClientMapping):
         # configuration arguments.
         #
         if isinstance(platform, Windows) and not component.useBinDist(self, current) or \
-           component.getInstallDir(self, current) != platform.getInstallDir():
+           platform.getInstallDir() and component.getInstallDir(self, current) != platform.getInstallDir():
             phpArgs += ["-n"] # Do not load any php.ini files
             phpArgs += ["-d", "extension_dir='{0}'".format(component.getLibDir(process, self, current))]
             phpArgs += ["-d", "extension='{0}'".format(component.getPhpExtension(self, current))]
