@@ -17,6 +17,8 @@
 *.ncb
 # .sdf is the Visual Studio 2010 equivalent to .ncb
 *.sdf
+# .VC.db is is the new IntelliSense database, it replaces the old .sdf
+*.VC.db
 *.opt
 *.user
 *.res
@@ -93,3 +95,25 @@ client
 server
 writer
 reader
+
+# MSBuild Build System
+[Dd]ebug/
+[Rr]elease/
+x64/
+Win32/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio
+*.opendb
+
+# Visual Studio 2015 cache/options directory
+.vs/
+
+# SliceCompile build log
+SliceCompile.command.*.log
+# Nuget packages
+**/msbuild/packages/*
+**/msbuild/zeroc.datastorm.*
+*.nupkg
