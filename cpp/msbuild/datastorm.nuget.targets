@@ -12,7 +12,7 @@
 
     <!-- Public C++ header and Slice files -->
     <ItemGroup>
-        <Headers Include="$(DataStormSrcRootDir)include\DataStorm\*.h"
+        <Headers Include="$(DataStormSrcRootDir)include\**\*.h"
                  Exclude="$(DataStormSrcRootDir)include\generated\**\*.h"/>
         <Headers Include="$(DataStormSrcRootDir)include\generated\$(Platform)\$(Configuration)\**\*.h"/>
         <Slices Include="$(DataStormSrcRootDir)..\slice\DataStorm\*.ice"/>

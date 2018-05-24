@@ -176,8 +176,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="%(IceBuilderOutputDir)\Contract.h" />
-    <ClInclude Include="%(IceBuilderOutputDir)\Sample.h" />
+    <ClInclude Include="..\..\..\..\include\DataStorm\Config.h" />
+    <ClInclude Include="..\..\..\..\include\DataStorm\DataStorm.h" />
+    <ClInclude Include="..\..\..\..\include\DataStorm\InternalI.h" />
+    <ClInclude Include="..\..\..\..\include\DataStorm\InternalT.h" />
+    <ClInclude Include="..\..\..\..\include\DataStorm\Node.h" />
+    <ClInclude Include="..\..\..\..\include\DataStorm\Types.h" />
     <ClInclude Include="..\..\..\..\include\generated\Win32\Debug\DataStorm\Contract.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
