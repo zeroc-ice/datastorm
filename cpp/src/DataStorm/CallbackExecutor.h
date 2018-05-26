@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <functional>
 
 namespace DataStormInternal
 {
