@@ -3,11 +3,11 @@
 
     <PropertyGroup Condition="'$(DATASTORM_BIN_DIST)' == ''">
         <DataStormHome>$(MSBuildThisFileDirectory)..\..</DataStormHome>
-        <DataStormSoVersion>01</DataStormSoVersion>
     </PropertyGroup>
 
     <!-- Define some common properties -->
     <PropertyGroup>
+        <DataStormSoVersion>01</DataStormSoVersion>
         <DataStormSrcRootDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\..'))</DataStormSrcRootDir>
         <IntDir>$(Platform)\$(Configuration)\</IntDir>
         <LinkIncremental>false</LinkIncremental>
