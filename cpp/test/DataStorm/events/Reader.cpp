@@ -204,14 +204,14 @@ main(int argc, char* argv[])
         test(reader.getAllUnread().size() == 6);
     }
 
-    {
-        Topic<string, string> topic(node, "anykey3");
+    // {
+    //     Topic<string, string> topic(node, "anykey3");
 
-        auto reader = makeAnyKeyReader(topic, config);
-        reader.waitForWriters(2);
-        reader.waitForUnread(6);
-        test(reader.getAllUnread().size() == 6);
-    }
+    //     auto reader = makeAnyKeyReader(topic, config);
+    //     reader.waitForWriters(2);
+    //     reader.waitForUnread(6);
+    //     test(reader.getAllUnread().size() == 6);
+    // }
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass3");

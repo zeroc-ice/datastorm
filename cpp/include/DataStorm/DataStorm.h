@@ -53,6 +53,7 @@ public:
     using KeyType = Key;
     using ValueType = Value;
     using UpdateTagType = UpdateTag;
+    using Id = std::tuple<std::string, long long int, long long int>;
 
     /**
      * The event of the sample.
@@ -107,7 +108,7 @@ public:
      * @return The tuple that uniquely identifies the origin of the sample
      *         on the node.
      */
-    std::tuple<std::string, long long int, long long int> getOrigin() const;
+    Id getOrigin() const;
 
     /** @private */
     Sample(const std::shared_ptr<DataStormInternal::Sample>&);
@@ -302,6 +303,9 @@ public:
     using WriterType = Writer<Key, Value, UpdateTag>;
     using ReaderType = Reader<Key, Value, UpdateTag>;
 
+    using ReaderId = std::tuple<std::string, long long int, long long int>;
+    using WriterId = std::tuple<std::string, long long int, long long int>;
+
     /**
      * Construct a new Topic for the topic with the given name.
      *
@@ -454,6 +458,7 @@ public:
 
     using KeyType = Key;
     using ValueType = Value;
+    using WriterId = std::tuple<std::string, long long int, long long int>;
 
     /**
      * Transfers the given reader to this reader.
@@ -526,24 +531,44 @@ public:
     Sample<Key, Value, UpdateTag> getNextUnread();
 
     /**
-     * Calls the given lambda when a new writer connects to this reader.
+     * Calls the given lambda when a new key writer connects to this reader.
      *
-     * @param callback The lambda to call when a new reader connects. The tuple
-     *                 provided to the lambda indentifies the writer.
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
      **/
-    void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+    void onKeyConnect(std::function<void(WriterId, Key)>);
 
     /**
-     * Calls the given lambda when a new writer disconnects from this reader.
+     * Calls the given lambda when a new key writer disconnects from this reader.
      *
-     * @param callback The lambda to call when a new reader disconnects. The tuple
-     *                 provided to the lambda indentifies the writer.
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
      **/
-    void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+    void onKeyDisconnect(std::function<void(WriterId, Key)>);
+
+    /**
+     * Calls the given lambda when a new filter writer connects to this reader.
+     *
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the filter name are provided to the callback.
+     *
+     * @see Sample<K, V, U>::getOrigin
+     **/
+    void onFilterConnect(std::function<void(WriterId, std::string)>);
+
+    /**
+     * Calls the given lambda when a new filter writer disconnects from this reader.
+     *
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the filter name are provided to the callback.
+     *
+     * @see Sample<K, V, U>::getOrigin
+     **/
+    void onFilterDisconnect(std::function<void(WriterId, std::string)>);
 
     /**
      * Calls the given lambda when a writer connects and provides its initialization
@@ -687,6 +712,21 @@ makeSingleKeyReader(Topic<K, V, UT>& topic, typename Topic<K, V, UT>::KeyType ke
 }
 
 /**
+ * Creates a shared key reader for the given topic. This helper method deduces the
+ * topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param config The optional reader configuration.
+ */
+template<typename K, typename V, typename UT>
+std::shared_ptr<KeyReader<K, V, UT>>
+makeSharedSingleKeyReader(Topic<K, V, UT>& topic, typename Topic<K, V, UT>::KeyType key, ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<KeyReader<K, V, UT>>(topic, key, config);
+}
+
+/**
  * Creates a key reader for the given topic and using the given sample filter
  * criteria type. This helper method deduces the topic Key and Value types from the
  * topic argument.
@@ -709,6 +749,28 @@ makeSingleKeyReader(Topic<K, V, UT>& topic,
 }
 
 /**
+ * Creates a shared key reader for the given topic and using the given sample filter
+ * criteria type. This helper method deduces the topic Key and Value types from the
+ * topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param sampleFilter The sample filter name.
+ * @param sampleFilterCriteria The sample filter criteria.
+ * @param config The optional reader configuration.
+ */
+template<typename SFC, typename SFCV, typename K, typename V, typename UT>
+std::shared_ptr<KeyReader<K, V, UT>>
+makeSharedSingleKeyReader(Topic<K, V, UT>& topic,
+                          typename Topic<K, V, UT>::KeyType key,
+                          const std::string& sampleFilter,
+                          SFCV sampleFilterCriteria,
+                          ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<KeyReader<K, V, UT>>(topic, key, sampleFilter, SFC(sampleFilterCriteria), config);
+}
+
+/**
  * Creates a multi-key reader for the given topic. This helper method deduces the
  * topic Key and Value types from the topic argument.
  *
@@ -728,6 +790,25 @@ makeMultiKeyReader(Topic<K, V, UT>& topic,
 }
 
 /**
+ * Creates a shared multi-key reader for the given topic. This helper method deduces the
+ * topic Key and Value types from the topic argument.
+ *
+ * The reader will only receive samples for the given set of keys.
+ *
+ * @param topic The topic.
+ * @param keys The keys.
+ * @param config The optional reader configuration.
+ */
+template<typename K, typename V, typename UT>
+std::shared_ptr<MultiKeyReader<K, V, UT>>
+makeSharedMultiKeyReader(Topic<K, V, UT>& topic,
+                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
+                   ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<MultiKeyReader<K, V, UT>>(topic, keys, config);
+}
+
+/**
  * Creates a multi-key reader for the given topic and using the given sample filter
  * criteria type. This helper method deduces the topic Key and Value types from the
  * topic argument.
@@ -741,14 +822,14 @@ makeMultiKeyReader(Topic<K, V, UT>& topic,
  * @param config The optional reader configuration.
  */
 template<typename SFC, typename SFCV, typename K, typename V, typename UT>
-MultiKeyReader<K, V, UT>
-makeMultiKeyReader(Topic<K, V, UT>& topic,
-                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
-                   const std::string& sampleFilter,
-                   SFCV sampleFilterCriteria,
-                   ReaderConfig config = ReaderConfig())
+std::shared_ptr<MultiKeyReader<K, V, UT>>
+makeSharedMultiKeyReader(Topic<K, V, UT>& topic,
+                         std::vector<typename Topic<K, V, UT>::KeyType> keys,
+                         const std::string& sampleFilter,
+                         SFCV sampleFilterCriteria,
+                         ReaderConfig config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, UT>(topic, keys, sampleFilter, SFC(sampleFilterCriteria), config);
+    return std::make_shared<MultiKeyReader<K, V, UT>>(topic, keys, sampleFilter, SFC(sampleFilterCriteria), config);
 }
 
 /**
@@ -765,6 +846,22 @@ MultiKeyReader<K, V, UT>
 makeAnyKeyReader(Topic<K, V, UT>& topic, ReaderConfig config = ReaderConfig())
 {
     return MultiKeyReader<K, V, UT>(topic, {}, config);
+}
+
+/**
+ * Creates a shared any-key reader for the given topic. This helper method deduces
+ * the topic Key and Value types from the topic argument.
+ *
+ * The reader will receive samples for any keys from the topic.
+ *
+ * @param topic The topic.
+ * @param config The optional reader configuration.
+ */
+template<typename K, typename V, typename UT>
+std::shared_ptr<MultiKeyReader<K, V, UT>>
+makeSharedAnyKeyReader(Topic<K, V, UT>& topic, ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<MultiKeyReader<K, V, UT>>(topic, std::vector<K> {}, config);
 }
 
 /**
@@ -787,6 +884,28 @@ makeAnyKeyReader(Topic<K, V, UT>& topic,
                  ReaderConfig config = ReaderConfig())
 {
     return MultiKeyReader<K, V, UT>(topic, {}, sampleFilter, SFC(sampleFilterCriteria), config);
+}
+
+/**
+ * Creates a shared any-key reader for the given topic and using the given sample filter
+ * criteria type. This helper method deduces the topic Key and Value types from the
+ * topic argument.
+ *
+ * The reader will receive samples for the keys from the topic.
+ *
+ * @param topic The topic.
+ * @param sampleFilter The sample filter.
+ * @param sampleFilterCriteria The sample filter criteria.
+ * @param config The optional reader configuration.
+ */
+template<typename SFC, typename SFCV, typename K, typename V, typename UT>
+std::shared_ptr<MultiKeyReader<K, V, UT>>
+makeSharedAnyKeyReader(Topic<K, V, UT>& topic,
+                       const std::string& sampleFilter,
+                       SFCV sampleFilterCriteria,
+                       ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<MultiKeyReader<K, V, UT>>(topic, {}, sampleFilter, SFC(sampleFilterCriteria), config);
 }
 
 /**
@@ -867,6 +986,25 @@ makeFilteredReader(Topic<K, V, UT>& topic,
 }
 
 /**
+ * Creates a new shared reader for the given topic and key filter. This helper method deduces
+ * the topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param filter The key filter name.
+ * @param criteria The key filter criteria.
+ * @param config The optional reader configuration.
+ */
+template<typename KFC, typename KFCV, typename K, typename V, typename UT>
+std::shared_ptr<FilteredReader<K, V, UT>>
+makeSharedFilteredReader(Topic<K, V, UT>& topic,
+                         const std::string& filter,
+                         KFCV criteria,
+                         ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<FilteredReader<K, V, UT>>(topic, filter, KFC(criteria), config);
+}
+
+/**
  * Creates a new reader for the given topic, key filter and sample criteria. This helper
  * method deduces the topic Key and Value types from the topic argument.
  *
@@ -891,6 +1029,30 @@ makeFilteredReader(Topic<K, V, UT>& topic,
 }
 
 /**
+ * Creates a new shared reader for the given topic, key filter and sample criteria. This helper
+ * method deduces the topic Key and Value types from the topic argument.
+ *
+ * @param topic The topic.
+ * @param keyFilter The key filter name.
+ * @param keyFilterCriteria The key filter criteria.
+ * @param sampleFilter The sample filter name.
+ * @param sampleFilterCriteria The sample filter criteria.
+ * @param config The optional reader configuration.
+ */
+template<typename KFC, typename SFC, typename KFCV, typename SFCV, typename K, typename V, typename UT>
+std::shared_ptr<FilteredReader<K, V, UT>>
+makeSharedFilteredReader(Topic<K, V, UT>& topic,
+                         const std::string& keyFilter,
+                         KFCV keyFilterCriteria,
+                         const std::string& sampleFilter,
+                         SFCV sampleFilterCriteria,
+                         ReaderConfig config = ReaderConfig())
+{
+    return std::make_shared<FilteredReader<K, V, UT>>(topic, keyFilter, KFC(keyFilterCriteria), sampleFilter,
+                                                      SFC(sampleFilterCriteria), config);
+}
+
+/**
  * The Writer class is used to write samples for a data element.
  */
 template<typename Key, typename Value, typename UpdateTag>
@@ -900,6 +1062,7 @@ public:
 
     using KeyType = Key;
     using ValueType = Value;
+    using ReaderId = std::tuple<std::string, long long int, long long int>;
 
     /**
      * Transfers the given writer to this writer.
@@ -963,25 +1126,47 @@ public:
 
     /**
      *
-     * Calls the given lambda when a new reader connects to this writer.
+     * Calls the given lambda when a new key reader connects to this writer.
      *
-     * @param callback The lambda to call when a new writer connects. The tuple
-     *                 provided to the lambda indentifies the reader.
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
      **/
-    void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+    void onKeyConnect(std::function<void(ReaderId, Key)>);
 
     /**
      *
-     * Calls the given lambda when a new reader disconnects from this writer.
+     * Calls the given lambda when a new key reader disconnects from this writer.
      *
-     * @param callback The lambda to call when a new writer disconnects. The tuple
-     *                 provided to the lambda indentifies the reader.
-
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the key are provided to the callback.
+     *
      * @see Sample<K, V, U>::getOrigin
      **/
-    void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>);
+    void onKeyDisconnect(std::function<void(ReaderId, Key)>);
+
+    /**
+     *
+     * Calls the given lambda when a new filter reader connects to this writer.
+     *
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the filter name are provided to the callback.
+     *
+     * @see Sample<K, V, U>::getOrigin
+     **/
+    void onFilterConnect(std::function<void(ReaderId, std::string)>);
+
+    /**
+     *
+     * Calls the given lambda when a new filter reader disconnects from this writer.
+     *
+     * @param callback The lambda to call when a new reader disconnects. The ID and
+     *                 the filter name are provided to the callback.
+     *
+     * @see Sample<K, V, U>::getOrigin
+     **/
+    void onFilterDisconnect(std::function<void(ReaderId, std::string)>);
 
 protected:
 
@@ -1151,6 +1336,21 @@ makeSingleKeyWriter(Topic<K, V, UT>& topic, typename Topic<K, V, UT>::KeyType ke
 }
 
 /**
+ * Creates a shared key writer for the given topic and using the given sample filter
+ * and criteria types. This helper method deduces the topic Key and Value types from
+ * the topic argument.
+ *
+ * @param topic The topic.
+ * @param key The key.
+ * @param config The optional writer configuration.
+ */
+template<typename K, typename V, typename UT> std::shared_ptr<KeyWriter<K, V, UT>>
+makeSharedSingleKeyWriter(Topic<K, V, UT>& topic, typename Topic<K, V, UT>::KeyType key, WriterConfig config = WriterConfig())
+{
+    return std::make_shared<KeyWriter<K, V, UT>>(topic, key, config);
+}
+
+/**
  * Creates a multi-key writer for the given topic and using the given sample filter
  * and criteria types. This helper method deduces the topic Key and Value types from
  * the topic argument.
@@ -1169,6 +1369,24 @@ makeMultiKeyWriter(Topic<K, V, UT>& topic,
 }
 
 /**
+ * Creates a shared multi-key writer for the given topic and using the given sample filter
+ * and criteria types. This helper method deduces the topic Key and Value types from
+ * the topic argument.
+ *
+ * @param topic The topic.
+ * @param keys The keys.
+ * @param config The optional writer configuration.
+ */
+template<typename K, typename V, typename UT>
+std::shared_ptr<MultiKeyWriter<K, V, UT>>
+makeSharedMultiKeyWriter(Topic<K, V, UT>& topic,
+                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
+                   WriterConfig config = WriterConfig())
+{
+    return std::make_shared<MultiKeyWriter<K, V, UT>>(topic, keys, config);
+}
+
+/**
  * Creates an any-key writer for the given topic and using the given sample filter
  * and criteria types. This helper method deduces the topic Key and Value types from
  * the topic argument.
@@ -1180,6 +1398,20 @@ template<typename K, typename V, typename UT> MultiKeyWriter<K, V, UT>
 makeAnyKeyWriter(Topic<K, V, UT>& topic, WriterConfig config = WriterConfig())
 {
     return MultiKeyWriter<K, V, UT>(topic, {}, config);
+}
+
+/**
+ * Creates a shared any-key writer for the given topic and using the given sample filter
+ * and criteria types. This helper method deduces the topic Key and Value types from
+ * the topic argument.
+ *
+ * @param topic The topic.
+ * @param config The optional writer configuration.
+ */
+template<typename K, typename V, typename UT> std::shared_ptr<MultiKeyWriter<K, V, UT>>
+makeSharedAnyKeyWriter(Topic<K, V, UT>& topic, WriterConfig config = WriterConfig())
+{
+    return std::make_shared<MultiKeyWriter<K, V, UT>>(topic, {}, config);
 }
 
 }
@@ -1323,15 +1555,35 @@ Reader<Key, Value, UpdateTag>::getNextUnread()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+Reader<Key, Value, UpdateTag>::onKeyConnect(std::function<void(WriterId, Key)> callback)
 {
-    _impl->onConnect(std::move(callback));
+    _impl->onKeyConnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Key> k) {
+        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+    });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+Reader<Key, Value, UpdateTag>::onKeyDisconnect(std::function<void(WriterId, Key)> callback)
 {
-    _impl->onDisconnect(std::move(callback));
+    _impl->onKeyDisconnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Key> k) {
+        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+    });
+}
+
+template<typename Key, typename Value, typename UpdateTag> void
+Reader<Key, Value, UpdateTag>::onFilterConnect(std::function<void(WriterId, std::string)> callback)
+{
+    _impl->onFilterConnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Filter> f) {
+        callback(id, f->getName());
+    });
+}
+
+template<typename Key, typename Value, typename UpdateTag> void
+Reader<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(WriterId, std::string)> callback)
+{
+    _impl->onFilterDisconnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Filter> f) {
+        callback(id, f->getName());
+    });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1546,15 +1798,35 @@ Writer<Key, Value, UpdateTag>::getAll()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+Writer<Key, Value, UpdateTag>::onKeyConnect(std::function<void(ReaderId, Key)> callback)
 {
-    _impl->onConnect(std::move(callback));
+    _impl->onKeyConnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Key> k) {
+        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+    });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)> callback)
+Writer<Key, Value, UpdateTag>::onKeyDisconnect(std::function<void(ReaderId, Key)> callback)
 {
-    _impl->onDisconnect(std::move(callback));
+    _impl->onKeyDisconnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Key> k) {
+        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+    });
+}
+
+template<typename Key, typename Value, typename UpdateTag> void
+Writer<Key, Value, UpdateTag>::onFilterConnect(std::function<void(ReaderId, std::string)> callback)
+{
+    _impl->onFilterConnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Filter> f) {
+        callback(id, f->getName());
+    });
+}
+
+template<typename Key, typename Value, typename UpdateTag> void
+Writer<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(ReaderId, std::string)> callback)
+{
+    _impl->onFilterDisconnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Filter> f) {
+        callback(id, f->getName());
+    });
 }
 
 template<typename Key, typename Value, typename UpdateTag>

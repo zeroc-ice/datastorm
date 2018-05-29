@@ -88,8 +88,10 @@ main(int argc, char* argv[])
             {
             }
             writer.getAll();
-            writer.onConnect([](tuple<string, long long int, long long int> origin) {});
-            writer.onDisconnect([](tuple<string, long long int, long long int> origin) {});
+            writer.onKeyConnect([](Topic<string, string>::ReaderId, string) {});
+            writer.onKeyDisconnect([](Topic<string, string>::ReaderId origin, string) {});
+            writer.onFilterConnect([](Topic<string, string>::ReaderId origin, string) {});
+            writer.onFilterDisconnect([](Topic<string, string>::ReaderId origin, string) {});
         };
 
         auto skw = makeSingleKeyWriter(topic, "key");
@@ -137,8 +139,10 @@ main(int argc, char* argv[])
             {
                 reader.getNextUnread();
             }
-            reader.onConnect([](tuple<string, long long int, long long int> origin) {});
-            reader.onDisconnect([](tuple<string, long long int, long long int> origin) {});
+            reader.onKeyConnect([](Topic<string, string>::WriterId, string) {});
+            reader.onKeyDisconnect([](Topic<string, string>::WriterId, string) {});
+            reader.onFilterConnect([](Topic<string, string>::WriterId, string) {});
+            reader.onFilterDisconnect([](Topic<string, string>::WriterId, string) {});
             reader.onInit([](vector<Sample<string, string>> samples) {});
             reader.onSample([](Sample<string, string> sample) {});
         };

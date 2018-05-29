@@ -198,49 +198,43 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey3");
-            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
-            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+            auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2"}, config);
 
-            writer1.waitForReaders(1);
-            writer2.waitForReaders(1);
+            writer.waitForReaders(1);
 
-            writer1.add("value1");
-            writer1.update("value2");
-            writer1.remove();
+            writer.add("elem1", "value1");
+            writer.update("elem1", "value2");
+            writer.remove("elem1");
 
-            writer2.add("value1");
-            writer2.update("value2");
-            writer2.remove();
+            writer.add("elem2", "value1");
+            writer.update("elem2", "value2");
+            writer.remove("elem2");
 
-            writer1.waitForNoReaders();
-            writer2.waitForNoReaders();
+            writer.waitForNoReaders();
         }
     }
     cout << "ok" << endl;
 
-    cout << "testing any-key reader/any-key writer... " << flush;
-    {
-        {
-            Topic<string, string> topic(node, "anykey3");
-            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
-            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+    // cout << "testing any-key reader/any-key writer... " << flush;
+    // {
+    //     {
+    //         Topic<string, string> topic(node, "anykey3");
+    //         auto writer = makeAnyKeyWriter(topic, config);
 
-            writer1.waitForReaders(1);
-            writer2.waitForReaders(1);
+    //         writer.waitForReaders(1);
 
-            writer1.add("value1");
-            writer1.update("value2");
-            writer1.remove();
+    //         writer.add("elem1", "value1");
+    //         writer.update("elem1", "value2");
+    //         writer.remove("elem1");
 
-            writer2.add("value1");
-            writer2.update("value2");
-            writer2.remove();
+    //         writer.add("elem2", "value1");
+    //         writer.update("elem2", "value2");
+    //         writer.remove("elem2");
 
-            writer1.waitForNoReaders();
-            writer2.waitForNoReaders();
-        }
-    }
-    cout << "ok" << endl;
+    //         writer.waitForNoReaders();
+    //     }
+    // }
+    // cout << "ok" << endl;
 
     cout << "testing filtered reader... " << flush;
     {

@@ -51,6 +51,7 @@ class DataElementI : virtual public DataElement, public Forwarder, public std::e
     {
         std::set<std::shared_ptr<T>> elements;
         std::shared_ptr<Filter> sampleFilter;
+        int priority;
     };
 
     template<typename T> struct Subscribers
@@ -183,9 +184,12 @@ public:
                       SessionI*,
                       const std::string&);
 
-    virtual void onConnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
-    virtual void onDisconnect(std::function<void(std::tuple<std::string, long long int, long long int>)>) override;
+    virtual void onKeyConnect(std::function<void(Id, std::shared_ptr<Key>)>) override;
+    virtual void onKeyDisconnect(std::function<void(Id, std::shared_ptr<Key>)>) override;
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
+
+    virtual void onFilterConnect(std::function<void(Id, std::shared_ptr<Filter>)>) override;
+    virtual void onFilterDisconnect(std::function<void(Id, std::shared_ptr<Filter>)>) override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool);
@@ -195,7 +199,7 @@ public:
                                                       long long int,
                                                       const std::chrono::time_point<std::chrono::system_clock>&);
 
-    virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
+    virtual void queue(const std::shared_ptr<Sample>&, SessionI*, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&, bool);
 
     virtual std::string toString() const = 0;
@@ -218,6 +222,9 @@ public:
 
 protected:
 
+    virtual void checkPriorityOnAttach(SessionI*, long long int, long long int, int);
+    virtual void checkPriorityOnDetach(SessionI*, long long int, long long int);
+
     void notifyListenerWaiters(std::unique_lock<std::mutex>&) const;
     void disconnect();
     virtual void destroyImpl() = 0;
@@ -239,8 +246,10 @@ private:
     mutable size_t _waiters;
     mutable size_t _notified;
 
-    std::function<void(std::tuple<std::string, long long int, long long int>)> _onConnect;
-    std::function<void(std::tuple<std::string, long long int, long long int>)> _onDisconnect;
+    std::function<void(Id, std::shared_ptr<Key>)> _onKeyConnect;
+    std::function<void(Id, std::shared_ptr<Key>)> _onKeyDisconnect;
+    std::function<void(Id, std::shared_ptr<Filter>)> _onFilterConnect;
+    std::function<void(Id, std::shared_ptr<Filter>)> _onFilterDisconnect;
 };
 
 class DataReaderI : public DataElementI, public DataReader
@@ -259,13 +268,16 @@ public:
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool) override;
-    virtual void queue(const std::shared_ptr<Sample>&, const std::string&,
+    virtual void queue(const std::shared_ptr<Sample>&, SessionI*, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&, bool) override;
 
     virtual void onInit(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) override;
     virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) override;
 
 protected:
+
+    virtual void checkPriorityOnAttach(SessionI*, long long int, long long int, int) override;
+    virtual void checkPriorityOnDetach(SessionI*, long long int, long long int) override;
 
     virtual bool matchKey(const std::shared_ptr<Key>&) const = 0;
 

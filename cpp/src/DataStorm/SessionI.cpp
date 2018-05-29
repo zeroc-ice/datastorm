@@ -1026,7 +1026,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
                 if(es.second.initialized && (s.keyId <= 0 || es.second.keys.find(s.keyId) != es.second.keys.end()))
                 {
                     es.second.lastId = s.id;
-                    es.first->queue(impl, current.facet, now, !s.keyValue.empty());
+                    es.first->queue(impl, this, current.facet, now, !s.keyValue.empty());
                 }
             }
         }

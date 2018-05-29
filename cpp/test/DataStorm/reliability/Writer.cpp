@@ -29,10 +29,10 @@ main(int argc, char* argv[])
         writer.add("add");
         writer.update("update1");
         std::promise<shared_ptr<Ice::Connection>> promise;
-        writer.onConnect([&node, &promise, &writer](tuple<string, long long int, long long int> reader)
+        writer.onKeyConnect([&node, &promise, &writer](decltype(writer)::ReaderId reader, string key)
         {
             promise.set_value(node.getSessionConnection(get<0>(reader)));
-            writer.onConnect(nullptr);
+            writer.onKeyConnect(nullptr);
         });
         auto barrier = makeSingleKeyReader(topic, "barrier");
         writer.waitForReaders();

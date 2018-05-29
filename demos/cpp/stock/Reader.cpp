@@ -50,28 +50,52 @@ main(int argc, char* argv[])
     {
         cout << ticker << endl;
     }
+    stocks.onKeyConnect([](Topic<string, Stock>::WriterId, string stock)
+    {
+        cout << "New stock available: " << stock << endl;
+    });
 
     string stock;
-    cout << "Please enter the stock to follow: ";
-    cin >> stock;
+    cout << "Please enter the stock to follow (default = all):\n";
+    getline(cin, stock);
+    stocks.onKeyConnect(nullptr);
+    tickers = stocks.getConnectedKeys(); // Get latest set of connected keys
+    if(!stock.empty() && find(tickers.begin(), tickers.end(), stock) == tickers.end())
+    {
+        cout << "unknown stock `" << stock << "'" << endl;
+        return 1;
+    }
 
     //
     // Read values for the given stock using a key reader.
     //
-    auto reader = makeSingleKeyReader(topic, stock);
-    auto value = reader.getNextUnread().getValue();
+    shared_ptr<Topic<string, Demo::Stock>::ReaderType> reader;
+    if(stock.empty() || stock == "all")
+    {
+        reader = makeSharedAnyKeyReader(topic);
+    }
+    else
+    {
+        reader = makeSharedSingleKeyReader(topic, stock);
+    }
 
-    cout << "Stock: " <<  value.name << " (" << stock << ")" << endl;
-    cout << "Price: " << value.price << endl;
-    cout << "Best bid/ask: " << value.bestBid << '/' << value.bestAsk << endl;
-    cout << "Market Cap: " << value.marketCap << endl;
-    cout << "Previous close: " << value.previousClose << endl;
-    cout << "Volume: " << value.volume << endl;
+    reader->onInit([](const vector<Sample<string, Stock>>& samples)
+    {
+        assert(samples.size() == 1);
+        auto value = samples[0].getValue();
+        cout << "Stock: " <<  value.name << " (" << samples[0].getKey() << ")" << endl;
+        cout << "Price: " << value.price << endl;
+        cout << "Best bid/ask: " << value.bestBid << '/' << value.bestAsk << endl;
+        cout << "Market Cap: " << value.marketCap << endl;
+        cout << "Previous close: " << value.previousClose << endl;
+        cout << "Volume: " << value.volume << endl;
+        cout << endl;
+    });
 
     //
     // Prints out the received samples.
     //
-    reader.onSample([](const Sample<string, Stock>& sample)
+    reader->onSample([](const Sample<string, Stock>& sample)
     {
         if(sample.getEvent() == SampleEvent::PartialUpdate)
         {
