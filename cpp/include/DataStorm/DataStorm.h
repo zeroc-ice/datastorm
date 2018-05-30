@@ -1557,33 +1557,61 @@ Reader<Key, Value, UpdateTag>::getNextUnread()
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onKeyConnect(std::function<void(WriterId, Key)> callback)
 {
-    _impl->onKeyConnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Key> k) {
-        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
-    });
+    if(callback)
+    {
+        _impl->onKeyConnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Key> k) {
+            callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+        });
+    }
+    else
+    {
+        _impl->onKeyConnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onKeyDisconnect(std::function<void(WriterId, Key)> callback)
 {
-    _impl->onKeyDisconnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Key> k) {
-        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
-    });
+    if(callback)
+    {
+        _impl->onKeyDisconnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Key> k) {
+            callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+        });
+    }
+    else
+    {
+        _impl->onKeyDisconnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onFilterConnect(std::function<void(WriterId, std::string)> callback)
 {
-    _impl->onFilterConnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Filter> f) {
-        callback(id, f->getName());
-    });
+    if(callback)
+    {
+        _impl->onFilterConnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Filter> f) {
+            callback(id, f->getName());
+        });
+    }
+    else
+    {
+        _impl->onFilterConnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(WriterId, std::string)> callback)
 {
-    _impl->onFilterDisconnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Filter> f) {
-        callback(id, f->getName());
-    });
+    if(callback)
+    {
+        _impl->onFilterDisconnect([callback](WriterId id, std::shared_ptr<DataStormInternal::Filter> f) {
+            callback(id, f->getName());
+        });
+    }
+    else
+    {
+        _impl->onFilterDisconnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1800,33 +1828,61 @@ Writer<Key, Value, UpdateTag>::getAll()
 template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onKeyConnect(std::function<void(ReaderId, Key)> callback)
 {
-    _impl->onKeyConnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Key> k) {
-        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
-    });
+    if(callback)
+    {
+        _impl->onKeyConnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Key> k) {
+            callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+        });
+    }
+    else
+    {
+        _impl->onKeyConnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onKeyDisconnect(std::function<void(ReaderId, Key)> callback)
 {
-    _impl->onKeyDisconnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Key> k) {
-        callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
-    });
+    if(callback)
+    {
+        _impl->onKeyDisconnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Key> k) {
+            callback(id, std::static_pointer_cast<DataStormInternal::KeyT<Key>>(k)->get());
+        });
+    }
+    else
+    {
+        _impl->onKeyDisconnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onFilterConnect(std::function<void(ReaderId, std::string)> callback)
 {
-    _impl->onFilterConnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Filter> f) {
-        callback(id, f->getName());
-    });
+    if(callback)
+    {
+        _impl->onFilterConnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Filter> f) {
+            callback(id, f->getName());
+        });
+    }
+    else
+    {
+        _impl->onFilterConnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(ReaderId, std::string)> callback)
 {
-    _impl->onFilterDisconnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Filter> f) {
-        callback(id, f->getName());
-    });
+    if(callback)
+    {
+        _impl->onFilterDisconnect([callback](ReaderId id, std::shared_ptr<DataStormInternal::Filter> f) {
+            callback(id, f->getName());
+        });
+    }
+    else
+    {
+        _impl->onFilterDisconnect(nullptr);
+    }
 }
 
 template<typename Key, typename Value, typename UpdateTag>
