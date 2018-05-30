@@ -58,13 +58,13 @@ main(int argc, char* argv[])
     //
     // Print message when reader connects / disconnects
     //
-    writer.onConnect([](tuple<string, long long int, long long int> reader)
+    writer.onFilterConnect([](decltype(topic)::ReaderId reader, string name)
     {
-        cout << "reader connected " << endl;
+        cout << "filtered reader connected (filter = " << name << ")" << endl;
     });
-    writer.onDisconnect([](tuple<string, long long int, long long int> reader)
+    writer.onFilterDisconnect([](decltype(topic)::ReaderId reader, string name)
     {
-        cout << "reader disconnected " << endl;
+        cout << "filtered reader disconnected (filter = " << name << ")" << endl;
     });
 
     while(true)
