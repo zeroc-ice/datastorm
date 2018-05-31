@@ -13,6 +13,10 @@
       <UniqueIdentifier>{b3e66749-c970-4413-b670-910ee10bcb50}</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
+    <Filter Include="Slice Files">
+      <UniqueIdentifier>{c84cdc06-8bc8-4b27-8e96-205a0f2d505c}</UniqueIdentifier>
+      <Extensions>ice</Extensions>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Reader.cpp">

@@ -49,7 +49,7 @@
     <Filter Include="Header Files\x64\Release">
       <UniqueIdentifier>{bc0c068e-d3ca-467d-be99-f5bce440a8d2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Slice files">
+    <Filter Include="Slice Files">
       <UniqueIdentifier>{6eec9496-4f31-4f38-a861-1fc6d875fa9d}</UniqueIdentifier>
       <Extensions>ice</Extensions>
     </Filter>
@@ -91,7 +91,7 @@
   </ItemGroup>
   <ItemGroup>
     <SliceCompile Include="../../Stock.ice">
-      <Filter>Slice files</Filter>
+      <Filter>Slice Files</Filter>
     </SliceCompile>
   </ItemGroup>
 </Project>

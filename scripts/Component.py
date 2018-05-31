@@ -49,10 +49,12 @@ class DataStorm(Component):
         return Component._useBinDist(self, mapping, current, "DATASTORM_BIN_DIST")
 
     def getInstallDir(self, mapping, current):
-        return Component._getInstallDir(self, mapping, current, "DATASTORM_HOME")
+        # No binary distribution on Windows, nuget package only.
+        envHomeName = None if isinstance(platform, Windows) else "DATASTORM_HOME"
+        return Component._getInstallDir(self, mapping, current, envHomeName)
 
     def getNugetPackage(self, mapping, compiler):
-        return "zeroc.freeze.{0}".format(compiler)
+        return "zeroc.datastorm.{0}".format(compiler)
 
     def getNugetPackageVersion(self, mapping):
         if not self.nugetVersion:

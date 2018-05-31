@@ -13,9 +13,6 @@
       <UniqueIdentifier>{b3e66749-c970-4413-b670-910ee10bcb50}</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
-    <Filter Include="Slice files">
-      <UniqueIdentifier>{7ffe15d5-d778-40ee-b020-d4015a3588f2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Win32">
       <UniqueIdentifier>{54205b3f-00cc-43c3-a647-1a97ac6e42d1}</UniqueIdentifier>
     </Filter>
@@ -52,6 +49,10 @@
     <Filter Include="Header Files\x64\Release">
       <UniqueIdentifier>{3bc3082d-1a19-40d7-86d5-16e38a32b43c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Slice Files">
+      <UniqueIdentifier>{3f77fbb8-4e67-4db1-98b8-d24257c8fce1}</UniqueIdentifier>
+      <Extensions>ice</Extensions>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Reader.cpp">
@@ -75,11 +76,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <SliceCompile Include="..\..\Stock.ice">
-      <Filter>Slice files</Filter>
-    </SliceCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="Win32\Debug\Stock.h">
       <Filter>Header Files\Win32\Debug</Filter>
     </ClInclude>
@@ -92,5 +88,10 @@
     <ClInclude Include="x64\Release\Stock.h">
       <Filter>Header Files\x64\Release</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <SliceCompile Include="..\..\Stock.ice">
+      <Filter>Slice Files</Filter>
+    </SliceCompile>
   </ItemGroup>
 </Project>
