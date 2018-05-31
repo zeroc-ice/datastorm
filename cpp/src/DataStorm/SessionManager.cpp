@@ -9,11 +9,12 @@
 
 #include <DataStorm/SessionManager.h>
 #include <DataStorm/SessionI.h>
+#include <DataStorm/CallbackExecutor.h>
 
 using namespace std;
 using namespace DataStormInternal;
 
-SessionManager::SessionManager()
+SessionManager::SessionManager(const shared_ptr<CallbackExecutor>& executor) : _executor(executor)
 {
 }
 
@@ -68,6 +69,7 @@ SessionManager::remove(shared_ptr<Ice::Connection> connection)
     {
         session->disconnected(connection, ex);
     }
+    _executor->flush();
 }
 
 void

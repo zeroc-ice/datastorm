@@ -37,14 +37,13 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
     _collocatedAdapter = _communicator->createObjectAdapter("DataStormCollocated");
     _multicastAdapter = _communicator->createObjectAdapter("DataStormMulticast");
 
-    _sessionManager = make_shared<SessionManager>();
+    _executor = make_shared<CallbackExecutor>();
+    _sessionManager = make_shared<SessionManager>(_executor);
 
     _forwarderManager = make_shared<ForwarderManager>(_collocatedAdapter);
     _collocatedAdapter->addDefaultServant(_forwarderManager, "forwarders");
 
     _traceLevels = make_shared<TraceLevels>(_communicator);
-
-    _executor = make_shared<CallbackExecutor>();
 }
 
 void

@@ -169,15 +169,6 @@ DataElementI::attachKey(long long int topicId,
                         const shared_ptr<SessionPrx>& prx,
                         const string& facet)
 {
-    if(_traceLevels->data > 1)
-    {
-        Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": attachKey element " << elementId << "@" << topicId << " " << key;
-        if(!facet.empty())
-        {
-            out << " (facet = " << facet << ")";
-        }
-    }
 
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
@@ -187,6 +178,16 @@ DataElementI::attachKey(long long int topicId,
     }
     if(p->second.keys.add(topicId, elementId, key, sampleFilter))
     {
+        if(_traceLevels->data > 1)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": attachKey element " << elementId << "@" << topicId << " " << key;
+            if(!facet.empty())
+            {
+                out << " (facet = " << facet << ")";
+            }
+        }
+
         ++_listenerCount;
         session->subscribeToKey(topicId, keyId, elementId, key, shared_from_this(), facet);
         notifyListenerWaiters(session->getTopicLock());
@@ -199,10 +200,7 @@ DataElementI::attachKey(long long int topicId,
         }
         return true;
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 void
@@ -212,21 +210,20 @@ DataElementI::detachKey(long long int topicId,
                         SessionI* session,
                         const string& facet)
 {
-
-    if(_traceLevels->data > 1)
-    {
-        Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": detachKey element " << elementId << "@" << topicId << " " << key;
-        if(!facet.empty())
-        {
-            out << " (facet = " << facet << ")";
-        }
-    }
-
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
     if(p != _listeners.end() && p->second.keys.remove(topicId, elementId, key))
     {
+        if(_traceLevels->data > 1)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": detachKey element " << elementId << "@" << topicId << " " << key;
+            if(!facet.empty())
+            {
+                out << " (facet = " << facet << ")";
+            }
+        }
+
         --_listenerCount;
         if(_onKeyDisconnect)
         {
@@ -240,8 +237,8 @@ DataElementI::detachKey(long long int topicId,
         {
             _listeners.erase(p);
         }
+        checkPriorityOnDetach(session, topicId, elementId);
     }
-    checkPriorityOnDetach(session, topicId, elementId);
 }
 
 bool
@@ -254,16 +251,6 @@ DataElementI::attachFilter(long long int topicId,
                            const shared_ptr<SessionPrx>& prx,
                            const string& facet)
 {
-    if(_traceLevels->data > 1)
-    {
-        Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": attachFilter element " << elementId << "@" << topicId << " " << filter;
-        if(!facet.empty())
-        {
-            out << " (facet = " << facet << ")";
-        }
-    }
-
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
     if(p == _listeners.end())
@@ -272,6 +259,16 @@ DataElementI::attachFilter(long long int topicId,
     }
     if(p->second.filters.add(topicId, elementId, filter, sampleFilter))
     {
+        if(_traceLevels->data > 1)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": attachFilter element " << elementId << "@" << topicId << " " << filter;
+            if(!facet.empty())
+            {
+                out << " (facet = " << facet << ")";
+            }
+        }
+
         ++_listenerCount;
         session->subscribeToFilter(topicId, filterId, elementId, filter, shared_from_this(), facet);
         if(_onFilterConnect)
@@ -284,10 +281,7 @@ DataElementI::attachFilter(long long int topicId,
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 void
@@ -297,20 +291,20 @@ DataElementI::detachFilter(long long int topicId,
                            SessionI* session,
                            const string& facet)
 {
-    if(_traceLevels->data > 1)
-    {
-        Trace out(_traceLevels, _traceLevels->dataCat);
-        out << this << ": detachFilter element " << elementId << "@" << topicId << " " << filter;
-        if(!facet.empty())
-        {
-            out << " (facet = " << facet << ")";
-        }
-    }
-
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
     if(p != _listeners.end() && p->second.filters.remove(topicId, elementId, filter))
     {
+        if(_traceLevels->data > 1)
+        {
+            Trace out(_traceLevels, _traceLevels->dataCat);
+            out << this << ": detachFilter element " << elementId << "@" << topicId << " " << filter;
+            if(!facet.empty())
+            {
+                out << " (facet = " << facet << ")";
+            }
+        }
+
         --_listenerCount;
         if(_onFilterDisconnect)
         {
@@ -324,8 +318,8 @@ DataElementI::detachFilter(long long int topicId,
         {
             _listeners.erase(p);
         }
+        checkPriorityOnDetach(session, topicId, elementId);
     }
-    checkPriorityOnDetach(session, topicId, elementId);
 }
 
 void
