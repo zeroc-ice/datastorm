@@ -280,7 +280,7 @@ SessionI::attachElements(long long int id, ElementSpecSeq elements, bool initial
         if(initialize)
         {
             // Reap unused keys and filters from the topic subscriber
-            subscriber.subscribers.reap(_sessionInstanceId);
+            subscriber.reap(_sessionInstanceId);
 
             // TODO: reap keys / filters
         }
@@ -346,7 +346,7 @@ SessionI::detachElements(long long int id, LongSeq elements, const Ice::Current&
 
         for(auto e : elements)
         {
-            auto k = subscriber.subscribers.remove(e);
+            auto k = subscriber.remove(e);
             for(auto& s : k.getSubscribers())
             {
                 for(auto keyId : s.second.keys)
@@ -380,7 +380,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
     {
         runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber)
         {
-            auto k = subscriber.subscribers.get(samples.id);
+            auto k = subscriber.get(samples.id);
             if(k)
             {
                 if(_traceLevels->session > 2)
@@ -646,7 +646,7 @@ SessionI::unsubscribe(long long id, TopicI* topic)
 {
     assert(_topics.find(id) != _topics.end());
     auto& subscriber = _topics.at(id).getSubscriber(topic);
-    for(auto& k : subscriber.subscribers.getAll())
+    for(auto& k : subscriber.getAll())
     {
         for(auto& e : k.second.getSubscribers())
         {
@@ -709,7 +709,7 @@ SessionI::subscribeToKey(long long topicId, long long int keyId, long long int e
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.subscribers.get(elementId, true)->add(element, keyId, facet, _sessionInstanceId);
+    subscriber.get(elementId, true)->addSubscriber(element, keyId, facet, _sessionInstanceId);
     subscriber.keys.add(keyId, key, element, elementId);
 }
 
@@ -718,7 +718,7 @@ SessionI::unsubscribeFromKey(long long topicId, long long int elementId, const s
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
-    auto k = subscriber.subscribers.get(elementId);
+    auto k = subscriber.get(elementId);
     if(k)
     {
         if(_traceLevels->session > 1)
@@ -726,7 +726,7 @@ SessionI::unsubscribeFromKey(long long topicId, long long int elementId, const s
             Trace out(_traceLevels, _traceLevels->sessionCat);
             out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
         }
-        for(auto keyId : k->remove(element))
+        for(auto keyId : k->removeSubscriber(element))
         {
             subscriber.keys.remove(keyId, element, elementId);
         }
@@ -762,7 +762,7 @@ SessionI::subscribeToFilter(long long topicId, long long int filterId, long long
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.subscribers.get(-elementId, true)->add(element, filterId, facet, _sessionInstanceId);
+    subscriber.get(-elementId, true)->addSubscriber(element, filterId, facet, _sessionInstanceId);
     subscriber.filters.add(filterId, filter, element, elementId);
 }
 
@@ -771,7 +771,7 @@ SessionI::unsubscribeFromFilter(long long topicId, long long int elementId, cons
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
-    auto f = subscriber.subscribers.get(-elementId);
+    auto f = subscriber.get(-elementId);
     if(f)
     {
         if(_traceLevels->session > 1)
@@ -779,7 +779,7 @@ SessionI::unsubscribeFromFilter(long long topicId, long long int elementId, cons
             Trace out(_traceLevels, _traceLevels->sessionCat);
             out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
         }
-        for(auto filterId : f->remove(element))
+        for(auto filterId : f->removeSubscriber(element))
         {
             subscriber.filters.remove(filterId, element, elementId);
         }
@@ -809,7 +809,7 @@ SessionI::getLastIds(long long topicId, long long int keyId, const std::shared_p
         auto& subscriber = p->second.getSubscriber(element->getTopic());
         for(auto id : subscriber.keys.getSubscriberElementIds(keyId, element))
         {
-            lastIds.emplace(id, subscriber.subscribers.get(id)->get(element)->lastId);
+            lastIds.emplace(id, subscriber.get(id)->getSubscriber(element)->lastId);
         }
     }
     return lastIds;
@@ -824,7 +824,7 @@ SessionI::subscriberInitialized(long long int topicId,
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
-    auto s = subscriber.subscribers.get(elementId)->get(element);
+    auto s = subscriber.get(elementId)->getSubscriber(element);
     assert(s);
 
     if(_traceLevels->session > 1)
@@ -975,7 +975,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
     auto now = chrono::system_clock::now();
     runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& topicSubscribers)
     {
-        auto e = subscriber.subscribers.get(elementId);
+        auto e = subscriber.get(elementId);
         if(e)
         {
             if(_traceLevels->session > 2)
