@@ -215,30 +215,30 @@ main(int argc, char* argv[])
     }
     cout << "ok" << endl;
 
-    // cout << "testing any-key reader/any-key writer... " << flush;
-    // {
-    //     {
-    //         Topic<string, string> topic(node, "anykey3");
-    //         auto writer = makeAnyKeyWriter(topic, config);
-
-    //         writer.waitForReaders(1);
-
-    //         writer.add("elem1", "value1");
-    //         writer.update("elem1", "value2");
-    //         writer.remove("elem1");
-
-    //         writer.add("elem2", "value1");
-    //         writer.update("elem2", "value2");
-    //         writer.remove("elem2");
-
-    //         writer.waitForNoReaders();
-    //     }
-    // }
-    // cout << "ok" << endl;
-
-    cout << "testing filtered reader... " << flush;
+    cout << "testing any-key reader/any-key writer... " << flush;
     {
-        Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass3");
+        {
+            Topic<string, string> topic(node, "anykey3");
+            auto writer = makeAnyKeyWriter(topic, config);
+
+            writer.waitForReaders(1);
+
+            writer.add("elem1", "value1");
+            writer.update("elem1", "value2");
+            writer.remove("elem1");
+
+            writer.add("elem2", "value1");
+            writer.update("elem2", "value2");
+            writer.remove("elem2");
+
+            writer.waitForNoReaders();
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing filtered reader/writer... " << flush;
+    {
+        Topic<string, shared_ptr<Test::Base>> topic(node, "filtered1");
         topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
         auto writer5 = makeSingleKeyWriter(topic, "elem5", config);
         writer5.add(make_shared<Test::Base>("value1"));
@@ -264,6 +264,58 @@ main(int argc, char* argv[])
         writer4.waitForReaders(1);
         writer4.add(make_shared<Test::Base>("value1"));
         writer4.waitForNoReaders();
+    }
+    cout << "ok" << endl;
+
+    cout << "testing filtered reader/multi-key writer... " << flush;
+    {
+        Topic<string, shared_ptr<Test::Base>> topic(node, "filtered2");
+        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
+
+        auto writer = makeMultiKeyWriter(topic, { "elem1", "elem2", "elem3", "elem4", "elem5" }, config);
+        writer.waitForReaders(1);
+
+        writer.add("elem5", make_shared<Test::Base>("value1"));
+        writer.update("elem5", make_shared<Test::Base>("value2"));
+        writer.remove("elem5");
+
+        test(writer.hasReaders());
+        writer.add("elem1", make_shared<Test::Base>("value1"));
+        writer.update("elem1", make_shared<Test::Base>("value2"));
+        writer.remove("elem1");
+
+        writer.update("elem2", make_shared<Test::Base>("value1"));
+
+        writer.remove("elem3");
+
+        writer.add("elem4", make_shared<Test::Base>("value1"));
+        writer.waitForNoReaders();
+    }
+    cout << "ok" << endl;
+
+    cout << "testing filtered reader/any-key writer... " << flush;
+    {
+        Topic<string, shared_ptr<Test::Base>> topic(node, "filtered3");
+        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
+
+        auto writer = makeAnyKeyWriter(topic, config);
+        writer.waitForReaders(1);
+
+        writer.add("elem5", make_shared<Test::Base>("value1"));
+        writer.update("elem5", make_shared<Test::Base>("value2"));
+        writer.remove("elem5");
+
+        test(writer.hasReaders());
+        writer.add("elem1", make_shared<Test::Base>("value1"));
+        writer.update("elem1", make_shared<Test::Base>("value2"));
+        writer.remove("elem1");
+
+        writer.update("elem2", make_shared<Test::Base>("value1"));
+
+        writer.remove("elem3");
+
+        writer.add("elem4", make_shared<Test::Base>("value1"));
+        writer.waitForNoReaders();
     }
     cout << "ok" << endl;
 

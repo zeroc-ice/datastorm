@@ -237,7 +237,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, Sess
                     ElementDataSeq elements;
                     for(auto k : e.second)
                     {
-                        elements.push_back({ k->getId(), k->getConfig(), {} });
+                        elements.push_back({ k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k) });
                     }
                     specs.push_back({ move(elements),
                                       e.first->getId(),
@@ -246,6 +246,22 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, Sess
                                       info.id,
                                       info.name });
                 }
+            }
+
+            auto p = _filteredElements.find(alwaysMatchFilter);
+            if(p != _filteredElements.end())
+            {
+                ElementDataSeq elements;
+                for(auto f : p->second)
+                {
+                    elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                }
+                specs.push_back({ move(elements),
+                                  -alwaysMatchFilter->getId(),
+                                  alwaysMatchFilter->getName(),
+                                  alwaysMatchFilter->encode(_instance->getCommunicator()),
+                                  info.id,
+                                  info.name });
             }
         }
     }
