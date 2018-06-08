@@ -114,8 +114,8 @@ DataElementI::attach(long long int topicId,
         sampleFilter = _parent->getSampleFilterFactories()->decode(getCommunicator(), info.name, info.criteria);
     }
     string facet = data.config->facet ? *data.config->facet : string();
-    if((id > 0 && attachKey(topicId, id, data.id, key, sampleFilter, session, prx, facet)) ||
-       (id < 0 && attachFilter(topicId, id, data.id, filter, sampleFilter, session, prx, facet)))
+    if((id > 0 && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet, id)) ||
+       (id < 0 && attachFilter(topicId, data.id, key, sampleFilter, session, prx, facet, id, filter)))
     {
         auto q = data.lastIds.find(_id);
         long long lastId = q != data.lastIds.end() ? q->second : 0;
@@ -144,15 +144,16 @@ DataElementI::attach(long long int topicId,
         sampleFilter = _parent->getSampleFilterFactories()->decode(getCommunicator(), info.name, info.criteria);
     }
     string facet = data.config->facet ? *data.config->facet : string();
-    if((id > 0 && attachKey(topicId, id, data.id, key, sampleFilter, session, prx, facet)) ||
-       (id < 0 && attachFilter(topicId, id, data.id, filter, sampleFilter, session, prx, facet)))
+    if((id > 0 && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet, id)) ||
+       (id < 0 && attachFilter(topicId, data.id, key, sampleFilter, session, prx, facet, id, filter)))
     {
         auto q = data.lastIds.find(_id);
         long long lastId = q != data.lastIds.end() ? q->second : 0;
         samples.push_back(getSamples(key, sampleFilter, data.config, lastId, now));
         checkPriorityOnAttach(session, topicId, id, data.config->priority ? *data.config->priority : 0);
     }
-    auto samplesI = session->subscriberInitialized(topicId, id > 0 ? data.id : -data.id, data.samples, key, shared_from_this());
+    auto samplesI = session->subscriberInitialized(topicId, id > 0 ? data.id : -data.id, data.samples, key,
+                                                   shared_from_this());
     if(!samplesI.empty())
     {
         initSamples(samplesI, topicId, data.id, now, id < 0);
@@ -161,22 +162,22 @@ DataElementI::attach(long long int topicId,
 
 bool
 DataElementI::attachKey(long long int topicId,
-                        long long int keyId,
                         long long int elementId,
                         const shared_ptr<Key>& key,
                         const shared_ptr<Filter>& sampleFilter,
                         SessionI* session,
                         const shared_ptr<SessionPrx>& prx,
-                        const string& facet)
+                        const string& facet,
+                        long long int keyId)
 {
-
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
     if(p == _listeners.end())
     {
         p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
-    if(p->second.keys.add(topicId, elementId, key, sampleFilter))
+
+    if(p->second.add(topicId, elementId, keyId, key, nullptr, sampleFilter))
     {
         if(_traceLevels->data > 1)
         {
@@ -189,7 +190,7 @@ DataElementI::attachKey(long long int topicId,
         }
 
         ++_listenerCount;
-        session->subscribeToKey(topicId, keyId, elementId, key, shared_from_this(), facet);
+        session->subscribeToKey(topicId, elementId, shared_from_this(), facet, key, keyId);
         notifyListenerWaiters(session->getTopicLock());
         if(_onKeyConnect)
         {
@@ -208,11 +209,13 @@ DataElementI::detachKey(long long int topicId,
                         long long int elementId,
                         const shared_ptr<Key>& key,
                         SessionI* session,
-                        const string& facet)
+                        const string& facet,
+                        bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    if(p != _listeners.end() && p->second.keys.remove(topicId, elementId, key))
+    long long int keyId;
+    if(p != _listeners.end() && p->second.remove(topicId, elementId, key, keyId))
     {
         if(_traceLevels->data > 1)
         {
@@ -225,6 +228,10 @@ DataElementI::detachKey(long long int topicId,
         }
 
         --_listenerCount;
+        if(unsubscribe)
+        {
+            session->unsubscribeFromKey(topicId, elementId, shared_from_this(), keyId);
+        }
         if(_onKeyDisconnect)
         {
             _executor->queue(shared_from_this(), [=]
@@ -243,13 +250,14 @@ DataElementI::detachKey(long long int topicId,
 
 bool
 DataElementI::attachFilter(long long int topicId,
-                           long long int filterId,
                            long long int elementId,
-                           const shared_ptr<Filter>& filter,
+                           const shared_ptr<Key>& key,
                            const shared_ptr<Filter>& sampleFilter,
                            SessionI* session,
                            const shared_ptr<SessionPrx>& prx,
-                           const string& facet)
+                           const string& facet,
+                           long long int filterId,
+                           const shared_ptr<Filter>& filter)
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
@@ -257,7 +265,8 @@ DataElementI::attachFilter(long long int topicId,
     {
         p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
-    if(p->second.filters.add(topicId, elementId, filter, sampleFilter))
+
+    if(p->second.add(topicId, -elementId, filterId, key, filter, sampleFilter))
     {
         if(_traceLevels->data > 1)
         {
@@ -270,7 +279,7 @@ DataElementI::attachFilter(long long int topicId,
         }
 
         ++_listenerCount;
-        session->subscribeToFilter(topicId, filterId, elementId, filter, shared_from_this(), facet);
+        session->subscribeToFilter(topicId, elementId, shared_from_this(), facet, key);
         if(_onFilterConnect)
         {
             _executor->queue(shared_from_this(), [=]
@@ -287,13 +296,16 @@ DataElementI::attachFilter(long long int topicId,
 void
 DataElementI::detachFilter(long long int topicId,
                            long long int elementId,
-                           const shared_ptr<Filter>& filter,
+                           const shared_ptr<Key>& key,
                            SessionI* session,
-                           const string& facet)
+                           const string& facet,
+                           bool unsubscribe)
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    if(p != _listeners.end() && p->second.filters.remove(topicId, elementId, filter))
+    long long int filterId;
+    shared_ptr<Filter> filter;
+    if(p != _listeners.end() && p->second.remove(topicId, -elementId, key, filterId, filter))
     {
         if(_traceLevels->data > 1)
         {
@@ -306,6 +318,10 @@ DataElementI::detachFilter(long long int topicId,
         }
 
         --_listenerCount;
+        if(unsubscribe)
+        {
+            session->unsubscribeFromFilter(topicId, elementId, shared_from_this(), filterId);
+        }
         if(_onFilterDisconnect)
         {
             _executor->queue(shared_from_this(), [=]
@@ -357,9 +373,9 @@ DataElementI::getConnectedKeys() const
     set<shared_ptr<Key>> keys;
     for(const auto& listener : _listeners)
     {
-        for(const auto& key : listener.second.keys.subscribers)
+        for(const auto& key : listener.second.subscribers)
         {
-            keys.insert(key.second.elements.begin(), key.second.elements.end());
+            keys.insert(key.second.keys.begin(), key.second.keys.end());
         }
     }
     return vector<shared_ptr<Key>>(keys.begin(), keys.end());
@@ -465,13 +481,16 @@ DataElementI::disconnect()
     }
     for(const auto& listener : listeners)
     {
-        for(const auto& ks : listener.second.keys.subscribers)
+        for(const auto& ks : listener.second.subscribers)
         {
-            listener.first.session->disconnectFromKey(ks.first.first, ks.first.second, shared_from_this());
-        }
-        for(const auto& fs : listener.second.filters.subscribers)
-        {
-            listener.first.session->disconnectFromFilter(fs.first.first, fs.first.second, shared_from_this());
+            if(ks.second.filter)
+            {
+               listener.first.session->disconnectFromFilter(ks.first.first, ks.first.second, shared_from_this(), ks.second.id);
+            }
+            else
+            {
+                listener.first.session->disconnectFromKey(ks.first.first, ks.first.second, shared_from_this(), ks.second.id);
+            }
         }
     }
 }

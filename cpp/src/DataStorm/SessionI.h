@@ -30,16 +30,16 @@ protected:
 
     struct ElementSubscriber
     {
-        ElementSubscriber(const std::string& facet, long long int keyId, int sessionInstanceId) :
+        ElementSubscriber(const std::string& facet, const std::shared_ptr<Key>& key, int sessionInstanceId) :
             facet(facet), initialized(false), lastId(0), sessionInstanceId(sessionInstanceId)
         {
-            keys.insert(keyId);
+            keys.insert(key);
         }
 
         const std::string facet;
         bool initialized;
         long long int lastId;
-        std::set<long long int> keys;
+        std::set<std::shared_ptr<Key>> keys;
         int sessionInstanceId;
     };
 
@@ -47,35 +47,29 @@ protected:
     {
     public:
 
-        ElementSubscribers() : _sessionInstanceId(0), _lastId(0)
+        ElementSubscribers() : _sessionInstanceId(0)
         {
         }
 
-        void addSubscriber(const std::shared_ptr<DataElementI>& element, long long keyId, const std::string& facet, int sessionInstanceId)
+        void addSubscriber(const std::shared_ptr<DataElementI>& element, const std::shared_ptr<Key>& key,
+                           const std::string& facet, int sessionInstanceId)
         {
             _sessionInstanceId = sessionInstanceId;
             auto p = _subscribers.find(element);
             if(p != _subscribers.end())
             {
-                p->second.keys.insert(keyId);
+                p->second.keys.insert(key);
                 p->second.sessionInstanceId = sessionInstanceId;
             }
             else
             {
-                _subscribers.emplace(element, ElementSubscriber { facet, keyId, sessionInstanceId });
+                _subscribers.emplace(element, ElementSubscriber(facet, key, sessionInstanceId));
             }
         }
 
-        std::set<long long int> removeSubscriber(const std::shared_ptr<DataElementI>& element)
+        void removeSubscriber(const std::shared_ptr<DataElementI>& element)
         {
-            auto p = _subscribers.find(element);
-            if(p == _subscribers.end())
-            {
-                return {};
-            }
-            auto keys = move(p->second.keys);
-            _subscribers.erase(p);
-            return keys;
+            _subscribers.erase(element);
         }
 
         std::map<std::shared_ptr<DataElementI>, ElementSubscriber>&
@@ -122,115 +116,6 @@ protected:
 
         std::map<std::shared_ptr<DataElementI>, ElementSubscriber> _subscribers;
         int _sessionInstanceId;
-        long long int _lastId;
-    };
-
-    template<typename T> class Element
-    {
-    public:
-
-        Element(const std::shared_ptr<T>& element) : _element(element)
-        {
-        }
-
-        void add(const std::shared_ptr<DataElementI>& subscriber, long long int elementId)
-        {
-            auto p = _subscribers.find(subscriber);
-            if(p == _subscribers.end())
-            {
-                p = _subscribers.emplace(subscriber, std::set<long long int> {}).first;
-            }
-            p->second.insert(elementId);
-        }
-
-        bool remove(const std::shared_ptr<DataElementI>& subscriber, long long int elementId)
-        {
-            auto p = _subscribers.find(subscriber);
-            assert(p != _subscribers.end());
-            p->second.erase(elementId);
-            if(p->second.empty())
-            {
-                _subscribers.erase(p);
-            }
-            return _subscribers.empty();
-        }
-
-        const std::shared_ptr<T>& get() const
-        {
-            return _element;
-        }
-
-        std::set<long long int> getElementIds(const std::shared_ptr<DataElementI>& element) const
-        {
-            auto p = _subscribers.find(element);
-            if(p != _subscribers.end())
-            {
-                return p->second;
-            }
-            return {};
-        }
-
-    private:
-
-        const std::shared_ptr<T> _element;
-        std::map<std::shared_ptr<DataElementI>, std::set<long long int>> _subscribers;
-    };
-
-    template<typename T> class ElementManager
-    {
-    public:
-
-        void add(long long int id, const std::shared_ptr<T>& element, const std::shared_ptr<DataElementI>& subscriber, long long int elementId)
-        {
-            auto p = _elements.find(id);
-            if(p == _elements.end())
-            {
-                p = _elements.emplace(id, Element<T>(element)).first;
-            }
-            p->second.add(subscriber, elementId);
-        }
-
-        std::shared_ptr<T> remove(long long int id, const std::shared_ptr<DataElementI>& subscriber, long long int elementId)
-        {
-            auto p = _elements.find(id);
-            assert(p != _elements.end());
-            auto k = p->second.get();
-            if(p->second.remove(subscriber, elementId))
-            {
-                _elements.erase(p);
-            }
-            return k;
-        }
-
-        std::shared_ptr<T> get(long long int id) const
-        {
-            auto p = _elements.find(id);
-            if(p != _elements.end())
-            {
-                return p->second.get();
-            }
-            return nullptr;
-        }
-
-        bool empty()
-        {
-            return _elements.empty();
-        }
-
-        std::set<long long int>
-        getSubscriberElementIds(long long int id, const std::shared_ptr<DataElementI>& element) const
-        {
-            auto p = _elements.find(id);
-            if(p != _elements.end())
-            {
-                return p->second.getElementIds(element);
-            }
-            return {};
-        }
-
-    private:
-
-        std::map<long long int, Element<T>> _elements;
     };
 
     class TopicSubscriber
@@ -290,8 +175,7 @@ protected:
             }
         }
 
-        ElementManager<Key> keys;
-        ElementManager<Filter> filters;
+        std::map<long long int, std::pair<std::shared_ptr<Key>, std::set<long long int>>> keys;
         std::map<long long int, std::shared_ptr<Tag>> tags;
         int sessionInstanceId;
 
@@ -430,15 +314,15 @@ public:
     void unsubscribe(long long int, TopicI*);
     void disconnect(long long int, TopicI*);
 
-    void subscribeToKey(long long int, long long int, long long int, const std::shared_ptr<Key>&, const std::shared_ptr<DataElementI>&,
-                        const std::string&);
-    void unsubscribeFromKey(long long int, long long int, const std::shared_ptr<DataElementI>&);
-    void disconnectFromKey(long long int, long long int, const std::shared_ptr<DataElementI>&);
+    void subscribeToKey(long long int, long long int, const std::shared_ptr<DataElementI>&, const std::string&,
+                        const std::shared_ptr<Key>&, long long int);
+    void unsubscribeFromKey(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
+    void disconnectFromKey(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
 
-    void subscribeToFilter(long long int, long long int, long long int, const std::shared_ptr<Filter>&, const std::shared_ptr<DataElementI>&,
-                           const std::string&);
-    void unsubscribeFromFilter(long long int, long long int, const std::shared_ptr<DataElementI>&);
-    void disconnectFromFilter(long long int, long long int, const std::shared_ptr<DataElementI>&);
+    void subscribeToFilter(long long int, long long int, const std::shared_ptr<DataElementI>&, const std::string&,
+                           const std::shared_ptr<Key>&);
+    void unsubscribeFromFilter(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
+    void disconnectFromFilter(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
 
     DataStormContract::LongLongDict getLastIds(long long int, long long int, const std::shared_ptr<DataElementI>&);
     std::vector<std::shared_ptr<Sample>> subscriberInitialized(long long int,

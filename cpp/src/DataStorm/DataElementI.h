@@ -47,46 +47,13 @@ class DataElementI : virtual public DataElement, public Forwarder, public std::e
         }
     };
 
-    template<typename T> struct Subscriber
+    struct Subscriber
     {
-        std::set<std::shared_ptr<T>> elements;
+        long long int id;
+        std::set<std::shared_ptr<Key>> keys;
+        std::shared_ptr<Filter> filter;
         std::shared_ptr<Filter> sampleFilter;
         int priority;
-    };
-
-    template<typename T> struct Subscribers
-    {
-        bool add(long long int topicId, long long int elementId, const std::shared_ptr<T>& element,
-                 const std::shared_ptr<Filter>& sampleFilter)
-        {
-            auto key = std::make_pair(topicId, elementId);
-            auto p = subscribers.find(key);
-            if(p == subscribers.end())
-            {
-                p = subscribers.emplace(key, Subscriber<T> { {}, sampleFilter }).first;
-            }
-            return p->second.elements.insert(element).second;
-        }
-
-        bool remove(long long int topicId, long long int elementId, const std::shared_ptr<T>& element)
-        {
-            auto key = std::make_pair(topicId, elementId);
-            auto p = subscribers.find(key);
-            if(p != subscribers.end())
-            {
-                if(p->second.elements.erase(element))
-                {
-                    if(p->second.elements.empty())
-                    {
-                        subscribers.erase(p);
-                    }
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        std::map<std::pair<long long int, long long int>, Subscriber<T>> subscribers;
     };
 
     struct Listener
@@ -98,14 +65,7 @@ class DataElementI : virtual public DataElement, public Forwarder, public std::e
 
         bool matchOne(const std::shared_ptr<Sample>& sample) const
         {
-            for(const auto& s : keys.subscribers)
-            {
-                if(!s.second.sampleFilter || s.second.sampleFilter->match(sample))
-                {
-                    return true;
-                }
-            }
-            for(const auto& s : filters.subscribers)
+            for(const auto& s : subscribers)
             {
                 if(!s.second.sampleFilter || s.second.sampleFilter->match(sample))
                 {
@@ -117,12 +77,50 @@ class DataElementI : virtual public DataElement, public Forwarder, public std::e
 
         bool empty() const
         {
-            return keys.subscribers.empty() && filters.subscribers.empty();
+            return subscribers.empty();
+        }
+
+        bool add(long long int topicId, long long int elementId, long long int id, const std::shared_ptr<Key>& key,
+                 const std::shared_ptr<Filter>& filter, const std::shared_ptr<Filter>& sampleFilter)
+        {
+            auto k = std::make_pair(topicId, elementId);
+            auto p = subscribers.find(k);
+            if(p == subscribers.end())
+            {
+                p = subscribers.emplace(k, Subscriber { id, {}, filter, sampleFilter }).first;
+            }
+            return p->second.keys.insert(key).second;
+        }
+
+        bool remove(long long int topicId, long long int elementId, const std::shared_ptr<Key>& key, long long int& id)
+        {
+            std::shared_ptr<Filter> ignore;
+            return remove(topicId, elementId, key, id, ignore);
+        }
+
+        bool remove(long long int topicId, long long int elementId, const std::shared_ptr<Key>& key,
+                    long long int& id, std::shared_ptr<Filter>& filter)
+        {
+            auto k = std::make_pair(topicId, elementId);
+            auto p = subscribers.find(k);
+            if(p != subscribers.end())
+            {
+                if(p->second.keys.erase(key))
+                {
+                    if(p->second.keys.empty())
+                    {
+                        id = p->second.id;
+                        filter = p->second.filter;
+                        subscribers.erase(p);
+                    }
+                    return true;
+                }
+            }
+            return false;
         }
 
         std::shared_ptr<DataStormContract::SessionPrx> proxy;
-        Subscribers<Key> keys;
-        Subscribers<Filter> filters;
+        std::map<std::pair<long long int, long long int>, Subscriber> subscribers;
     };
 
 public:
@@ -156,33 +154,36 @@ public:
 
     bool attachKey(long long int,
                    long long int,
-                   long long int,
                    const std::shared_ptr<Key>&,
                    const std::shared_ptr<Filter>&,
                    SessionI*,
                    const std::shared_ptr<DataStormContract::SessionPrx>&,
-                   const std::string&);
+                   const std::string&,
+                   long long int);
 
     void detachKey(long long int,
                    long long int,
                    const std::shared_ptr<Key>&,
                    SessionI*,
-                   const std::string&);
+                   const std::string&,
+                   bool);
 
     bool attachFilter(long long int,
                       long long int,
-                      long long int,
-                      const std::shared_ptr<Filter>&,
+                      const std::shared_ptr<Key>&,
                       const std::shared_ptr<Filter>&,
                       SessionI*,
                       const std::shared_ptr<DataStormContract::SessionPrx>&,
-                      const std::string&);
+                      const std::string&,
+                      long long int,
+                      const std::shared_ptr<Filter>&);
 
     void detachFilter(long long int,
                       long long int,
-                      const std::shared_ptr<Filter>&,
+                      const std::shared_ptr<Key>&,
                       SessionI*,
-                      const std::string&);
+                      const std::string&,
+                      bool);
 
     virtual void onKeyConnect(std::function<void(Id, std::shared_ptr<Key>)>) override;
     virtual void onKeyDisconnect(std::function<void(Id, std::shared_ptr<Key>)>) override;
