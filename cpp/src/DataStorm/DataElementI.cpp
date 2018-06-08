@@ -214,7 +214,7 @@ DataElementI::detachKey(long long int topicId,
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    long long int keyId;
+    long long int keyId = 0;
     if(p != _listeners.end() && p->second.remove(topicId, elementId, key, keyId))
     {
         if(_traceLevels->data > 1)
@@ -303,7 +303,7 @@ DataElementI::detachFilter(long long int topicId,
 {
     // No locking necessary, called by the session with the mutex locked
     auto p = _listeners.find({ session, facet });
-    long long int filterId;
+    long long int filterId = 0;
     shared_ptr<Filter> filter;
     if(p != _listeners.end() && p->second.remove(topicId, -elementId, key, filterId, filter))
     {
