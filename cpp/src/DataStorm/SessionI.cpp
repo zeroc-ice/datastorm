@@ -70,7 +70,7 @@ SessionI::announceTopics(TopicInfoSeq topics, bool initialize, const Ice::Curren
             {
                 for(auto id : info.ids)
                 {
-                    topic->attach(id, this, _session);
+                    topic->attach(id, shared_from_this(), _session);
                 }
 
                 _session->attachTopicAsync(topic->getTopicSpec());
@@ -117,7 +117,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                 out << _id << ": attaching topic `" << spec << "' to `" << topic.get() << "'";
             }
 
-            topic->attach(spec.id, this, _session);
+            topic->attach(spec.id, shared_from_this(), _session);
 
             if(!spec.tags.empty())
             {
@@ -134,7 +134,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                 _session->attachTagsAsync(topic->getId(), tags, true);
             }
 
-            auto specs = topic->getElementSpecs(spec.id, spec.elements, this);
+            auto specs = topic->getElementSpecs(spec.id, spec.elements, shared_from_this());
             if(!specs.empty())
             {
                 if(_traceLevels->session > 2)
@@ -164,7 +164,7 @@ SessionI::detachTopic(long long int id, const Ice::Current&)
             Trace out(_traceLevels, _traceLevels->sessionCat);
             out << _id << ": detaching topic `" << id << "' from `" << topic << "'";
         }
-        topic->detach(id, this);
+        topic->detach(id, shared_from_this());
     });
 
     // Erase the topic
@@ -240,7 +240,7 @@ SessionI::announceElements(long long int topicId, ElementInfoSeq elements, const
             out << _id << ": announcing elements `[" << elements << "]@" << topicId << "' on topic `" << topic << "'";
         }
 
-        auto specs = topic->getElementSpecs(topicId, elements, this);
+        auto specs = topic->getElementSpecs(topicId, elements, shared_from_this());
         if(!specs.empty())
         {
             if(_traceLevels->session > 2)
@@ -275,7 +275,7 @@ SessionI::attachElements(long long int id, ElementSpecSeq elements, bool initial
             }
         }
 
-        auto specAck = topic->attachElements(id, elements, this, _session, now);
+        auto specAck = topic->attachElements(id, elements, shared_from_this(), _session, now);
 
         if(initialize)
         {
@@ -314,7 +314,7 @@ SessionI::attachElementsAck(long long int id, ElementSpecAckSeq elements, const 
             out << _id << ": attaching elements ack `[" << elements << "]@" << id << "' on topic `" << topic << "'";
         }
 
-        auto samples = topic->attachElementsAck(id, elements, this, _session, now);
+        auto samples = topic->attachElementsAck(id, elements, shared_from_this(), _session, now);
         if(!samples.empty())
         {
             if(_traceLevels->session > 2)
@@ -353,11 +353,11 @@ SessionI::detachElements(long long int id, LongSeq elements, const Ice::Current&
                 {
                     if(e > 0)
                     {
-                        s.first->detachKey(id, e, key, this, s.second.facet, true);
+                        s.first->detachKey(id, e, key, shared_from_this(), s.second.facet, true);
                     }
                     else
                     {
-                        s.first->detachFilter(id, -e, key, this, s.second.facet, true);
+                        s.first->detachFilter(id, -e, key, shared_from_this(), s.second.facet, true);
                     }
                 }
             }
@@ -433,7 +433,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                     {
                         ks.second.initialized = true;
                         ks.second.lastId = samplesI.empty() ? 0 : samplesI.back()->id;
-                        ks.first->initSamples(samplesI, topicId, samples.id, now, samples.id < 0);
+                        ks.first->initSamples(samplesI, k->priority, topicId, samples.id, now, samples.id < 0);
                     }
                 }
             }
@@ -536,7 +536,7 @@ SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_
         {
             runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber)
             {
-                topic->detach(t.first, this);
+                topic->detach(t.first, shared_from_this());
             });
         }
 
@@ -595,7 +595,10 @@ SessionI::destroyImpl(const exception_ptr& ex)
 
         for(const auto& t : _topics)
         {
-            runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber) { topic->detach(t.first, this); });
+            runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber)
+                          {
+                              topic->detach(t.first, shared_from_this());
+                          });
         }
         _topics.clear();
     }
@@ -652,13 +655,13 @@ SessionI::unsubscribe(long long id, TopicI* topic)
         {
             for(auto key : e.second.keys)
             {
-                if(e.first > 0)
+                if(k.first > 0)
                 {
-                    e.first->detachKey(id, k.first, key, this, e.second.facet, false);
+                    e.first->detachKey(id, k.first, key, shared_from_this(), e.second.facet, false);
                 }
                 else
                 {
-                    e.first->detachFilter(id, -k.first, key, this, e.second.facet, false);
+                    e.first->detachFilter(id, -k.first, key, shared_from_this(), e.second.facet, false);
                 }
             }
         }
@@ -696,7 +699,7 @@ SessionI::disconnect(long long id, TopicI* topic)
 
 void
 SessionI::subscribeToKey(long long topicId, long long int elementId, const std::shared_ptr<DataElementI>& element,
-                         const string& facet, const shared_ptr<Key>& key, long long int keyId)
+                         const string& facet, const shared_ptr<Key>& key, long long int keyId, int priority)
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
@@ -710,7 +713,7 @@ SessionI::subscribeToKey(long long topicId, long long int elementId, const std::
         }
     }
 
-    subscriber.get(elementId, true)->addSubscriber(element, key, facet, _sessionInstanceId);
+    subscriber.add(elementId, priority)->addSubscriber(element, key, facet, _sessionInstanceId);
 
     auto& p = subscriber.keys[keyId];
     if(!p.first)
@@ -761,7 +764,7 @@ SessionI::disconnectFromKey(long long topicId, long long int elementId, const st
 
 void
 SessionI::subscribeToFilter(long long topicId, long long int elementId, const std::shared_ptr<DataElementI>& element,
-                            const string& facet, const shared_ptr<Key>& key)
+                            const string& facet, const shared_ptr<Key>& key, int priority)
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
@@ -774,7 +777,7 @@ SessionI::subscribeToFilter(long long topicId, long long int elementId, const st
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.get(-elementId, true)->addSubscriber(element, key, facet, _sessionInstanceId);
+    subscriber.add(-elementId, priority)->addSubscriber(element, key, facet, _sessionInstanceId);
 }
 
 void
@@ -1036,7 +1039,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
                 if(es.second.initialized && (s.keyId <= 0 || es.second.keys.find(key) != es.second.keys.end()))
                 {
                     es.second.lastId = s.id;
-                    es.first->queue(impl, this, current.facet, now, !s.keyValue.empty());
+                    es.first->queue(impl, e->priority, shared_from_this(), current.facet, now, !s.keyValue.empty());
                 }
             }
         }

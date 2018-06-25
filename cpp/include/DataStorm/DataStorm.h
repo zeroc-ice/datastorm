@@ -53,10 +53,10 @@ public:
     using KeyType = Key;
     using ValueType = Value;
     using UpdateTagType = UpdateTag;
-    using Id = std::tuple<std::string, long long int, long long int>;
+    using ElementId = std::tuple<std::string, long long int, long long int>;
 
     /**
-     * The event of the sample.
+     * The event associated with the sample.
      *
      * @return The sample event.
      */
@@ -108,7 +108,7 @@ public:
      * @return The tuple that uniquely identifies the origin of the sample
      *         on the node.
      */
-    Id getOrigin() const;
+    ElementId getOrigin() const;
 
     /** @private */
     Sample(const std::shared_ptr<DataStormInternal::Sample>&);
@@ -238,7 +238,11 @@ makeSampleEventFilter(const Topic<Key, Value, UpdateTag>& topic)
 }
 
 /**
+ * Convert the given sample type to a string and add it to the stream.
  *
+ * @param os The output stream
+ * @param sampleType The sample type to add to the stream
+ * @return The output stream
  */
 std::ostream&
 operator<<(std::ostream& os, SampleEvent sampleType)
@@ -264,6 +268,13 @@ operator<<(std::ostream& os, SampleEvent sampleType)
     return os;
 }
 
+/**
+ * Convert the given sample type vector to a string and add it to the stream.
+ *
+ * @param os The output stream
+ * @param types The sample type vector to add to the stream
+ * @return The output stream
+ */
 std::ostream&
 operator<<(std::ostream& os, const std::vector<SampleEvent>& types)
 {
@@ -280,6 +291,13 @@ operator<<(std::ostream& os, const std::vector<SampleEvent>& types)
     return os;
 }
 
+/**
+ * Convert the given sample value to a string and add it to the stream.
+ *
+ * @param os The output stream
+ * @param sample The sample to add to the stream
+ * @return The output stream
+ */
 template<typename K, typename V, typename U>
 std::ostream&
 operator<<(std::ostream& os, const Sample<K, V, U>& sample)
@@ -632,7 +650,7 @@ public:
               ReaderConfig = ReaderConfig());
 
     /**
-         * Transfers the given reader to this reader.
+     * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/

@@ -183,7 +183,7 @@ TopicI::getTags() const
 }
 
 ElementSpecSeq
-TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, SessionI* session)
+TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, const shared_ptr<SessionI>& session)
 {
     ElementSpecSeq specs;
     for(const auto& info : infos)
@@ -269,7 +269,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, Sess
 }
 
 void
-TopicI::attach(long long id, SessionI* session, const shared_ptr<SessionPrx>& prx)
+TopicI::attach(long long id, const shared_ptr<SessionI>& session, const shared_ptr<SessionPrx>& prx)
 {
     auto p = _listeners.find({ session });
     if(p == _listeners.end())
@@ -286,7 +286,7 @@ TopicI::attach(long long id, SessionI* session, const shared_ptr<SessionPrx>& pr
 }
 
 void
-TopicI::detach(long long id, SessionI* session)
+TopicI::detach(long long id, const shared_ptr<SessionI>& session)
 {
     auto p = _listeners.find({ session });
     if(p != _listeners.end() && p->second.topics.erase(id))
@@ -304,7 +304,7 @@ TopicI::detach(long long id, SessionI* session)
 ElementSpecAckSeq
 TopicI::attachElements(long long int topicId,
                        const ElementSpecSeq& elements,
-                       SessionI* session,
+                       const shared_ptr<SessionI>& session,
                        const shared_ptr<SessionPrx>& prx,
                        const chrono::time_point<chrono::system_clock>& now)
 {
@@ -409,7 +409,7 @@ TopicI::attachElements(long long int topicId,
 DataSamplesSeq
 TopicI::attachElementsAck(long long int topicId,
                           const ElementSpecAckSeq& elements,
-                          SessionI* session,
+                          const shared_ptr<SessionI>& session,
                           const shared_ptr<SessionPrx>& prx,
                           const chrono::time_point<chrono::system_clock>& now)
 {
@@ -448,7 +448,7 @@ TopicI::attachElementsAck(long long int topicId,
                             }
                             else if(filter->match(key)) // Filter
                             {
-                                e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
+                                e->attach(topicId, spec.id, key, filter, session, prx, data, now, samples);
                             }
                             break;
                         }
@@ -696,11 +696,6 @@ TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Fi
 void
 TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefix, DataStorm::Config& config) const
 {
-    // Set defaults
-    config.sampleCount = -1;
-    config.sampleLifetime = 0;
-    config.clearHistory = DataStorm::ClearHistoryPolicy::OnAll;
-
     // Override defaults with properties
     auto p = properties.find(prefix + ".SampleLifetime");
     if(p != properties.end())
@@ -748,7 +743,9 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
                            long long int id) :
     TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
 {
-    _defaultConfig = parseConfig("DataStorm.Topic." + name);
+    _defaultConfig = { -1, 0, DataStorm::ClearHistoryPolicy::OnAll, DataStorm::DiscardPolicy::None };
+    _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic"));
+    _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic." + name));
 }
 
 shared_ptr<DataReader>
@@ -889,7 +886,9 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
                            long long int id) :
     TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
 {
-    _defaultConfig = parseConfig("DataStorm.Topic." + name);
+    _defaultConfig = { -1, 0, DataStorm::ClearHistoryPolicy::OnAll };
+    _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic"));
+    _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic." + name));
 }
 
 shared_ptr<DataWriter>

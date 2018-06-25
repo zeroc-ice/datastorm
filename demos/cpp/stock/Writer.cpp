@@ -87,11 +87,6 @@ main(int argc, char* argv[])
     string stock;
     cout << "Please enter the stock to publish (default = all):\n";
     getline(cin, stock);
-    if(!stock.empty() && stocks.find(stock) == stocks.end())
-    {
-        cout << "unknown stock `" << stock << "'" << endl;
-        return 1;
-    }
 
     //
     // Instantiate writers for the stocks.
@@ -106,6 +101,11 @@ main(int argc, char* argv[])
     }
     else
     {
+        if(stocks.find(stock) == stocks.end())
+        {
+            cout << "unknown stock `" << stock << "'" << endl;
+            return 1;
+        }
         writers.push_back(makeStock(topic, stock, stocks[stock]));
     }
 

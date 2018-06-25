@@ -60,11 +60,6 @@ main(int argc, char* argv[])
     getline(cin, stock);
     stocks.onKeyConnect(nullptr);
     tickers = stocks.getConnectedKeys(); // Get latest set of connected keys
-    if(!stock.empty() && find(tickers.begin(), tickers.end(), stock) == tickers.end())
-    {
-        cout << "unknown stock `" << stock << "'" << endl;
-        return 1;
-    }
 
     //
     // Read values for the given stock using a key reader.
@@ -76,6 +71,11 @@ main(int argc, char* argv[])
     }
     else
     {
+        if(find(tickers.begin(), tickers.end(), stock) == tickers.end())
+        {
+            cout << "unknown stock `" << stock << "'" << endl;
+            return 1;
+        }
         reader = makeSharedSingleKeyReader(topic, stock);
     }
 
@@ -101,11 +101,11 @@ main(int argc, char* argv[])
         {
             if(sample.getUpdateTag() == "price")
             {
-                cout << "received price update: " << sample.getValue().price << endl;
+                cout << "received price update for " << sample.getKey() << ": " << sample.getValue().price << endl;
             }
             else if(sample.getUpdateTag() == "volume")
             {
-                cout << "received volume update: " << sample.getValue().volume << endl;
+                cout << "received volume update for " << sample.getKey() << ": " << sample.getValue().volume << endl;
             }
         }
     });

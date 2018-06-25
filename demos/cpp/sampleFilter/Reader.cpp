@@ -20,7 +20,7 @@ main(int argc, char* argv[])
     // Instantiates the "hello" topic. The topic uses strings for keys and values.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
-    topic.setReaderDefaultConfig(DataStorm::ReaderConfig(-1)); // Keeps all the samples in the history.
+    topic.setReaderDefaultConfig({ -1, 0, DataStorm::ClearHistoryPolicy::Never }); // Keeps all the samples in the history.
 
     //
     // Wait for a writer to connect.

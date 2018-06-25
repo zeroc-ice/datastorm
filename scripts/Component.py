@@ -11,10 +11,10 @@ import os
 
 from Util import *
 
-class Writer(IceProcess):
+class Writer(Client):
     pass
 
-class Reader(IceProcess):
+class Reader(Server):
     pass
 
 class DataStormCppMapping(CppMapping):

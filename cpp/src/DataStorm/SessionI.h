@@ -47,12 +47,14 @@ protected:
     {
     public:
 
-        ElementSubscribers() : _sessionInstanceId(0)
+        ElementSubscribers(int priority) : priority(priority), _sessionInstanceId(0)
         {
         }
 
-        void addSubscriber(const std::shared_ptr<DataElementI>& element, const std::shared_ptr<Key>& key,
-                           const std::string& facet, int sessionInstanceId)
+        void addSubscriber(const std::shared_ptr<DataElementI>& element,
+                           const std::shared_ptr<Key>& key,
+                           const std::string& facet,
+                           int sessionInstanceId)
         {
             _sessionInstanceId = sessionInstanceId;
             auto p = _subscribers.find(element);
@@ -112,6 +114,8 @@ protected:
             return _subscribers.empty();
         }
 
+        int priority;
+
     private:
 
         std::map<std::shared_ptr<DataElementI>, ElementSubscriber> _subscribers;
@@ -126,16 +130,22 @@ protected:
         {
         }
 
-        ElementSubscribers* get(long long int id, bool create = false)
+        ElementSubscribers* add(long long int id, int priority)
         {
             auto p = _elements.find(id);
             if(p == _elements.end())
             {
-                if(!create)
-                {
-                    return 0;
-                }
-                p = _elements.emplace(id, ElementSubscribers()).first;
+                p = _elements.emplace(id, ElementSubscribers(priority)).first;
+            }
+            return &p->second;
+        }
+
+        ElementSubscribers* get(long long int id)
+        {
+            auto p = _elements.find(id);
+            if(p == _elements.end())
+            {
+                return 0;
             }
             return &p->second;
         }
@@ -149,7 +159,7 @@ protected:
                 _elements.erase(p);
                 return tmp;
             }
-            return ElementSubscribers();
+            return ElementSubscribers(0);
         }
 
         std::map<long long int, ElementSubscribers>&
@@ -315,12 +325,12 @@ public:
     void disconnect(long long int, TopicI*);
 
     void subscribeToKey(long long int, long long int, const std::shared_ptr<DataElementI>&, const std::string&,
-                        const std::shared_ptr<Key>&, long long int);
+                        const std::shared_ptr<Key>&, long long int, int);
     void unsubscribeFromKey(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
     void disconnectFromKey(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
 
     void subscribeToFilter(long long int, long long int, const std::shared_ptr<DataElementI>&, const std::string&,
-                           const std::shared_ptr<Key>&);
+                           const std::shared_ptr<Key>&, int);
     void unsubscribeFromFilter(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
     void disconnectFromFilter(long long int, long long int, const std::shared_ptr<DataElementI>&, long long int);
 

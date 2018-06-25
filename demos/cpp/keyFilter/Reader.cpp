@@ -36,9 +36,10 @@ main(int argc, char* argv[])
 
     //
     // Instantiate a filtered reader that matches the writer key using the foo[ace]
-    // regular expression.
+    // regular expression. We keep at most 10 samples in the history.
     //
-    auto reader = DataStorm::makeFilteredReader<string>(topic, "regex", "foo[ace]", DataStorm::ReaderConfig(-1));
+    auto reader = DataStorm::makeFilteredReader<string>(topic, "regex", "foo[ace]",
+                                                        { 10, 0, DataStorm::ClearHistoryPolicy::Never });
 
     //
     // Get the 3 samples published by the writers fooa, fooc and fooe.

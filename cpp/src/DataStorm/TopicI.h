@@ -25,7 +25,7 @@ class TopicI : virtual public Topic, public Forwarder, public std::enable_shared
 {
     struct ListenerKey
     {
-        SessionI* session;
+        std::shared_ptr<SessionI> session;
 
         bool operator<(const ListenerKey& other) const
         {
@@ -68,20 +68,21 @@ public:
 
     DataStormContract::TopicSpec getTopicSpec() const;
     DataStormContract::ElementInfoSeq getTags() const;
-    DataStormContract::ElementSpecSeq getElementSpecs(long long int, const DataStormContract::ElementInfoSeq&, SessionI*);
+    DataStormContract::ElementSpecSeq getElementSpecs(long long int, const DataStormContract::ElementInfoSeq&,
+                                                      const std::shared_ptr<SessionI>&);
 
-    void attach(long long int, SessionI*, const std::shared_ptr<DataStormContract::SessionPrx>&);
-    void detach(long long int, SessionI*);
+    void attach(long long int, const std::shared_ptr<SessionI>&, const std::shared_ptr<DataStormContract::SessionPrx>&);
+    void detach(long long int, const std::shared_ptr<SessionI>&);
 
     DataStormContract::ElementSpecAckSeq attachElements(long long int,
                                                         const DataStormContract::ElementSpecSeq&,
-                                                        SessionI*,
+                                                        const std::shared_ptr<SessionI>&,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
 
     DataStormContract::DataSamplesSeq attachElementsAck(long long int,
                                                         const DataStormContract::ElementSpecAckSeq&,
-                                                        SessionI*,
+                                                        const std::shared_ptr<SessionI>&,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&,
                                                         const std::chrono::time_point<std::chrono::system_clock>&);
 
