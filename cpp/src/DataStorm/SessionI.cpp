@@ -433,7 +433,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                     {
                         ks.second.initialized = true;
                         ks.second.lastId = samplesI.empty() ? 0 : samplesI.back()->id;
-                        ks.first->initSamples(samplesI, k->priority, topicId, samples.id, now, samples.id < 0);
+                        ks.first->initSamples(samplesI, topicId, samples.id, k->priority, now, samples.id < 0);
                     }
                 }
             }
