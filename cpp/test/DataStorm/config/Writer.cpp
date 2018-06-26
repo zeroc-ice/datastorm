@@ -23,7 +23,7 @@ main(int argc, char* argv[])
     Topic<string, bool> controller(node, "controller");
 
     auto writers = makeSingleKeyWriter(controller, "writers");
-    auto readers = makeSingleKeyReader(controller, "readers");
+    auto readers = makeSingleKeyReader(controller, "readers", { -1, 0, ClearHistoryPolicy::Never });
 
     {
         WriterConfig config;
@@ -236,6 +236,47 @@ main(int argc, char* argv[])
         writer.update<string>("concat", "2");
         writer.update<string>("concat", "3");
         writers.update(true); // Ready
+
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+    }
+    cout << "ok" << endl;
+
+    cout << "testing priority discard policy... " << flush;
+    {
+        WriterConfig config;
+        config.priority = 10;
+        auto writer1 = makeSingleKeyWriter(topic, "elemdp1", config);
+        config.priority = 1;
+        auto writer2 = makeSingleKeyWriter(topic, "elemdp1", config);
+
+        writer1.add("value1");
+        writer1.update("value2");
+        writer1.update<string>("concat", "1");
+        writer1.remove();
+
+        writer2.add("novalue1");
+        writer2.update("novalue2");
+        writer2.update<string>("concat", "no1");
+        writer2.remove();
+
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+    }
+    {
+        WriterConfig config;
+        config.priority = 1;
+        auto writer1 = makeSingleKeyWriter(topic, "elemdp2", config);
+        config.priority = 10;
+        auto writer2 = makeSingleKeyWriter(topic, "elemdp2", config);
+
+        writer1.add("novalue1");
+        writer1.update("novalue2");
+        writer1.update<string>("concat", "no1");
+        writer1.remove();
+
+        writer2.add("value1");
+        writer2.update("value2");
+        writer2.update<string>("concat", "1");
+        writer2.remove();
 
         while(!readers.getNextUnread().getValue()); // Wait for reader to be done
     }

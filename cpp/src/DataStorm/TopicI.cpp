@@ -414,6 +414,7 @@ TopicI::attachElementsAck(long long int topicId,
                           const chrono::time_point<chrono::system_clock>& now)
 {
     DataSamplesSeq samples;
+    vector<function<void()>> initCallbacks;
     for(const auto& spec : elements)
     {
         if(spec.peerId > 0) // Key
@@ -442,13 +443,18 @@ TopicI::attachElementsAck(long long int topicId,
                     {
                         if(data.peerId == e->getId())
                         {
+                            function<void()> initCb;
                             if(spec.id > 0) // Key
                             {
-                                e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
+                                initCb = e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
                             else if(filter->match(key)) // Filter
                             {
-                                e->attach(topicId, spec.id, key, filter, session, prx, data, now, samples);
+                                initCb = e->attach(topicId, spec.id, key, filter, session, prx, data, now, samples);
+                            }
+                            if(initCb)
+                            {
+                                initCallbacks.push_back(initCb);
                             }
                             break;
                         }
@@ -483,6 +489,7 @@ TopicI::attachElementsAck(long long int topicId,
                     {
                         if(data.peerId == e->getId())
                         {
+                            function<void()> initCb;
                             if(spec.id < 0) // Filter
                             {
                                 e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
@@ -491,12 +498,26 @@ TopicI::attachElementsAck(long long int topicId,
                             {
                                 e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
+                            if(initCb)
+                            {
+                                initCallbacks.push_back(initCb);
+                            }
                             break;
                         }
                     }
                 }
             }
         }
+    }
+
+    //
+    // Initialize samples on data elements once all the elements have been attached. This is
+    // import for the priority configuration in case 2 writers with different priorities are
+    // attached from the same session.
+    //
+    for(auto initCb : initCallbacks)
+    {
+        initCb();
     }
     return samples;
 }

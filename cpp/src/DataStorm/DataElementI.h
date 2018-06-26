@@ -138,15 +138,15 @@ public:
                 const std::chrono::time_point<std::chrono::system_clock>&,
                 DataStormContract::ElementDataAckSeq&);
 
-    void attach(long long int,
-                long long int,
-                const std::shared_ptr<Key>&,
-                const std::shared_ptr<Filter>&,
-                const std::shared_ptr<SessionI>&,
-                const std::shared_ptr<DataStormContract::SessionPrx>&,
-                const DataStormContract::ElementDataAck&,
-                const std::chrono::time_point<std::chrono::system_clock>&,
-                DataStormContract::DataSamplesSeq&);
+    std::function<void()> attach(long long int,
+                                 long long int,
+                                 const std::shared_ptr<Key>&,
+                                 const std::shared_ptr<Filter>&,
+                                 const std::shared_ptr<SessionI>&,
+                                 const std::shared_ptr<DataStormContract::SessionPrx>&,
+                                 const DataStormContract::ElementDataAck&,
+                                 const std::chrono::time_point<std::chrono::system_clock>&,
+                                 DataStormContract::DataSamplesSeq&);
 
     bool attachKey(long long int,
                    long long int,
@@ -282,6 +282,7 @@ protected:
     TopicReaderI* _parent;
 
     std::deque<std::shared_ptr<Sample>> _samples;
+    std::shared_ptr<Sample> _last;
     int _instanceCount;
     DataStorm::DiscardPolicy _discardPolicy;
     std::chrono::time_point<std::chrono::system_clock> _lastSendTime;
@@ -305,6 +306,7 @@ protected:
     TopicWriterI* _parent;
     std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
     std::deque<std::shared_ptr<Sample>> _samples;
+    std::shared_ptr<Sample> _last;
 };
 
 class KeyDataReaderI : public DataReaderI

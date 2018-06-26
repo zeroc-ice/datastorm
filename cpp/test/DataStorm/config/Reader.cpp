@@ -23,7 +23,7 @@ main(int argc, char* argv[])
     Topic<string, bool> controller(node, "controller");
 
     auto readers = makeSingleKeyWriter(controller, "readers");
-    auto writers = makeSingleKeyReader(controller, "writers");
+    auto writers = makeSingleKeyReader(controller, "writers", { -1, 0, ClearHistoryPolicy::Never });
 
     writers.waitForWriters();
 
@@ -236,6 +236,37 @@ main(int argc, char* argv[])
         readers.update(true); // Reader is done
     }
 
+    // Reader priority discard policy
+    {
+        readers.update(false);
+
+        ReaderConfig config;
+        config.clearHistory = ClearHistoryPolicy::Never;
+        config.discardPolicy = DiscardPolicy::Priority;
+        auto reader = makeSingleKeyReader(topic, "elemdp1", config);
+        test(reader.getNextUnread().getValue() == "value1");
+        test(reader.getNextUnread().getValue() == "value2");
+        test(reader.getNextUnread().getValue() == "value21");
+        test(reader.getNextUnread().getEvent() == DataStorm::SampleEvent::Remove);
+
+        readers.update(true); // Reader is done
+    }
+    {
+        readers.update(false);
+
+        ReaderConfig config;
+        config.clearHistory = ClearHistoryPolicy::Never;
+        config.discardPolicy = DiscardPolicy::Priority;
+        auto reader = makeSingleKeyReader(topic, "elemdp2", config);
+        test(reader.getNextUnread().getValue() == "value1");
+        test(reader.getNextUnread().getValue() == "value2");
+        test(reader.getNextUnread().getValue() == "value21");
+        test(reader.getNextUnread().getEvent() == DataStorm::SampleEvent::Remove);
+
+        readers.update(true); // Reader is done
+    }
+
+    // Reader sending discard policy
     {
         auto lastUnread = chrono::time_point<chrono::system_clock>::min();
         while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading

@@ -59,14 +59,8 @@ DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Co
     _waiters(0),
     _notified(0)
 {
-    if(config.sampleCount)
-    {
-        _config->sampleCount = *config.sampleCount;
-    }
-    if(config.sampleLifetime)
-    {
-        _config->sampleLifetime = *config.sampleLifetime;
-    }
+    _config->sampleCount = config.sampleCount;
+    _config->sampleLifetime = config.sampleLifetime;
     if(config.clearHistory)
     {
         _config->clearHistory = static_cast<ClearHistoryPolicy>(*config.clearHistory);
@@ -126,7 +120,7 @@ DataElementI::attach(long long int topicId,
     }
 }
 
-void
+std::function<void()>
 DataElementI::attach(long long int topicId,
                      long long int id,
                      const shared_ptr<Key>& key,
@@ -152,12 +146,14 @@ DataElementI::attach(long long int topicId,
         long long lastId = q != data.lastIds.end() ? q->second : 0;
         samples.push_back(getSamples(key, sampleFilter, data.config, lastId, now));
     }
+
     auto samplesI = session->subscriberInitialized(topicId, id > 0 ? data.id : -data.id, data.samples, key,
                                                    shared_from_this());
     if(!samplesI.empty())
     {
-        initSamples(samplesI, topicId, data.id, priority, now, id < 0);
+        return [=]() { initSamples(samplesI, topicId, data.id, priority, now, id < 0); };
     }
+    return nullptr;
 }
 
 bool
@@ -609,7 +605,7 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
     }
 
     vector<shared_ptr<Sample>> valid;
-    shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
+    shared_ptr<Sample> previous = _last;
     for(const auto& sample : samples)
     {
         if(checkKey && !matchKey(sample->key))
@@ -628,16 +624,16 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         }
         valid.push_back(sample);
 
-        if(sample->event == DataStorm::SampleEvent::PartialUpdate)
+        if(!sample->hasValue())
         {
-            if(!sample->hasValue())
+            if(sample->event == DataStorm::SampleEvent::PartialUpdate)
             {
                 _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
             }
-        }
-        else
-        {
-            sample->decode(_parent->getInstance()->getCommunicator());
+            else
+            {
+                sample->decode(_parent->getInstance()->getCommunicator());
+            }
         }
         previous = sample;
     }
@@ -706,7 +702,8 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
             _samples.push_back(s);
         }
     }
-
+    assert(!_samples.empty());
+    _last = _samples.back();
     _parent->_cond.notify_all();
 }
 
@@ -743,19 +740,6 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
         out << this << ": queued sample " << sample->id << " listeners=" << _listenerCount;
     }
 
-    if(!sample->hasValue())
-    {
-        if(sample->event == DataStorm::SampleEvent::PartialUpdate)
-        {
-            shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
-            _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
-        }
-        else
-        {
-            sample->decode(_parent->getInstance()->getCommunicator());
-        }
-    }
-
     if((_discardPolicy == DataStorm::DiscardPolicy::SendTime && sample->timestamp <= _lastSendTime) ||
        (_discardPolicy == DataStorm::DiscardPolicy::Priority && priority < _connectedKeys[sample->key].back()->priority))
     {
@@ -765,6 +749,18 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
             out << this << ": discarded sample" << sample->id;
         }
         return;
+    }
+
+    if(!sample->hasValue())
+    {
+        if(sample->event == DataStorm::SampleEvent::PartialUpdate)
+        {
+            _parent->getUpdater(sample->tag)(_last, sample, _parent->getInstance()->getCommunicator());
+        }
+        else
+        {
+            sample->decode(_parent->getInstance()->getCommunicator());
+        }
     }
     _lastSendTime = sample->timestamp;
 
@@ -809,6 +805,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
         _samples.clear();
     }
     _samples.push_back(sample);
+    _last = sample;
     _parent->_cond.notify_all();
 }
 
@@ -852,6 +849,7 @@ DataWriterI::DataWriterI(TopicWriterI* topic, long long int id, const DataStorm:
     DataElementI(topic, id, config),
     _parent(topic)
 {
+    _config->priority = config.priority;
 }
 
 void
@@ -868,8 +866,7 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     if(sample->event == DataStorm::SampleEvent::PartialUpdate)
     {
         assert(!sample->hasValue());
-        shared_ptr<Sample> previous = !_samples.empty() ? _samples.back() : nullptr;
-        _parent->getUpdater(sample->tag)(previous, sample, _parent->getInstance()->getCommunicator());
+        _parent->getUpdater(sample->tag)(_last, sample, _parent->getInstance()->getCommunicator());
     }
 
     sample->id = ++_parent->_nextSampleId;
@@ -912,6 +909,7 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
         _samples.clear();
     }
     _samples.push_back(sample);
+    _last = sample;
 }
 
 KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
