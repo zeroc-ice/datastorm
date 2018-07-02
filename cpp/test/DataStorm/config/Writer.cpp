@@ -123,7 +123,7 @@ main(int argc, char* argv[])
         writer.add("value1");
         writer.update("value2");
         writer.remove();
-        this_thread::sleep_for(chrono::milliseconds(200));
+        this_thread::sleep_for(chrono::milliseconds(400));
         writer.add("value3");
         writer.update("value4");
         writer.remove();
@@ -267,6 +267,8 @@ main(int argc, char* argv[])
         auto writer1 = makeSingleKeyWriter(topic, "elemdp2", config);
         config.priority = 10;
         auto writer2 = makeSingleKeyWriter(topic, "elemdp2", config);
+
+        writer2.waitForReaders();
 
         writer1.add("novalue1");
         writer1.update("novalue2");

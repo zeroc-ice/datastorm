@@ -22,11 +22,6 @@ main(int argc, char* argv[])
     DataStorm::Topic<string, string> topic(node, "hello");
 
     //
-    // Wait for a writer to connect.
-    //
-    topic.waitForWriters();
-
-    //
     // Instantiate a reader with the key "foo".
     //
     auto reader = DataStorm::makeSingleKeyReader(topic, "foo");

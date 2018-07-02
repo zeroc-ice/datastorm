@@ -112,12 +112,12 @@ main(int argc, char* argv[])
         while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
         ReaderConfig config;
-        config.sampleLifetime = 150;
+        config.sampleLifetime = 390;
         config.clearHistory = ClearHistoryPolicy::Never;
 
         auto now = chrono::system_clock::now();
 
-        // Reader wants 150ms worth of samples
+        // Reader wants 390ms worth of samples
         readers.update(false);
         auto reader = makeSingleKeyReader(topic, "elem1", config);
         reader.waitForUnread(3);
