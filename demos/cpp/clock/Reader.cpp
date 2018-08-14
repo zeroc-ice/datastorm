@@ -47,9 +47,7 @@ main(int argc, char* argv[])
     //
     // Instantiate a reader to read the time from all the topic cities.
     //
-    DataStorm::ReaderConfig config;
-    config.sampleCount = 0; // Don't keep sample history
-    auto reader = DataStorm::makeAnyKeyReader(topic, config);
+    auto reader = DataStorm::makeAnyKeyReader(topic);
 
     //
     // Wait for at least on writer to be online.

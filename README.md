@@ -1,13 +1,12 @@
 [![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/datastorm.svg)](https://gitter.im/zeroc-ice/datastorm?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-# DataStorm - Comprehensive RPC Framework
+# DataStorm - A Distributed Data Exchange Framework
 
-DataStorm is a distributed data exchange service. It enables distributed
-applications to share data and associated updates in a fully distributed manner
-with no single point of failure. It is essentially composed of a library that
-provides APIs used by programs to get in touch to exchange data. It can be
-viewed as a data bus where different programs publish or subscribe to updates
-for a set of data elements.
+DataStorm is a distributed data exchange framework enabling applications to
+share data and associated updates in a fully distributed manner with no single
+point of failure. It is composed of a library that provides APIs used by
+programs to get in touch to exchange data. It can be viewed as a data bus where
+different programs publish or subscribe to updates for a set of data elements.
 
 You can download DataStorm releases from [ZeroC's website](https://zeroc.com/downloads/datastorm).
 Use this GitHub repository to build from source; see [branches](#branches) for more

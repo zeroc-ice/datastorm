@@ -78,8 +78,8 @@ public:
 
     /**
      * The sampleCount configuration specifies how many samples are kept by the
-     * reader or writer in its sample history. By default, only a single sample
-     * is kept in the history.
+     * reader or writer in its sample history. By default, the sample count is
+     * unlimited.
      */
     Ice::optional<int> sampleCount;
 
@@ -93,8 +93,8 @@ public:
 
     /**
      * The clear history policy specifies when samples are removed from the
-     * sample history. By default, samples are removed when a add or remove
-     * sample is received.
+     * sample history. By default, samples are removed when a new sample is
+     * is received which effectively disables the sample history.
      */
     Ice::optional<ClearHistoryPolicy> clearHistory;
 };

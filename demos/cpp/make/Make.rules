@@ -14,7 +14,7 @@
 # Define DATASTORM_HOME if DataStorm is not installed in /usr (Linux) or
 # /usr/local (macOS)
 #
-#DATASTORM_HOME            ?= /opt/DataStorm-3.7.0
+#DATASTORM_HOME         ?= /opt/DataStorm-3.7.0
 
 #
 # Define OPTIMIZE as yes if you want to build with optimization.

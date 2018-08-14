@@ -39,6 +39,9 @@ main(int argc, char* argv[])
     //
     DataStorm::Node node(argc, argv);
 
+    //
+    // Asks for city name to publish updates
+    //
     string city;
     cout << "Please enter city name: ";
     cin >> city;
@@ -51,21 +54,7 @@ main(int argc, char* argv[])
     //
     // Instantiate a writer to writer the time from the given city.
     //
-    DataStorm::WriterConfig config;
-    config.sampleCount = 0; // Don't keep sample history
-    auto writer = DataStorm::makeSingleKeyWriter(topic, city, config);
-
-    //
-    // Print message when reader connects / disconnects
-    //
-    writer.onFilterConnect([](decltype(topic)::ReaderId reader, string name)
-    {
-        cout << "filtered reader connected (filter = " << name << ")" << endl;
-    });
-    writer.onFilterDisconnect([](decltype(topic)::ReaderId reader, string name)
-    {
-        cout << "filtered reader disconnected (filter = " << name << ")" << endl;
-    });
+    auto writer = DataStorm::makeSingleKeyWriter(topic, city);
 
     while(true)
     {
