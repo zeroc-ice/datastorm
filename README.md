@@ -5,7 +5,7 @@
 DataStorm is a new high-performance brokerless [pub-sub framework](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern).
 It allows you to distribute data between your applications through a simple yet powerful API.
 
-The implementation of DataStorm relies on Ice, and DataStorm naturally plays well with Ice: you can easily distribute data defined using Ice with DataStorm. You can also DataStorm without Ice, in particular:
+The implementation of DataStorm relies on Ice, and DataStorm naturally plays well with Ice: you can easily distribute data defined using Ice with DataStorm. You can also use DataStorm without Ice, in particular:
  * you don't need to know Ice or Ice APIs to use DataStorm
  * you can easily distribute data with simple types using DataStorm
  * you can distribute data with more complex types using DataStorm by providing your own serialization/deserialization functions
