@@ -377,15 +377,14 @@ public:
     {
         if(_encodedValue.empty())
         {
-            assert(_hasValue || event == DataStorm::SampleEvent::Remove);
-            _encodedValue = DataStorm::Encoder<Value>::encode(communicator, _value);
+            _encodedValue = encodeValue(communicator);
         }
         return _encodedValue;
     }
 
     virtual std::vector<unsigned char> encodeValue(const std::shared_ptr<Ice::Communicator>& communicator) override
     {
-        assert(_hasValue);
+        assert(_hasValue || event == DataStorm::SampleEvent::Remove);
         return DataStorm::Encoder<Value>::encode(communicator, _value);
     }
 

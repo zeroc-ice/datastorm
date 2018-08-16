@@ -1131,7 +1131,7 @@ KeyDataWriterI::getSamples(const shared_ptr<Key>& key,
     }
     if(!samples.samples.empty())
     {
-        // If the first sample is a partial update, transform it to an full Update
+        // If the first sample is a partial update, transform it to a full Update
         if(first->event == DataStorm::SampleEvent::PartialUpdate)
         {
             samples.samples[0] = {

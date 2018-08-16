@@ -215,9 +215,8 @@ main(int argc, char* argv[])
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered1");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
-        auto reader = makeFilteredReader<string>(topic, "regex", "elem[0-4]", config);
+        auto reader = makeFilteredReader<string>(topic, "_regex", "elem[0-4]", config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -245,9 +244,8 @@ main(int argc, char* argv[])
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered2");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
-        auto reader = makeFilteredReader<string>(topic, "regex", "elem[0-4]", config);
+        auto reader = makeFilteredReader<string>(topic, "_regex", "elem[0-4]", config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -275,9 +273,8 @@ main(int argc, char* argv[])
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered3");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
-        auto reader = makeFilteredReader<string>(topic, "regex", "elem[0-4]", config);
+        auto reader = makeFilteredReader<string>(topic, "_regex", "elem[0-4]", config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -305,7 +302,6 @@ main(int argc, char* argv[])
 
     {
         Topic<string, string> topic(node, "filtered reader key/value filter");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
         {
             auto testSample = [](typename decltype(topic)::ReaderType& reader,
@@ -323,11 +319,11 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader11 = makeFilteredReader<string, SampleEventSeq>(topic, "regex", "elem[1]", "event",
+            auto reader11 = makeFilteredReader<string, SampleEventSeq>(topic, "_regex", "elem[1]", "_event",
                                                                        SampleEventSeq { SampleEvent::Add }, config);
-            auto reader12 = makeFilteredReader<string, SampleEventSeq>(topic, "regex", "elem[1]", "event",
+            auto reader12 = makeFilteredReader<string, SampleEventSeq>(topic, "_regex", "elem[1]", "_event",
                                                                        SampleEventSeq { SampleEvent::Update }, config);
-            auto reader13 = makeFilteredReader<string, SampleEventSeq>(topic, "regex", "elem[1]", "event",
+            auto reader13 = makeFilteredReader<string, SampleEventSeq>(topic, "_regex", "elem[1]", "_event",
                                                                        SampleEventSeq { SampleEvent::Remove }, config);
             testSample(reader11, SampleEvent::Add, "elem1", "value1");
             testSample(reader12, SampleEvent::Update, "elem1", "value2");
@@ -349,7 +345,7 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader2 = makeFilteredReader<string, string>(topic, "regex", "elem[2]", "regex", "value[2-4]", config);
+            auto reader2 = makeFilteredReader<string, string>(topic, "_regex", "elem[2]", "_regex", "value[2-4]", config);
             testSample(reader2, SampleEvent::Update, "elem2", "value2");
             testSample(reader2, SampleEvent::Update, "elem2", "value3");
             testSample(reader2, SampleEvent::Update, "elem2", "value4");

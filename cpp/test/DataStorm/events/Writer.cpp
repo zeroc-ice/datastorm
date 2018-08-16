@@ -239,7 +239,7 @@ main(int argc, char* argv[])
     cout << "testing filtered reader/writer... " << flush;
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered1");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
+
         auto writer5 = makeSingleKeyWriter(topic, "elem5", config);
         writer5.add(make_shared<Test::Base>("value1"));
         writer5.update(make_shared<Test::Base>("value2"));
@@ -270,7 +270,6 @@ main(int argc, char* argv[])
     cout << "testing filtered reader/multi-key writer... " << flush;
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered2");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
         auto writer = makeMultiKeyWriter(topic, { "elem1", "elem2", "elem3", "elem4", "elem5" }, config);
         writer.waitForReaders(1);
@@ -296,7 +295,6 @@ main(int argc, char* argv[])
     cout << "testing filtered reader/any-key writer... " << flush;
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered3");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
 
         auto writer = makeAnyKeyWriter(topic, config);
         writer.waitForReaders(1);
@@ -322,9 +320,6 @@ main(int argc, char* argv[])
     cout << "testing filtered sample reader... " << flush;
     {
         Topic<string, string> topic(node, "filtered reader key/value filter");
-        topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
-        topic.setSampleFilter("regex", makeSampleRegexFilter(topic));
-        topic.setSampleFilter("event", makeSampleEventFilter(topic));
 
         auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
         writer1.waitForReaders(3);

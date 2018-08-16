@@ -17,32 +17,23 @@ main(int argc, char* argv[])
     DataStorm::Node node(argc, argv);
 
     //
-    // Instantiates the "hello" topic. The topic uses strings for keys and values
-    // and also supports key filtering with the DataStorm::RegexFilter regular
-    // expression filter.
+    // Instantiates the "hello" topic. The topic uses strings for keys and values.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
 
     //
-    // Setup the regex filter to allow filtering element keys based on a regular
-    // expression. Key filters must be set both on the topic reader and writer.
+    // Configure readers to never clear the history. We want to receive all the
+    // samples written by the writers.
     //
-    topic.setKeyFilter("regex", makeKeyRegexFilter(topic));
+    topic.setReaderDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
 
     //
-    // Wait for a writer to connect.
+    // Instantiate a filtered reader for keys matching the foo[ace] regular expression.
     //
-    topic.waitForWriters();
+    auto reader = DataStorm::makeFilteredReader<string>(topic, "_regex", "foo[ace]");
 
     //
-    // Instantiate a filtered reader that matches the writer key using the foo[ace]
-    // regular expression. We keep at most 10 samples in the history.
-    //
-    auto reader = DataStorm::makeFilteredReader<string>(topic, "regex", "foo[ace]",
-                                                        { 10, 0, DataStorm::ClearHistoryPolicy::Never });
-
-    //
-    // Get the 3 samples published by the writers fooa, fooc and fooe.
+    // Get the samples published by the writers fooa, fooc and fooe.
     //
     auto sample = reader.getNextUnread();
     cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;

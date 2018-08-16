@@ -20,25 +20,21 @@ main(int argc, char* argv[])
     // Instantiates the "hello" topic. The topic uses strings for keys and values.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
-    topic.setReaderDefaultConfig({ -1, 0, DataStorm::ClearHistoryPolicy::Never }); // Keeps all the samples in the history.
 
     //
-    // Wait for a writer to connect.
+    // Configure readers to never clear the history. We want to receive all the
+    // samples written by the writers.
     //
-    topic.waitForWriters();
+    topic.setReaderDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
 
     //
-    // Instantiate reader, the reader sample filter criteria type must match the
-    // criteria type specified by the "regex" sample filter setup on the writer
-    // topic.
+    // Instantiate the reader for the key "foo". The reader uses the predefined
+    // _regex sample filter and the "good.*"" regular expression as the criteria.
     //
-    // Here, the criteria is the string "good.*". This string is provided to writers
-    // to perform the sample filtering.
-    //
-    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "regex", "good.*");
+    auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "_regex", "good.*");
 
     //
-    // Get the 2 samples published by the writer which starts with good
+    // Get the 2 samples starting with good published by the writer.
     //
     auto sample = reader.getNextUnread();
     cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;

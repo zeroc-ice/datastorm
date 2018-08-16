@@ -11,7 +11,6 @@
 #include <random>
 
 using namespace std;
-using namespace DataStorm;
 using namespace Demo;
 
 namespace
@@ -19,17 +18,24 @@ namespace
 
 std::random_device random;
 
-KeyWriter<string, Stock>
-makeStock(Topic<string, Stock>& topic, string ticker, Stock stock)
+DataStorm::KeyWriter<string, Stock>
+makeStock(DataStorm::Topic<string, Stock>& topic, string ticker, Stock stock)
 {
-    auto writer = makeSingleKeyWriter(topic, move(ticker));
+    //
+    // Create a stock writer for the given ticker and add the initial stock
+    // value.
+    //
+    auto writer = DataStorm::makeSingleKeyWriter(topic, move(ticker));
     writer.add(move(stock));
     return writer;
 }
 
 void
-updateStock(KeyWriter<string, Stock>& stock)
+updateStock(DataStorm::KeyWriter<string, Stock>& stock)
 {
+    //
+    // Send a partial update to either update the price or the volume with the given writer.
+    //
     if(uniform_int_distribution<int>(1, 10)(random) < 8)
     {
         auto price = stock.getLast().getValue().price;
@@ -50,12 +56,12 @@ main(int argc, char* argv[])
     //
     // Instantiates node.
     //
-    Node node(argc, argv);
+    DataStorm::Node node(argc, argv);
 
     //
     // Instantiates the "stock" topic.
     //
-    Topic<string, Stock> topic(node, "stocks");
+    DataStorm::Topic<string, Stock> topic(node, "stocks");
 
     //
     // Setup partial update updaters. The updater is responsiable for updating the
@@ -66,11 +72,8 @@ main(int argc, char* argv[])
     topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
 
     //
-    // Setup the event sample filters to allow filtering samples based
-    // on the sample event (Add, Update, PartialUpdate, Remove, ...).
+    // Setup few stocks
     //
-    topic.setSampleFilter("event", makeSampleEventFilter(topic));
-
     cout << "Available stocks: " << endl;
     map<string, Stock> stocks {
         { "GOOG", Stock("Google", 1040.61, 1035, 1043.178, 723018024728, 1035.96, 536996) },
@@ -89,9 +92,9 @@ main(int argc, char* argv[])
     getline(cin, stock);
 
     //
-    // Instantiate writers for the stocks.
+    // Instantiate writers for the choosen stocks.
     //
-    vector<KeyWriter<string, Stock>> writers;
+    vector<DataStorm::KeyWriter<string, Stock>> writers;
     if(stock.empty() || stock == "all")
     {
         for(const auto& stock : stocks)
@@ -109,6 +112,9 @@ main(int argc, char* argv[])
         writers.push_back(makeStock(topic, stock, stocks[stock]));
     }
 
+    //
+    // Update the stock value or volume attributes.
+    //
     while(true)
     {
         this_thread::sleep_for(chrono::seconds(1));

@@ -20,15 +20,12 @@ main(int argc, char* argv[])
     // Instantiates the "hello" topic. The topic uses strings for keys and values.
     //
     DataStorm::Topic<string, string> topic(node, "hello");
-    topic.setWriterDefaultConfig({ -1, 0, DataStorm::ClearHistoryPolicy::Never }); // Keeps all the samples in the history.
 
     //
-    // Setup a regular expression sample filter. The regular regular expression
-    // is matched against the stringified sample value. Readers must provide the
-    // regular expression as a string. Sample filters only need to be set on the
-    // topic writer.
+    // Configure writers to not clear the history. We want the readers to receive
+    // all the writer samples.
     //
-    topic.setSampleFilter("regex", makeSampleRegexFilter(topic));
+    topic.setWriterDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
 
     //
     // Instantiate the foo writer.

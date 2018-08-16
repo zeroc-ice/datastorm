@@ -118,125 +118,6 @@ private:
     std::shared_ptr<DataStormInternal::SampleT<Key, Value, UpdateTag>> _impl;
 };
 
-#if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
-
-#include <regex.h>
-
-/** @private */
-class RegExp
-{
-public:
-
-    RegExp(const std::string& criteria)
-    {
-        if(regcomp(&_expr, criteria.c_str(), REG_EXTENDED) != 0)
-        {
-            throw std::invalid_argument(criteria);
-        }
-    }
-
-    ~RegExp()
-    {
-        regfree(&_expr);
-    }
-
-    bool match(const std::string& value) const
-    {
-        return regexec(&_expr, value.c_str(), 0, 0, 0) == 0;
-    }
-
-private:
-
-    regex_t _expr;
-};
-
-#endif
-
-/**
- * Returns a regular expression filter to filter values of the given type.
- *
- * @return Returns a function that accepts a criteria and returns a
- *         function which can be used to filter a value based on the
- *         criteria.
- */
-template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
-makeRegexFilter()
-{
-    return [](const std::string& criteria) {
-#if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
-        auto expr = std::make_shared<RegExp>(criteria);
-        return [expr](const Value& value) {
-            std::ostringstream os;
-            os << value;
-            return expr->match(os.str());
-        };
-#else
-        std::regex expr(criteria);
-        return [expr](const Value& value) {
-            std::ostringstream os;
-            os << value;
-            return std::regex_match(os.str(), expr);
-        };
-#endif
-    };
-}
-
-/**
- * Returns a regular expression filter to filter keys of the given topic key
- * type. The topic is provided solely to infer the key type necessary to create
- * the filter.
- *
- * Calling this function is equivalent to calling {@link makeRegexFilter<Key>()}
- * where Key is the topic key type.
- *
- * @param topic The topic used to figure out the key type.
- * @return Returns a lambda that accepts a criteria and returns a filter
- *         function which can be used to filter the key based on the criteria.
- */
-template<typename Key, typename Value, typename UpdateTag>
-std::function<std::function<bool (const Key&)> (const std::string&)>
-makeKeyRegexFilter(const Topic<Key, Value, UpdateTag>& topic)
-{
-    return makeRegexFilter<Key>();
-}
-
-/**
- * Returns a regular expression filter to filter samples. The topic is provided
- * solely to infer the sample type necessary to create the filter.
- *
- * Calling this function is equivalent to calling {@link makeRegexFilter<Sample<Key, Value, UpdateTag>>()}.
- *
- * @param topic The topic used to figure out the sample type.
- * @return Returns a lambda that accepts a criteria and returns a filter
- *         function which can be used to filter the samples based on the criteria.
- */
-template<typename Key, typename Value, typename UpdateTag>
-std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::string&)>
-makeSampleRegexFilter(const Topic<Key, Value, UpdateTag>& topic)
-{
-    return makeRegexFilter<Sample<Key, Value, UpdateTag>>();
-}
-
-/**
- * Returns a filter to filter samples that match a given set of events. The topic
- * is provided solely to infer the sample type necessary to create the filter. The
- * criteria is a set of {@link SampleEvent}.
- *
- * @param topic The topic used to figure out the sample type.
- * @return Returns a lambda that accepts a criteria and returns a filter
- *         function which can be used to filter the samples based on the criteria.
- */
-template<typename Key, typename Value, typename UpdateTag>
-std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::vector<SampleEvent>&)>
-makeSampleEventFilter(const Topic<Key, Value, UpdateTag>& topic)
-{
-    return [](const std::vector<SampleEvent>& criteria) {
-        return [criteria](const Sample<Key, Value, UpdateTag>& sample) {
-            return std::find(criteria.begin(), criteria.end(), sample.getEvent()) != criteria.end();
-        };
-    };
-}
-
 /**
  * Convert the given sample type to a string and add it to the stream.
  *
@@ -2014,6 +1895,96 @@ MultiKeyWriter<Key, Value, UpdateTag>::remove(const Key& key)
         std::make_shared<DataStormInternal::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
 }
 
+#if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
+
+#include <regex.h>
+
+/** @private */
+class RegExp
+{
+public:
+
+    RegExp(const std::string& criteria)
+    {
+        if(regcomp(&_expr, criteria.c_str(), REG_EXTENDED) != 0)
+        {
+            throw std::invalid_argument(criteria);
+        }
+    }
+
+    ~RegExp()
+    {
+        regfree(&_expr);
+    }
+
+    bool match(const std::string& value) const
+    {
+        return regexec(&_expr, value.c_str(), 0, 0, 0) == 0;
+    }
+
+private:
+
+    regex_t _expr;
+};
+
+#endif
+
+/** @private */
+template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
+makeRegexFilter()
+{
+    return [](const std::string& criteria) {
+#if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
+        auto expr = std::make_shared<RegExp>(criteria);
+        return [expr](const Value& value) {
+            std::ostringstream os;
+            os << value;
+            return expr->match(os.str());
+        };
+#else
+        std::regex expr(criteria);
+        return [expr](const Value& value) {
+            std::ostringstream os;
+            os << value;
+            return std::regex_match(os.str(), expr);
+        };
+#endif
+    };
+}
+
+/** @private */
+template<typename Key, typename Value, typename UpdateTag>
+std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::vector<SampleEvent>&)>
+makeSampleEventFilter(const Topic<Key, Value, UpdateTag>& topic)
+{
+    return [](const std::vector<SampleEvent>& criteria) {
+        return [criteria](const Sample<Key, Value, UpdateTag>& sample) {
+            return std::find(criteria.begin(), criteria.end(), sample.getEvent()) != criteria.end();
+        };
+    };
+}
+
+/** @private */
+template<typename T, typename V, typename Enabler=void>
+struct RegexFilter
+{
+    template<typename F> static void
+    add(F factory)
+    {
+    }
+};
+
+/** @private */
+template<typename T, typename V>
+struct RegexFilter<T, V, typename std::enable_if<DataStormInternal::is_streamable<V>::value>::type>
+{
+    template<typename F> static void
+    add(F factory)
+    {
+        factory->set("_regex", makeRegexFilter<T>()); // Only set the _regex filter if the value is streamable
+    }
+};
+
 //
 // Topic template implementation
 //
@@ -2026,6 +1997,9 @@ Topic<Key, Value, UpdateTag>::Topic(Node& node, const std::string& name) :
     _keyFilterFactories(DataStormInternal::FilterFactoryManagerT<DataStormInternal::KeyT<Key>>::create()),
     _sampleFilterFactories(DataStormInternal::FilterFactoryManagerT<DataStormInternal::SampleT<Key, Value, UpdateTag>>::create())
 {
+    RegexFilter<Key, Key>::add(_keyFilterFactories);
+    RegexFilter<Sample<Key, Value, UpdateTag>, Value>::add(_sampleFilterFactories);
+    _sampleFilterFactories->set("_event", makeSampleEventFilter(*this));
 }
 
 template<typename Key, typename Value, typename UpdateTag>

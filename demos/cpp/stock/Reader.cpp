@@ -9,7 +9,6 @@
 #include <Stock.h>
 
 using namespace std;
-using namespace DataStorm;
 using namespace Demo;
 
 int
@@ -18,27 +17,27 @@ main(int argc, char* argv[])
     //
     // Instantiates node.
     //
-    Node node(argc, argv);
+    DataStorm::Node node(argc, argv);
 
     //
     // Instantiates the "stocks" topic.
     //
-    Topic<string, Demo::Stock> topic(node, "stocks");
+    DataStorm::Topic<string, Demo::Stock> topic(node, "stocks");
 
     //
     // Setup partial update updaters. The updater is responsiable for updating the
     // element value when a partial update is received. Updaters must be set on
-    // both the topic reader and writer.
+    // the topic from both the reader and writer.
     //
     topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
     topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
 
     //
     // Create a reader that connects to all the keys but doesn't receive any samples
-    // (we use the `event' sample filter with an empty set of sample events to discard
-    // events on the writer).
+    // (we use the `_event' predefined sample filter with an empty set of sample
+    // events to discard events on the writer).
     //
-    auto stocks = makeAnyKeyReader<SampleEventSeq>(topic, "event", SampleEventSeq {});
+    auto stocks = DataStorm::makeAnyKeyReader<DataStorm::SampleEventSeq>(topic, "_event", DataStorm::SampleEventSeq {});
     stocks.waitForWriters();
 
     //
@@ -50,7 +49,7 @@ main(int argc, char* argv[])
     {
         cout << ticker << endl;
     }
-    stocks.onKeyConnect([](Topic<string, Stock>::WriterId, string stock)
+    stocks.onKeyConnect([](DataStorm::Topic<string, Stock>::WriterId, string stock)
     {
         cout << "New stock available: " << stock << endl;
     });
@@ -58,28 +57,31 @@ main(int argc, char* argv[])
     string stock;
     cout << "Please enter the stock to follow (default = all):\n";
     getline(cin, stock);
-    stocks.onKeyConnect(nullptr);
-    tickers = stocks.getConnectedKeys(); // Get latest set of connected keys
+    stocks.onKeyConnect(nullptr); // Clear the listener, we no longer need it
 
     //
     // Read values for the given stock using a key reader.
     //
-    shared_ptr<Topic<string, Demo::Stock>::ReaderType> reader;
+    shared_ptr<DataStorm::Topic<string, Demo::Stock>::ReaderType> reader;
     if(stock.empty() || stock == "all")
     {
-        reader = makeSharedAnyKeyReader(topic);
+        reader = makeSharedAnyKeyReader(topic); // Returns a shared_ptr
     }
     else
     {
+        tickers = stocks.getConnectedKeys();
         if(find(tickers.begin(), tickers.end(), stock) == tickers.end())
         {
             cout << "unknown stock `" << stock << "'" << endl;
             return 1;
         }
-        reader = makeSharedSingleKeyReader(topic, stock);
+        reader = makeSharedSingleKeyReader(topic, stock); // Returns a shared_ptr
     }
 
-    reader->onInit([](const vector<Sample<string, Stock>>& samples)
+    //
+    // Print out the initial sample value.
+    //
+    reader->onInit([](const vector<DataStorm::Sample<string, Stock>>& samples)
     {
         assert(samples.size() == 1);
         auto value = samples[0].getValue();
@@ -93,11 +95,11 @@ main(int argc, char* argv[])
     });
 
     //
-    // Prints out the received samples.
+    // Print out the received partial update samples.
     //
-    reader->onSample([](const Sample<string, Stock>& sample)
+    reader->onSample([](const DataStorm::Sample<string, Stock>& sample)
     {
-        if(sample.getEvent() == SampleEvent::PartialUpdate)
+        if(sample.getEvent() == DataStorm::SampleEvent::PartialUpdate)
         {
             if(sample.getUpdateTag() == "price")
             {
@@ -111,7 +113,7 @@ main(int argc, char* argv[])
     });
 
     //
-    // Exit once no more writers are online
+    // Exit once no more writers are online.
     //
     topic.waitForNoWriters();
     return 0;

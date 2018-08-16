@@ -19,8 +19,8 @@ The makefiles require GNU make 3.80 or later.
 On macOS, the command-line demos require the Xcode Command Line Tools to be
 installed (use `xcode-select --install` to install them).
 
-If you've installed DataStorm in a non-standard location or want to use the 
-source tree build, you'll need to set the `DATASTORM_HOME` environment variable 
+If you've installed DataStorm in a non-standard location or want to use the
+source tree build, you'll need to set the `DATASTORM_HOME` environment variable
 with the path name of the installation directory or source tree:
 ```
 export DATASTORM_HOME=~/testing/datastorm
@@ -92,13 +92,13 @@ select `Build`.
   ```
 
   * Start Visual Studio and open `DataStorm C++ demos.sln` solution file, select
-    your target configuration (Debug or Release) and platform (Win32 or x64). 
-    Right click on the desired demo in the Solution Explorer window and select 
+    your target configuration (Debug or Release) and platform (Win32 or x64).
+    Right click on the desired demo in the Solution Explorer window and select
     `Build`.
 
 ### Running the Demos
 
-You need to add the DataStorm `bin` directory to your PATH before running the 
+You need to add the DataStorm `bin` directory to your PATH before running the
 demos.
 
 If you are building Debug, add the Debug `bin` directory with a command similar
