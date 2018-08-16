@@ -48,5 +48,8 @@
 
 //
 // Disable some warnings
+//
 // TODO: find a better solution
-#pragma warning(disable:4503) // decorated name length exceeded, name was truncated
+#if defined(_WIN32)
+#   pragma warning(disable:4503) // decorated name length exceeded, name was truncated
+#endif
