@@ -45,3 +45,8 @@
 #if defined(_MSC_VER) && !defined(DATASTORM_BUILDING_DATASTORM)
 #   pragma comment(lib, DATASTORM_LIBNAME("DataStorm"))
 #endif
+
+//
+// Disable some warnings
+// TODO: find a better solution
+#pragma warning(disable:4503) // decorated name length exceeded, name was truncated
