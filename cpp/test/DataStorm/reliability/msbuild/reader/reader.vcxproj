@@ -2,6 +2,7 @@
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props') and '$(DATASTORM_BIN_DIST)' == 'all'" />
   <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.props" />
+  <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.props" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -55,6 +56,7 @@
   <Import Project="$(MSBuildThisFileDirectory)\..\..\..\..\..\msbuild\datastorm.test.props" />
   <ImportGroup Label="ExtensionSettings">
     <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.targets" />
+    <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.targets" />
     <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.targets" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.targets') and '$(DATASTORM_BIN_DIST)' == 'all'" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -105,6 +107,8 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.props') and '$(DATASTORM_BIN_DIST)' == 'all'" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.props'))" />
     <Error Condition="!Exists('..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.targets') and '$(DATASTORM_BIN_DIST)' == 'all'" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.props') and '$(DATASTORM_BIN_DIST)' == 'all'" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.props'))" />
+    <Error Condition="!Exists('..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.targets') and '$(DATASTORM_BIN_DIST)' == 'all'" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.targets'))" />
     <Error Condition="!Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props') and '$(DATASTORM_BIN_DIST)' == 'all'" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props'))" />
     <Error Condition="!Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.targets') and '$(DATASTORM_BIN_DIST)' == 'all'" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.targets'))" />
   </Target>
