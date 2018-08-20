@@ -7,6 +7,13 @@
 //
 // **********************************************************************
 
+//
+// Work around for Visual Studio 2017 bug.
+//
+#if defined(_MSC_VER) && _MSC_VER >= 1910
+#    include <DataStorm/IceComparable.h>
+#endif
+
 #include <DataStorm/SessionI.h>
 #include <DataStorm/SessionManager.h>
 #include <DataStorm/NodeI.h>
@@ -687,7 +694,7 @@ SessionI::disconnect(long long id, TopicI* topic)
         return; // Peer topic detached first.
     }
 
-    runWithTopic(id, topic, [&](TopicSubscriber&) { this->unsubscribe(id, topic); });
+    runWithTopic(id, topic, [&](TopicSubscriber&) { unsubscribe(id, topic); });
 
     auto& subscriber = _topics.at(id);
     subscriber.removeSubscriber(topic);
@@ -759,7 +766,7 @@ SessionI::disconnectFromKey(long long topicId, long long int elementId, const st
     }
 
     runWithTopic(topicId, element->getTopic(),
-                 [&](TopicSubscriber&) { this->unsubscribeFromKey(topicId, elementId, element, keyId); });
+                 [&](TopicSubscriber&) { unsubscribeFromKey(topicId, elementId, element, keyId); });
 }
 
 void
@@ -809,7 +816,7 @@ SessionI::disconnectFromFilter(long long topicId, long long int elementId, const
     }
 
     runWithTopic(topicId, element->getTopic(),
-                 [&](TopicSubscriber&) { this->unsubscribeFromFilter(topicId, elementId, element, filterId); });
+                 [&](TopicSubscriber&) { unsubscribeFromFilter(topicId, elementId, element, filterId); });
 }
 
 LongLongDict
