@@ -7,7 +7,7 @@
 
     <!-- Define some common properties -->
     <PropertyGroup>
-        <DataStormSoVersion>01</DataStormSoVersion>
+        <DataStormSoVersion>0</DataStormSoVersion>
         <DataStormSrcRootDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\..'))</DataStormSrcRootDir>
         <IntDir>$(Platform)\$(Configuration)\</IntDir>
         <LinkIncremental>false</LinkIncremental>

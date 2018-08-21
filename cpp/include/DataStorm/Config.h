@@ -8,7 +8,7 @@
 
 #define DATASTORM_VERSION 0,1,0,0
 #define DATASTORM_STRING_VERSION "0.1.0"
-#define DATASTORM_SO_VERSION "01"
+#define DATASTORM_SO_VERSION "0"
 
 #if defined(_DEBUG)
 #    define DATASTORM_LIBNAME(NAME) NAME DATASTORM_SO_VERSION "d"
@@ -49,4 +49,7 @@
 //
 // Always enable the Ice C++11 mapping when using DataStorm.
 //
-#define ICE_CPP11_MAPPING 1
+#if !defined(ICE_CPP11_MAPPING)
+#   define ICE_CPP11_MAPPING 1
+#endif
+#   define ICE_CPP11_MAPPING 1
