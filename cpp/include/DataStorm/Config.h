@@ -52,4 +52,3 @@
 #if !defined(ICE_CPP11_MAPPING)
 #   define ICE_CPP11_MAPPING 1
 #endif
-#   define ICE_CPP11_MAPPING 1
