@@ -9,16 +9,14 @@
 
 module Demo
 {
-
-class Stock
-{
-    string name;
-    float price;
-    float bestBid;
-    float bestAsk;
-    long marketCap;
-    float previousClose;
-    int volume;
-};
-
-};
+    class Stock
+    {
+        string name;
+        float price;
+        float bestBid;
+        float bestAsk;
+        long marketCap;
+        float previousClose;
+        int volume;
+    }
+}
