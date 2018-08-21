@@ -56,14 +56,14 @@ operator<<(LoggerOutputBase& os, const std::map<K, V>& p)
     return os;
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::Element, T>::value>::type* = nullptr>
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Element, T>::value>::type* = nullptr>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const std::shared_ptr<T>& p)
 {
     return os << (p ? p->toString() : "");
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::Topic, T>::value>::type* = nullptr>
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Topic, T>::value>::type* = nullptr>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, T* topic)
 {
@@ -77,21 +77,21 @@ operator<<(LoggerOutputBase& os, T* topic)
     }
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::DataElementI, T>::value>::type* = nullptr>
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, T* element)
 {
     return os << (element ? element->toString() : "<null>");
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::DataElementI, T>::value>::type* = nullptr>
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const std::shared_ptr<T>& element)
 {
     return os << (element ? element->toString() : "<null>");
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormInternal::SessionI, T>::value>::type* = nullptr>
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::SessionI, T>::value>::type* = nullptr>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, T* session)
 {
@@ -211,7 +211,7 @@ operator<<(LoggerOutputBase& os, const DataStormContract::DataSamples& samples)
 
 }
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class TraceLevels

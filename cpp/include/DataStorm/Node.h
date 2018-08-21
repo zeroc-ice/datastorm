@@ -91,8 +91,8 @@ public:
 
 private:
 
-    std::shared_ptr<DataStormInternal::Instance> _instance;
-    std::shared_ptr<DataStormInternal::TopicFactory> _factory;
+    std::shared_ptr<DataStormI::Instance> _instance;
+    std::shared_ptr<DataStormI::TopicFactory> _factory;
     bool _ownsCommunicator;
 
     template<typename, typename, typename> friend class Topic;

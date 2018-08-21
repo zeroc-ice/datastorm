@@ -11,7 +11,7 @@
 
 #include <Ice/Ice.h>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class Instance;

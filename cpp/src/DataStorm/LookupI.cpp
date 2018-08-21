@@ -11,7 +11,7 @@
 #include <DataStorm/TopicFactoryI.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 TopicLookupI::TopicLookupI(const shared_ptr<TopicFactoryI>& factory) : _factory(factory)
 {

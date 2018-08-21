@@ -12,7 +12,7 @@
 #include <Ice/Ice.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 TraceLevels::TraceLevels(shared_ptr<Ice::Communicator> communicator) :
     topic(0),

@@ -17,7 +17,7 @@
 
 #include <set>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class TraceLevels;

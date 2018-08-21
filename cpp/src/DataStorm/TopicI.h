@@ -15,7 +15,7 @@
 #include <DataStorm/Instance.h>
 #include <DataStorm/Types.h>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class SessionI;
@@ -49,8 +49,8 @@ public:
            const std::shared_ptr<KeyFactory>&,
            const std::shared_ptr<TagFactory>&,
            const std::shared_ptr<SampleFactory>&,
-           const std::shared_ptr<FilterFactoryManager>&,
-           const std::shared_ptr<FilterFactoryManager>&,
+           const std::shared_ptr<FilterManager>&,
+           const std::shared_ptr<FilterManager>&,
            const std::string&,
            long long int);
 
@@ -122,7 +122,7 @@ public:
         return _sampleFactory;
     }
 
-    const std::shared_ptr<FilterFactoryManager>& getSampleFilterFactories() const
+    const std::shared_ptr<FilterManager>& getSampleFilterFactories() const
     {
         return _sampleFilterFactories;
     }
@@ -154,8 +154,8 @@ protected:
     const std::shared_ptr<KeyFactory> _keyFactory;
     const std::shared_ptr<TagFactory> _tagFactory;
     const std::shared_ptr<SampleFactory> _sampleFactory;
-    const std::shared_ptr<FilterFactoryManager> _keyFilterFactories;
-    const std::shared_ptr<FilterFactoryManager> _sampleFilterFactories;
+    const std::shared_ptr<FilterManager> _keyFilterFactories;
+    const std::shared_ptr<FilterManager> _sampleFilterFactories;
     const std::string _name;
     const std::shared_ptr<Instance> _instance;
     const std::shared_ptr<TraceLevels> _traceLevels;
@@ -185,8 +185,8 @@ public:
                  const std::shared_ptr<KeyFactory>&,
                  const std::shared_ptr<TagFactory>&,
                  const std::shared_ptr<SampleFactory>&,
-                 const std::shared_ptr<FilterFactoryManager>&,
-                 const std::shared_ptr<FilterFactoryManager>&,
+                 const std::shared_ptr<FilterManager>&,
+                 const std::shared_ptr<FilterManager>&,
                  const std::string&,
                  long long int);
 
@@ -223,8 +223,8 @@ public:
                  const std::shared_ptr<KeyFactory>&,
                  const std::shared_ptr<TagFactory>&,
                  const std::shared_ptr<SampleFactory>&,
-                 const std::shared_ptr<FilterFactoryManager>&,
-                 const std::shared_ptr<FilterFactoryManager>&,
+                 const std::shared_ptr<FilterManager>&,
+                 const std::shared_ptr<FilterManager>&,
                  const std::string&,
                  long long int);
 

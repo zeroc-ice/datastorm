@@ -20,7 +20,7 @@ class TopicFactory;
 
 }
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class TopicFactoryI;

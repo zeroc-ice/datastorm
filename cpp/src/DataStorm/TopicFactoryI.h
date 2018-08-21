@@ -12,7 +12,7 @@
 #include <DataStorm/InternalI.h>
 #include <DataStorm/Contract.h>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class Instance;
@@ -32,15 +32,15 @@ public:
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
                                                            const std::shared_ptr<SampleFactory>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&) override;
+                                                           const std::shared_ptr<FilterManager>&,
+                                                           const std::shared_ptr<FilterManager>&) override;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
                                                            const std::shared_ptr<SampleFactory>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&) override;
+                                                           const std::shared_ptr<FilterManager>&,
+                                                           const std::shared_ptr<FilterManager>&) override;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
 

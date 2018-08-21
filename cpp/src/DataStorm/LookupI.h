@@ -11,7 +11,7 @@
 
 #include <DataStorm/Contract.h>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class TopicFactoryI;

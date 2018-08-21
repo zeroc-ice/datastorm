@@ -18,7 +18,7 @@
 //
 // Private abstract API used by the template based API and the internal DataStorm implementation.
 //
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class Instance;
@@ -139,7 +139,7 @@ public:
     virtual std::shared_ptr<Filter> decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
 };
 
-class FilterFactoryManager
+class FilterManager
 {
 public:
 
@@ -251,15 +251,15 @@ public:
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
                                                            const std::shared_ptr<SampleFactory>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&) = 0;
+                                                           const std::shared_ptr<FilterManager>&,
+                                                           const std::shared_ptr<FilterManager>&) = 0;
 
     virtual std::shared_ptr<TopicWriter> createTopicWriter(const std::string&,
                                                            const std::shared_ptr<KeyFactory>&,
                                                            const std::shared_ptr<TagFactory>&,
                                                            const std::shared_ptr<SampleFactory>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&,
-                                                           const std::shared_ptr<FilterFactoryManager>&) = 0;
+                                                           const std::shared_ptr<FilterManager>&,
+                                                           const std::shared_ptr<FilterManager>&) = 0;
 
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };

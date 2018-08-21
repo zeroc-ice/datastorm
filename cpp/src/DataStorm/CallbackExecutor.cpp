@@ -10,7 +10,7 @@
 #include <DataStorm/CallbackExecutor.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 CallbackExecutor::CallbackExecutor()
 {

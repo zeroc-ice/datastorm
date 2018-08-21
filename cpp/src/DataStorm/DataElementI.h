@@ -15,7 +15,7 @@
 
 #include <deque>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class SessionI;

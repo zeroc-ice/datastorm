@@ -14,7 +14,7 @@
 #include <mutex>
 #include <functional>
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 class DataElementI;

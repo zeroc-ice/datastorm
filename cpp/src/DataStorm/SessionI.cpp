@@ -23,7 +23,7 @@
 #include <DataStorm/TraceUtil.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 using namespace DataStormContract;
 
 SessionI::SessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePrx>& node) :

@@ -6,6 +6,9 @@
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
+#if defined(_WIN32)
+#   pragma warning(disable:4503) // decorated name length exceeded, name was truncated
+#endif
 
 #include <DataStorm/DataStorm.h>
 

@@ -18,7 +18,7 @@
 #include <IceUtil/UUID.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator)
 {

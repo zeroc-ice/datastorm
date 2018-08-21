@@ -22,7 +22,7 @@ template<typename K, typename V, typename U> class Sample;
 
 }
 
-namespace DataStormInternal
+namespace DataStormI
 {
 
 template<typename T>
@@ -359,8 +359,8 @@ public:
             long long int element,
             long long int id,
             DataStorm::SampleEvent event,
-            const std::shared_ptr<DataStormInternal::Key>& key,
-            const std::shared_ptr<DataStormInternal::Tag>& tag,
+            const std::shared_ptr<DataStormI::Key>& key,
+            const std::shared_ptr<DataStormI::Tag>& tag,
             std::vector<unsigned char> value,
             long long int timestamp) :
         Sample(session, topic, element, id, event, key, tag, value, timestamp), _hasValue(false)
@@ -422,7 +422,7 @@ public:
         if(sample)
         {
             _value = DataStorm::Cloner<Value>::clone(
-                std::static_pointer_cast<DataStormInternal::SampleT<Key, Value, UpdateTag>>(sample)->getValue());
+                std::static_pointer_cast<DataStormI::SampleT<Key, Value, UpdateTag>>(sample)->getValue());
         }
         else
         {
@@ -471,8 +471,8 @@ public:
                                            long long int element,
                                            long long int id,
                                            DataStorm::SampleEvent type,
-                                           const std::shared_ptr<DataStormInternal::Key>& key,
-                                           const std::shared_ptr<DataStormInternal::Tag>& tag,
+                                           const std::shared_ptr<DataStormI::Key>& key,
+                                           const std::shared_ptr<DataStormI::Tag>& tag,
                                            std::vector<unsigned char> value,
                                            long long int timestamp)
     {
@@ -555,7 +555,7 @@ public:
     }
 };
 
-template<typename ValueT> class FilterFactoryManagerT : public FilterFactoryManager
+template<typename ValueT> class FilterManagerT : public FilterManager
 {
     using Value = typename std::remove_reference<decltype(std::declval<ValueT>().get())>::type;
 
@@ -600,7 +600,7 @@ template<typename ValueT> class FilterFactoryManagerT : public FilterFactoryMana
 
 public:
 
-    FilterFactoryManagerT()
+    FilterManagerT()
     {
     }
 
@@ -661,9 +661,9 @@ public:
         }
     }
 
-    static std::shared_ptr<FilterFactoryManagerT<ValueT>> create()
+    static std::shared_ptr<FilterManagerT<ValueT>> create()
     {
-        return std::make_shared<FilterFactoryManagerT<ValueT>>();
+        return std::make_shared<FilterManagerT<ValueT>>();
     }
 
 private:

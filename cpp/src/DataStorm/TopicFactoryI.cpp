@@ -14,7 +14,7 @@
 #include <DataStorm/Instance.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(10)
 {
@@ -27,8 +27,8 @@ TopicFactoryI::createTopicReader(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
                                  const shared_ptr<TagFactory>& tagFactory,
                                  const shared_ptr<SampleFactory>& sampleFactory,
-                                 const shared_ptr<FilterFactoryManager>& keyFilterFactories,
-                                 const shared_ptr<FilterFactoryManager>& sampleFilterFactories)
+                                 const shared_ptr<FilterManager>& keyFilterFactories,
+                                 const shared_ptr<FilterManager>& sampleFilterFactories)
 {
     shared_ptr<TopicReaderI> reader;
     {
@@ -59,8 +59,8 @@ TopicFactoryI::createTopicWriter(const string& name,
                                  const shared_ptr<KeyFactory>& keyFactory,
                                  const shared_ptr<TagFactory>& tagFactory,
                                  const shared_ptr<SampleFactory>& sampleFactory,
-                                 const shared_ptr<FilterFactoryManager>& keyFilterFactories,
-                                 const shared_ptr<FilterFactoryManager>& sampleFilterFactories)
+                                 const shared_ptr<FilterManager>& keyFilterFactories,
+                                 const shared_ptr<FilterManager>& sampleFilterFactories)
 {
     shared_ptr<TopicWriterI> writer;
     {

@@ -14,7 +14,7 @@
 #include <DataStorm/TraceUtil.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 using namespace DataStormContract;
 
 namespace
@@ -86,8 +86,8 @@ TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
                const shared_ptr<KeyFactory>& keyFactory,
                const shared_ptr<TagFactory>& tagFactory,
                const shared_ptr<SampleFactory>& sampleFactory,
-               const shared_ptr<FilterFactoryManager>& keyFilterFactories,
-               const shared_ptr<FilterFactoryManager>& sampleFilterFactories,
+               const shared_ptr<FilterManager>& keyFilterFactories,
+               const shared_ptr<FilterManager>& sampleFilterFactories,
                const string& name,
                long long int id) :
     _factory(factory),
@@ -758,8 +758,8 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<TagFactory>& tagFactory,
                            const shared_ptr<SampleFactory>& sampleFactory,
-                           const shared_ptr<FilterFactoryManager>& keyFilterFactories,
-                           const shared_ptr<FilterFactoryManager>& sampleFilterFactories,
+                           const shared_ptr<FilterManager>& keyFilterFactories,
+                           const shared_ptr<FilterManager>& sampleFilterFactories,
                            const string& name,
                            long long int id) :
     TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
@@ -901,8 +901,8 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
                            const shared_ptr<KeyFactory>& keyFactory,
                            const shared_ptr<TagFactory>& tagFactory,
                            const shared_ptr<SampleFactory>& sampleFactory,
-                           const shared_ptr<FilterFactoryManager>& keyFilterFactories,
-                           const shared_ptr<FilterFactoryManager>& sampleFilterFactories,
+                           const shared_ptr<FilterManager>& keyFilterFactories,
+                           const shared_ptr<FilterManager>& sampleFilterFactories,
                            const string& name,
                            long long int id) :
     TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)

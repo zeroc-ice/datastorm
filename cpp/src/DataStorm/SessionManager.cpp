@@ -12,7 +12,7 @@
 #include <DataStorm/CallbackExecutor.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 SessionManager::SessionManager(const shared_ptr<CallbackExecutor>& executor) : _executor(executor)
 {

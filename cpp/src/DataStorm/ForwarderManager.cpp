@@ -10,7 +10,7 @@
 #include <DataStorm/ForwarderManager.h>
 
 using namespace std;
-using namespace DataStormInternal;
+using namespace DataStormI;
 
 ForwarderManager::ForwarderManager(const shared_ptr<Ice::ObjectAdapter>& adapter) :
     _adapter(adapter), _nextId(0)
