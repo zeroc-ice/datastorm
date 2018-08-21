@@ -26,6 +26,64 @@ namespace DataStormInternal
 {
 
 template<typename T>
+class has_communicator_parameter
+{
+    template<typename TT, typename SS>
+    static auto testE(int) -> decltype(TT::encode(std::declval<std::shared_ptr<Ice::Communicator>&>(),
+                                                  std::declval<SS&>()), std::true_type());
+
+    template<typename, typename>
+    static auto testE(...) -> std::false_type;
+
+    template<typename TT, typename SS>
+    static auto testD(int) -> decltype(TT::decode(std::declval<std::shared_ptr<Ice::Communicator>&>(),
+                                                  std::vector<unsigned char>()), std::true_type());
+
+    template<typename, typename>
+    static auto testD(...) -> std::false_type;
+
+public:
+
+    static const bool value = decltype(testE<DataStorm::Encoder<T>, T>(0))::value && decltype(testD<DataStorm::Decoder<T>, T>(0))::value;
+};
+
+template<typename T, typename Enabler=void>
+struct EncoderT
+{
+    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&, const T& value)
+    {
+        return DataStorm::Encoder<T>::encode(value);
+    }
+};
+
+template<typename T, typename Enabler=void>
+struct DecoderT
+{
+    static T decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>& data)
+    {
+        return DataStorm::Decoder<T>::decode(data);
+    }
+};
+
+template<typename T>
+struct EncoderT<T, typename std::enable_if<has_communicator_parameter<T>::value>::type>
+{
+    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
+    {
+        return DataStorm::Encoder<T>::encode(communicator, value);
+    }
+};
+
+template<typename T>
+struct DecoderT<T, typename std::enable_if<has_communicator_parameter<T>::value>::type>
+{
+    static T decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data)
+    {
+        return DataStorm::Decoder<T>::decode(communicator, data);
+    }
+};
+
+template<typename T>
 class is_streamable
 {
     template<typename TT, typename SS>
@@ -79,7 +137,7 @@ public:
 
     virtual std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator) const override
     {
-        return DataStorm::Encoder<T>::encode(communicator, _value);
+        return EncoderT<T>::encode(communicator, _value);
     }
 
     virtual long long int getId() const override
@@ -241,7 +299,7 @@ public:
     virtual std::shared_ptr<Key>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<K, KeyT<K>>::create(DataStorm::Decoder<K>::decode(communicator, data));
+        return AbstractFactoryT<K, KeyT<K>>::create(DecoderT<K>::decode(communicator, data));
     }
 
     static std::shared_ptr<KeyFactoryT<K>> createFactory()
@@ -280,7 +338,7 @@ public:
     virtual std::shared_ptr<Tag>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<T, TagT<T>>::create(DataStorm::Decoder<T>::decode(communicator, data));
+        return AbstractFactoryT<T, TagT<T>>::create(DecoderT<T>::decode(communicator, data));
     }
 
     static std::shared_ptr<TagFactoryT<T>> createFactory()
@@ -385,7 +443,7 @@ public:
     virtual std::vector<unsigned char> encodeValue(const std::shared_ptr<Ice::Communicator>& communicator) override
     {
         assert(_hasValue || event == DataStorm::SampleEvent::Remove);
-        return DataStorm::Encoder<Value>::encode(communicator, _value);
+        return EncoderT<Value>::encode(communicator, _value);
     }
 
     virtual void decode(const std::shared_ptr<Ice::Communicator>& communicator) override
@@ -393,7 +451,7 @@ public:
         if(!_encodedValue.empty())
         {
             _hasValue = true;
-            _value = DataStorm::Decoder<Value>::decode(communicator, _encodedValue);
+            _value = DecoderT<Value>::decode(communicator, _encodedValue);
             _encodedValue.clear();
         }
     }
@@ -486,7 +544,7 @@ public:
     virtual std::shared_ptr<Filter>
     decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
     {
-        return AbstractFactoryT<C, FilterT<C, V>>::create(DataStorm::Decoder<C>::decode(communicator, data));
+        return AbstractFactoryT<C, FilterT<C, V>>::create(DecoderT<C>::decode(communicator, data));
     }
 
     static std::shared_ptr<FilterFactoryT<C, V>> createFactory()
@@ -532,7 +590,7 @@ template<typename ValueT> class FilterFactoryManagerT : public FilterFactoryMana
         virtual std::shared_ptr<Filter>
         decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data)
         {
-            return create(DataStorm::Decoder<Criteria>::decode(communicator, data));
+            return create(DecoderT<Criteria>::decode(communicator, data));
         }
 
         const std::string name;

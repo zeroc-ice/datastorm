@@ -31,7 +31,7 @@ DataStorm currently supports only the C++ programming language.
 
 ## Platforms
 
-You should be able to build DataStorm on the same platforms and with the same C++ compilers as Ice. 
+You should be able to build DataStorm on the same platforms and with the same C++ compilers as Ice.
 DataStorm relies on C++11 features and the Ice C++11 mapping.
 
 ## Branches

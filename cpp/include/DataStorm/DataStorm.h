@@ -1558,8 +1558,8 @@ KeyReader<Key, Value, UpdateTag>::KeyReader(Topic<Key, Value, UpdateTag>& topic,
     Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(std::move(key)) },
                                                             std::move(config),
                                                             sampleFilter,
-                                                            Encoder<SFC>::encode(topic.getCommunicator(),
-                                                                                 sampleFilterCriteria)))
+                                                            DataStormInternal::EncoderT<SFC>::encode(topic.getCommunicator(),
+                                                                                                     sampleFilterCriteria)))
 {
 }
 

@@ -13,19 +13,26 @@ namespace DataStorm
     template<> struct Encoder<chrono::system_clock::time_point>
     {
         static vector<unsigned char>
-        encode(const shared_ptr<Ice::Communicator>& com, const chrono::system_clock::time_point& time)
+        encode(const chrono::system_clock::time_point& time)
         {
-            auto value = chrono::time_point_cast<chrono::seconds>(time).time_since_epoch().count();
-            return Encoder<long long int>::encode(com, value);
+            assert(false); // Not used by the writer but it still needs to be declared.
         }
     };
 
     template<> struct Decoder<chrono::system_clock::time_point>
     {
         static chrono::system_clock::time_point
-        decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
+        decode(const vector<unsigned char>& data)
         {
-            auto value = Decoder<long long int>::decode(com, data);
+            //
+            // Decode the number of seconds since epoch. The value is encoded in a way which
+            // doesn't depend on the platform endianess.
+            //
+            long long int value = 0;
+            for(auto p = data.rbegin(); p != data.rend(); ++p)
+            {
+                value = value * 256 + static_cast<long long int>(*p);
+            }
             return std::chrono::time_point<std::chrono::system_clock>(std::chrono::seconds(value));
         }
     };

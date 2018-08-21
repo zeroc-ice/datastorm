@@ -15,8 +15,18 @@ namespace DataStorm
         static vector<unsigned char>
         encode(const shared_ptr<Ice::Communicator>& com, const chrono::system_clock::time_point& time)
         {
+            //
+            // Encode the number of seconds since epoch. The value is encoded in a way which
+            // doesn't depend on the platform endianess.
+            //
+            vector<unsigned char> data;
             auto value = chrono::time_point_cast<chrono::seconds>(time).time_since_epoch().count();
-            return Encoder<long long int>::encode(com, value);
+            while(value)
+            {
+                data.push_back(static_cast<unsigned char>(value % 256));
+                value = value / 256;
+            }
+            return data;
         }
     };
 
@@ -25,8 +35,7 @@ namespace DataStorm
         static chrono::system_clock::time_point
         decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
         {
-            auto value = Decoder<long long int>::decode(com, data);
-            return std::chrono::time_point<std::chrono::system_clock>(std::chrono::seconds(value));
+            assert(false); // Not used by the reader but it still needs to be declared.
         }
     };
 };
