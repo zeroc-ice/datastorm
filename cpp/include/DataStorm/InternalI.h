@@ -2,9 +2,6 @@
 //
 // Copyright (c) 2018 ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
 // **********************************************************************
 
 #pragma once
@@ -13,7 +10,7 @@
 #include <DataStorm/Sample.h>
 #include <DataStorm/Types.h>
 
-#include <Ice/Communicator.h>
+#include <Ice/Ice.h>
 
 //
 // Private abstract API used by the template based API and the internal DataStorm implementation.
@@ -264,4 +261,4 @@ public:
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
 };
 
-};
+}

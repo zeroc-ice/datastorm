@@ -2,19 +2,13 @@
 //
 // Copyright (c) 2018 ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
 // **********************************************************************
 
 #pragma once
 
 #include <DataStorm/Config.h>
 
-#include <Ice/Communicator.h>
-#include <Ice/Initialize.h>
-#include <Ice/InputStream.h>
-#include <Ice/OutputStream.h>
+#include <Ice/Ice.h>
 
 #include <DataStorm/Types.h>
 #include <DataStorm/Sample.h>
@@ -1933,17 +1927,20 @@ private:
 template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
 makeRegexFilter()
 {
-    return [](const std::string& criteria) {
+    return [](const std::string& criteria)
+    {
 #if !defined(__clang__) && defined(__GNUC__) && ((__GNUC__* 100) + __GNUC_MINOR__) < 490
         auto expr = std::make_shared<RegExp>(criteria);
-        return [expr](const Value& value) {
+        return [expr](const Value& value)
+        {
             std::ostringstream os;
             os << value;
             return expr->match(os.str());
         };
 #else
         std::regex expr(criteria);
-        return [expr](const Value& value) {
+        return [expr](const Value& value)
+        {
             std::ostringstream os;
             os << value;
             return std::regex_match(os.str(), expr);
@@ -1957,8 +1954,10 @@ template<typename Key, typename Value, typename UpdateTag>
 std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::vector<SampleEvent>&)>
 makeSampleEventFilter(const Topic<Key, Value, UpdateTag>& topic)
 {
-    return [](const std::vector<SampleEvent>& criteria) {
-        return [criteria](const Sample<Key, Value, UpdateTag>& sample) {
+    return [](const std::vector<SampleEvent>& criteria)
+    {
+        return [criteria](const Sample<Key, Value, UpdateTag>& sample)
+        {
             return std::find(criteria.begin(), criteria.end(), sample.getEvent()) != criteria.end();
         };
     };
