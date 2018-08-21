@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <Ice/Communicator.h>
-
 #include <DataStorm/Config.h>
 #include <DataStorm/Types.h>
 #include <DataStorm/InternalI.h>
+
+#include <Ice/Communicator.h>
 
 namespace DataStorm
 {

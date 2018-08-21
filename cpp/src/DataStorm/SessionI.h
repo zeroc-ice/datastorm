@@ -9,10 +9,10 @@
 
 #pragma once
 
-#include <Ice/Ice.h>
 #include <DataStorm/NodeI.h>
-
 #include <DataStorm/Contract.h>
+
+#include <Ice/Ice.h>
 
 namespace DataStormI
 {

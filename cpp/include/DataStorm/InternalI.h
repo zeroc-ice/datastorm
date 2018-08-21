@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <Ice/Communicator.h>
-
 #include <DataStorm/Config.h>
 #include <DataStorm/Sample.h>
 #include <DataStorm/Types.h>
+
+#include <Ice/Communicator.h>
 
 //
 // Private abstract API used by the template based API and the internal DataStorm implementation.

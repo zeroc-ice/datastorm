@@ -9,13 +9,13 @@
 
 #pragma once
 
-#include <Ice/CommunicatorF.h>
-#include <Ice/LoggerF.h>
-#include <Ice/LoggerUtil.h>
-
 #include <DataStorm/InternalI.h>
 #include <DataStorm/SessionI.h>
 #include <DataStorm/DataElementI.h>
+
+#include <Ice/CommunicatorF.h>
+#include <Ice/LoggerF.h>
+#include <Ice/LoggerUtil.h>
 
 namespace Ice
 {

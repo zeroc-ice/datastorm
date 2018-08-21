@@ -9,6 +9,9 @@
 
 #pragma once
 
+#include <DataStorm/Config.h>
+
+#include <Ice/Communicator.h>
 #include <Ice/Optional.h>
 
 namespace DataStorm

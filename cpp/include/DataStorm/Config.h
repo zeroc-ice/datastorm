@@ -35,7 +35,7 @@
 #endif
 
 //
-// Automatically link with IceStorm[D|++11|++11D].lib
+// Automatically link with DataStorm01[d].lib
 //
 
 #if !defined(DATASTORM_BUILDING_DATASTORM) && defined(DATASTORM_API_EXPORTS)
@@ -45,3 +45,8 @@
 #if defined(_MSC_VER) && !defined(DATASTORM_BUILDING_DATASTORM)
 #   pragma comment(lib, DATASTORM_LIBNAME("DataStorm"))
 #endif
+
+//
+// Always enable the Ice C++11 mapping when using DataStorm.
+//
+#define ICE_CPP11_MAPPING 1

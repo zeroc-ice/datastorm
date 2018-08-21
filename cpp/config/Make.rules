@@ -15,13 +15,14 @@ slice2cpp_targetext     = cpp
 slice2cpp_path          = $(ice_bindir)/slice2cpp
 
 # Always use the C++11 mapping
-cppflags                += -std=c++11 -DICE_CPP11_MAPPING
+cppflags                += -std=c++11
 
 #
 # $(call make-cpp-src-project,$1=project)
 #
 define make-cpp-src-project
 $1_slicecompiler        := slice2cpp
+$1_cppflags             += -I$1/generated -Isrc -Iinclude -Iinclude/generated  -Isrc $(datastorm_cpp_cppflags) $(ice_cppflags)
 $(make-project)
 srcs:: $1
 endef
@@ -32,7 +33,7 @@ endef
 define make-cpp-test-project
 $1_slicecompiler        := slice2cpp
 $1_sliceflags           += -I$(ice_slicedir) -I$1
-$1_cppflags             += -I$1/generated -Itest/include -I$1 $(datastorm_cpp_cppflags)
+$1_cppflags             += -I$1/generated -Itest/include -I$1 $(datastorm_cpp_cppflags) $(ice_cppflags)
 $(make-project)
 tests:: $1
 endef

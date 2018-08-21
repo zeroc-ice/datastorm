@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <Ice/Ice.h>
-
 #include <DataStorm/InternalI.h>
 #include <DataStorm/ForwarderManager.h>
 #include <DataStorm/Contract.h>
+
+#include <Ice/Ice.h>
 
 #include <set>
 
