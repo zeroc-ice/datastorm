@@ -2,9 +2,6 @@
 //
 // Copyright (c) 2018 ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
 // **********************************************************************
 #if defined(_WIN32)
 #   pragma warning(disable:4503) // decorated name length exceeded, name was truncated
