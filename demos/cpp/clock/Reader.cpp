@@ -4,6 +4,10 @@
 //
 // **********************************************************************
 
+#if defined(_MSC_VER) && _MSC_VER == 1900 // Visual Studio 2015
+#   pragma warning(disable:4503) // decorated name length exceeded, name was truncated
+#endif
+
 #include <DataStorm/DataStorm.h>
 
 using namespace std;
@@ -16,6 +20,7 @@ namespace DataStorm
         encode(const chrono::system_clock::time_point& time)
         {
             assert(false); // Not used by the writer but it still needs to be declared.
+            return vector<unsigned char>();
         }
     };
 

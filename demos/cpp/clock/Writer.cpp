@@ -4,6 +4,10 @@
 //
 // **********************************************************************
 
+#if defined(_MSC_VER) && _MSC_VER == 1900 // Visual Studio 2015
+#   pragma warning(disable:4503) // decorated name length exceeded, name was truncated
+#endif
+
 #include <DataStorm/DataStorm.h>
 
 using namespace std;
@@ -13,7 +17,7 @@ namespace DataStorm
     template<> struct Encoder<chrono::system_clock::time_point>
     {
         static vector<unsigned char>
-        encode(const shared_ptr<Ice::Communicator>& com, const chrono::system_clock::time_point& time)
+        encode(const chrono::system_clock::time_point& time)
         {
             //
             // Encode the number of seconds since epoch. The value is encoded in a way which
@@ -33,9 +37,10 @@ namespace DataStorm
     template<> struct Decoder<chrono::system_clock::time_point>
     {
         static chrono::system_clock::time_point
-        decode(const shared_ptr<Ice::Communicator>& com, const vector<unsigned char>& data)
+        decode(const vector<unsigned char>& data)
         {
             assert(false); // Not used by the reader but it still needs to be declared.
+            return chrono::system_clock::time_point();
         }
     };
 };
