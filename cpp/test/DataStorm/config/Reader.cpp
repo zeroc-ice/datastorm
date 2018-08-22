@@ -265,12 +265,12 @@ main(int argc, char* argv[])
 
     // Reader sending discard policy
     {
-        auto lastUnread = chrono::time_point<chrono::system_clock>::min();
         while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
         readers.update(false);
         while(true)
         {
+            auto lastUnread = chrono::time_point<chrono::system_clock>::min();
             Topic<string, int> topic(node, "sendTimeTopic");
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::Never;
