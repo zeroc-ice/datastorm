@@ -338,23 +338,6 @@ main(int argc, char* argv[])
     }
     cout << "ok" << endl;
 
-    cout << "testing topic reader/writer... " << flush;
-    {
-        Topic<string, string> t1(node, "topic");
-        Topic<string, string> t2(node, "topic");
-        t1.hasReaders(); // Required to create the underlying topic writer
-        t2.hasReaders(); // Required to create the underlying topic writer
-        t1.waitForReaders(2);
-        t2.waitForReaders(2);
-
-        auto writer = makeSingleKeyWriter(t1, "shutdown", config);
-        writer.add("now");
-
-        t1.waitForNoReaders();
-        t2.waitForNoReaders();
-    }
-    cout << "ok" << endl;
-
     cout << "testing topic collocated key reader and writer... " << flush;
     {
         Topic<string, string> topic(node, "topic");

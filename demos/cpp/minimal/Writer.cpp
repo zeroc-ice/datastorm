@@ -34,8 +34,8 @@ main(int argc, char* argv[])
     //
     // Wait for a reader to connect and then disconnect.
     //
-    topic.waitForReaders();
-    topic.waitForNoReaders();
+    writer.waitForReaders();
+    writer.waitForNoReaders();
 
     return 0;
 }

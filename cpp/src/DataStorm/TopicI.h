@@ -124,6 +124,10 @@ public:
         return _sampleFilterFactories;
     }
 
+    void incListenerCount(const std::shared_ptr<SessionI>&);
+    void decListenerCount(const std::shared_ptr<SessionI>&);
+    void decListenerCount(size_t);
+
 protected:
 
     void waitForListeners(int count) const;

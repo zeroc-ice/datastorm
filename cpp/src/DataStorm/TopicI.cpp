@@ -276,9 +276,7 @@ TopicI::attach(long long id, const shared_ptr<SessionI>& session, const shared_p
 
     if(p->second.topics.insert(id).second)
     {
-        ++_listenerCount;
         session->subscribe(id, this);
-        notifyListenerWaiters(session->getTopicLock());
     }
 }
 
@@ -288,9 +286,7 @@ TopicI::detach(long long id, const shared_ptr<SessionI>& session)
     auto p = _listeners.find({ session });
     if(p != _listeners.end() && p->second.topics.erase(id))
     {
-        --_listenerCount;
         session->unsubscribe(id, this);
-        notifyListenerWaiters(session->getTopicLock());
         if(p->second.topics.empty())
         {
             _listeners.erase(p);
@@ -576,6 +572,26 @@ TopicI::getUpdaters() const
 }
 
 void
+TopicI::incListenerCount(const shared_ptr<SessionI>& session)
+{
+    ++_listenerCount;
+    notifyListenerWaiters(session->getTopicLock());
+}
+
+void
+TopicI::decListenerCount(const shared_ptr<SessionI>& session)
+{
+    --_listenerCount;
+    notifyListenerWaiters(session->getTopicLock());
+}
+
+void
+TopicI::decListenerCount(size_t listenerCount)
+{
+    _listenerCount -= listenerCount;
+}
+
+void
 TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -622,8 +638,6 @@ TopicI::disconnect()
     {
         unique_lock<mutex> lock(_mutex);
         listeners.swap(_listeners);
-        _listenerCount = 0;
-        notifyListenerWaiters(lock);
     }
     for(auto s : listeners)
     {
@@ -632,6 +646,13 @@ TopicI::disconnect()
             s.first.session->disconnect(t, this);
         }
     }
+
+#ifndef NDEBUG
+    {
+        unique_lock<mutex> lock(_mutex);
+        assert(_listenerCount == 0);
+    }
+#endif
 }
 
 void

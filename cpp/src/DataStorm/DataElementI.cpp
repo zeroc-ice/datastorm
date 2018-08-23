@@ -186,6 +186,7 @@ DataElementI::attachKey(long long int topicId,
         }
 
         ++_listenerCount;
+        _parent->incListenerCount(session);
         session->subscribeToKey(topicId, elementId, shared_from_this(), facet, key, keyId, priority);
         notifyListenerWaiters(session->getTopicLock());
         if(_onKeyConnect)
@@ -233,6 +234,7 @@ DataElementI::detachKey(long long int topicId,
             }
         }
         --_listenerCount;
+        _parent->decListenerCount(session);
         if(unsubscribe)
         {
             session->unsubscribeFromKey(topicId, elementId, shared_from_this(), subscriber->id);
@@ -282,6 +284,7 @@ DataElementI::attachFilter(long long int topicId,
         }
 
         ++_listenerCount;
+        _parent->incListenerCount(session);
         session->subscribeToFilter(topicId, elementId, shared_from_this(), facet, key, priority);
         if(_onFilterConnect)
         {
@@ -330,6 +333,7 @@ DataElementI::detachFilter(long long int topicId,
         }
 
         --_listenerCount;
+        _parent->decListenerCount(session);
         if(unsubscribe)
         {
             session->unsubscribeFromFilter(topicId, elementId, shared_from_this(), subscriber->id);
@@ -500,8 +504,9 @@ DataElementI::disconnect()
     {
         unique_lock<mutex> lock(_parent->_mutex);
         listeners.swap(_listeners);
-        notifyListenerWaiters(lock);
+        _parent->decListenerCount(_listenerCount);
         _listenerCount = 0;
+        notifyListenerWaiters(lock);
     }
     for(const auto& listener : listeners)
     {

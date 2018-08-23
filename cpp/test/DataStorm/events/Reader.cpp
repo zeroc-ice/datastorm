@@ -349,16 +349,5 @@ main(int argc, char* argv[])
         }
      }
 
-     {
-        Topic<string, string> t1(node, "topic");
-        Topic<string, string> t2(node, "topic");
-        t1.hasWriters(); // Required to create the underlying topic reader
-        t2.hasWriters(); // Required to create the underlying topic reader
-        t1.waitForWriters(2);
-        t2.waitForWriters(2);
-
-        auto reader = makeSingleKeyReader(t1, "shutdown", config);
-        reader.waitForUnread();
-    }
     return 0;
 }

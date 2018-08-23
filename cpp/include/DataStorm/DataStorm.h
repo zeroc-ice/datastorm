@@ -45,6 +45,7 @@ template<typename Key, typename Value, typename UpdateTag=std::string> class Sam
 public:
 
     using KeyType = Key;
+
     using ValueType = Value;
     using UpdateTagType = UpdateTag;
     using ElementId = std::tuple<std::string, long long int, long long int>;
@@ -227,21 +228,21 @@ public:
     Topic& operator=(Topic&&);
 
     /**
-     * Indicates whether or not topic writers are online.
+     * Indicates whether or not data writers are online.
      *
-     * @return True if topic writers are connected, false otherwise.
+     * @return True if data writers are connected, false otherwise.
      */
     bool hasWriters() const;
 
     /**
-     * Wait for given number of topic writers to be online.
+     * Wait for given number of data writers to be online.
      *
-     * @param count The number of topic writers to wait.
+     * @param count The number of date writers to wait.
      */
     void waitForWriters(unsigned int = 1) const;
 
     /**
-     * Wait for topic writers to be offline.
+     * Wait for data writers to be offline.
      */
     void waitForNoWriters() const;
 
@@ -253,21 +254,21 @@ public:
     void setWriterDefaultConfig(WriterConfig);
 
     /**
-     * Indicates whether or not topic readers are online.
+     * Indicates whether or not data readers are online.
      *
-     * @return True if topic readers are connected, false otherwise.
+     * @return True if data readers are connected, false otherwise.
      */
     bool hasReaders() const;
 
     /**
-     * Wait for given number of topic readers to be online.
+     * Wait for given number of data readers to be online.
      *
-     * @param count The number of topic readers to wait.
+     * @param count The number of data readers to wait.
      */
     void waitForReaders(unsigned int = 1) const;
 
     /**
-     * Wait for topic readers to be offline.
+     * Wait for data readers to be offline.
      */
     void waitForNoReaders() const;
 
@@ -561,7 +562,7 @@ public:
      * Construct a new reader for the given keys and sample filter criteria. The
      * construction of the reader connects the reader to writers with matching keys.
      *
-     * @param topic The topic reader.
+     * @param topic The topic.
      * @param keys The keys of the data elements to read.
      * @param sampleFilter The sample filter name.
      * @param sampleFilterCriteria The sample filter criteria.
