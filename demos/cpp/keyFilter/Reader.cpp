@@ -11,38 +11,45 @@ using namespace std;
 int
 main(int argc, char* argv[])
 {
-    //
-    // Instantiates DataStorm node.
-    //
-    DataStorm::Node node(argc, argv);
+    try
+    {
+        //
+        // Instantiates DataStorm node.
+        //
+        DataStorm::Node node(argc, argv, "config.reader");
 
-    //
-    // Instantiates the "hello" topic. The topic uses strings for keys and values.
-    //
-    DataStorm::Topic<string, string> topic(node, "hello");
+        //
+        // Instantiates the "hello" topic. The topic uses strings for keys and values.
+        //
+        DataStorm::Topic<string, string> topic(node, "hello");
 
-    //
-    // Configure readers to never clear the history. We want to receive all the
-    // samples written by the writers.
-    //
-    topic.setReaderDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
+        //
+        // Configure readers to never clear the history. We want to receive all the
+        // samples written by the writers.
+        //
+        topic.setReaderDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
 
-    //
-    // Instantiate a filtered reader for keys matching the foo[ace] regular expression.
-    //
-    auto reader = DataStorm::makeFilteredReader<string>(topic, "_regex", "foo[ace]");
+        //
+        // Instantiate a filtered reader for keys matching the foo[ace] regular expression.
+        //
+        auto reader = DataStorm::makeFilteredReader<string>(topic, "_regex", "foo[ace]");
 
-    //
-    // Get the samples published by the writers fooa, fooc and fooe.
-    //
-    auto sample = reader.getNextUnread();
-    cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
+        //
+        // Get the samples published by the writers fooa, fooc and fooe.
+        //
+        auto sample = reader.getNextUnread();
+        cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
 
-    sample = reader.getNextUnread();
-    cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
+        sample = reader.getNextUnread();
+        cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
 
-    sample = reader.getNextUnread();
-    cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
-
+        sample = reader.getNextUnread();
+        cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
+    }
+    catch(const std::exception& ex)
+    {
+        cerr << ex.what() << endl;
+        return 1;
+    }
     return 0;
 }

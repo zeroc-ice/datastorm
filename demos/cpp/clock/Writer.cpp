@@ -48,33 +48,40 @@ namespace DataStorm
 int
 main(int argc, char* argv[])
 {
-    //
-    // Instantiates node.
-    //
-    DataStorm::Node node(argc, argv);
-
-    //
-    // Asks for city name to publish updates
-    //
-    string city;
-    cout << "Please enter city name: ";
-    cin >> city;
-
-    //
-    // Instantiates the "time" topic.
-    //
-    DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
-
-    //
-    // Instantiate a writer to writer the time from the given city.
-    //
-    auto writer = DataStorm::makeSingleKeyWriter(topic, city);
-
-    while(true)
+    try
     {
-        writer.update(chrono::system_clock::now());
-        this_thread::sleep_for(chrono::seconds(1));
-    }
+        //
+        // Instantiates node.
+        //
+        DataStorm::Node node(argc, argv, "config.writer");
 
+        //
+        // Asks for city name to publish updates
+        //
+        string city;
+        cout << "Please enter city name: ";
+        cin >> city;
+
+        //
+        // Instantiates the "time" topic.
+        //
+        DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
+
+        //
+        // Instantiate a writer to writer the time from the given city.
+        //
+        auto writer = DataStorm::makeSingleKeyWriter(topic, city);
+
+        while(true)
+        {
+            writer.update(chrono::system_clock::now());
+            this_thread::sleep_for(chrono::seconds(1));
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        cerr << ex.what() << endl;
+        return 1;
+    }
     return 0;
 }

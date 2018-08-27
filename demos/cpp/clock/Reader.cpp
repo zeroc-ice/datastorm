@@ -46,43 +46,51 @@ namespace DataStorm
 int
 main(int argc, char* argv[])
 {
-    //
-    // Instantiates node.
-    //
-    DataStorm::Node node(argc, argv);
-
-    //
-    // Instantiates the "time" topic.
-    //
-    DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
-
-    //
-    // Instantiate a reader to read the time from all the topic cities.
-    //
-    auto reader = DataStorm::makeAnyKeyReader(topic);
-
-    //
-    // Wait for at least on writer to be online.
-    //
-    reader.waitForWriters();
-
-    //
-    // Prints out the received samples.
-    //
-    reader.onSample([](const DataStorm::Sample<string, chrono::system_clock::time_point>& sample)
+    try
     {
-        auto time = chrono::system_clock::to_time_t(sample.getValue());
-        char timeString[100];
-        if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
-        {
-            timeString[0] = '\0';
-        }
-        cout << "received time for `" << sample.getKey() << "': " << timeString << endl;
-    });
+        //
+        // Instantiates node.
+        //
+        DataStorm::Node node(argc, argv, "config.reader");
 
-    //
-    // Exit once no more writers are online
-    //
-    reader.waitForNoWriters();
+        //
+        // Instantiates the "time" topic.
+        //
+        DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
+
+        //
+        // Instantiate a reader to read the time from all the topic cities.
+        //
+        auto reader = DataStorm::makeAnyKeyReader(topic);
+
+        //
+        // Wait for at least on writer to be online.
+        //
+        reader.waitForWriters();
+
+        //
+        // Prints out the received samples.
+        //
+        reader.onSample([](const DataStorm::Sample<string, chrono::system_clock::time_point>& sample)
+        {
+            auto time = chrono::system_clock::to_time_t(sample.getValue());
+            char timeString[100];
+            if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
+            {
+                timeString[0] = '\0';
+            }
+            cout << "received time for `" << sample.getKey() << "': " << timeString << endl;
+        });
+
+        //
+        // Exit once no more writers are online
+        //
+        reader.waitForNoWriters();
+    }
+    catch(const std::exception& ex)
+    {
+        cerr << ex.what() << endl;
+        return 1;
+    }
     return 0;
 }

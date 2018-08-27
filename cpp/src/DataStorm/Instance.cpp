@@ -20,19 +20,19 @@ using namespace DataStormI;
 Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator)
 {
     shared_ptr<Ice::Properties> properties = _communicator->getProperties();
-    if(properties->getProperty("DataStormAdapter.Endpoints").empty())
+    if(properties->getProperty("DataStorm.Server.Endpoints").empty())
     {
-        properties->setProperty("DataStormAdapter.Endpoints", "tcp");
+        properties->setProperty("DataStorm.Server.Endpoints", "tcp");
     }
-    properties->setProperty("DataStormAdapter.ThreadPool.SizeMax", "1");
-    properties->setProperty("DataStormCollocated.AdapterId", IceUtil::generateUUID());
-    properties->setProperty("DataStormMulticast.Endpoints", "udp -h 239.255.0.1 -p 12345");
-    properties->setProperty("DataStormMulticast.ProxyOptions", "-d");
-    properties->setProperty("DataStormMulticast.ThreadPool.SizeMax", "1");
+    properties->setProperty("DataStorm.Server.ThreadPool.SizeMax", "1");
+    properties->setProperty("DataStorm.Collocated.AdapterId", IceUtil::generateUUID());
+    properties->setProperty("DataStorm.Multicast.Endpoints", "udp -h 239.255.0.1 -p 10000");
+    properties->setProperty("DataStorm.Multicast.ProxyOptions", "-d");
+    properties->setProperty("DataStorm.Multicast.ThreadPool.SizeMax", "1");
 
-    _adapter = _communicator->createObjectAdapter("DataStormAdapter");
-    _collocatedAdapter = _communicator->createObjectAdapter("DataStormCollocated");
-    _multicastAdapter = _communicator->createObjectAdapter("DataStormMulticast");
+    _adapter = _communicator->createObjectAdapter("DataStorm.Server");
+    _collocatedAdapter = _communicator->createObjectAdapter("DataStorm.Collocated");
+    _multicastAdapter = _communicator->createObjectAdapter("DataStorm.Multicast");
 
     _executor = make_shared<CallbackExecutor>();
     _sessionManager = make_shared<SessionManager>(_executor);

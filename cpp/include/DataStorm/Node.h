@@ -36,24 +36,37 @@ public:
     /**
      * Construct a DataStorm node.
      *
+     * This constructor parses the command line arguments into Ice properties and
+     * initialize a new Node. The constructor also initializes the Ice communicator.
+     * If the communicator creation fails, the Ice exception is raised.
+     *
+     * @param argc The number of command line arguments in the argv array.
+     * @param argv The command line arguments
+     * @param iceArgs Additonal arguments which are passed to the Ice::initialize
+     *                method in addition to the argc and argv arguments.
+     */
+    template<typename V, class... T>
+    Node(int& argc, V argv, T&&... iceArgs) :
+        _ownsCommunicator(true)
+    {
+        auto communicator = Ice::initialize(argc, argv, std::forward<T>(iceArgs)...);
+        auto args = Ice::argsToStringSeq(argc, argv);
+        communicator->getProperties()->parseCommandLineOptions("DataStorm", args);
+        Ice::stringSeqToArgs(args, argc, argv);
+        init(communicator);
+    }
+
+    /**
+     * Construct a DataStorm node.
+     *
      * A node is the main DataStorm object. It is required to construct topic readers or writers.
-     * The node uses the given Ice communicator if provided.
+     * The node uses the given Ice communicator if provided. If not provided, a communicator is
+     * created.
      *
      * @param communicator The Ice communicator used by the topic factory for its configuration
      *                     and communications.
      */
     Node(const std::shared_ptr<Ice::Communicator>& communicator = nullptr);
-
-    /**
-     * Construct a DataStorm node.
-     *
-     * This constructor parses the command line arguments into Ice properties and
-     * initialize a new Node.
-     *
-     * @param argc The number of command line arguments in the argv array.
-     * @param argv The command line arguments
-     */
-    Node(int& argc, char* argv[]);
 
     /**
      * Construct a new Node by taking ownership of the given node.
@@ -87,6 +100,8 @@ public:
     std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const;
 
 private:
+
+    void init(const std::shared_ptr<Ice::Communicator>&);
 
     std::shared_ptr<DataStormI::Instance> _instance;
     std::shared_ptr<DataStormI::TopicFactory> _factory;

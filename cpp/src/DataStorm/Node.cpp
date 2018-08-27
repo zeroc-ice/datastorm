@@ -17,20 +17,12 @@ using namespace DataStorm;
 Node::Node(const std::shared_ptr<Ice::Communicator>& communicator) :
     _ownsCommunicator(communicator == nullptr)
 {
-    _instance = make_shared<DataStormI::Instance>(communicator == nullptr ? Ice::initialize() : communicator);
-    _instance->init();
-
-    _factory = _instance->getTopicFactory();
+    init(communicator == nullptr ? Ice::initialize() : communicator);
 }
 
-Node::Node(int& argc, char* argv[]) :
-    _ownsCommunicator(true)
+void
+Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
 {
-    auto communicator = Ice::initialize(argc, argv);
-    auto args = Ice::argsToStringSeq(argc, argv);
-    communicator->getProperties()->parseCommandLineOptions("DataStorm", args);
-    Ice::stringSeqToArgs(args, argc, argv);
-
     _instance = make_shared<DataStormI::Instance>(communicator);
     _instance->init();
 

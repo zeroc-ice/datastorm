@@ -53,76 +53,83 @@ updateStock(DataStorm::KeyWriter<string, Stock>& stock)
 int
 main(int argc, char* argv[])
 {
-    //
-    // Instantiates node.
-    //
-    DataStorm::Node node(argc, argv);
-
-    //
-    // Instantiates the "stock" topic.
-    //
-    DataStorm::Topic<string, Stock> topic(node, "stocks");
-
-    //
-    // Setup partial update updaters. The updater is responsiable for updating the
-    // element value when a partial update is received. Updaters must be set on
-    // both the topic reader and writer.
-    //
-    topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
-    topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
-
-    //
-    // Setup few stocks
-    //
-    cout << "Available stocks: " << endl;
-    map<string, Stock> stocks {
-        { "GOOG", Stock("Google", 1040.61, 1035, 1043.178, 723018024728, 1035.96, 536996) },
-        { "AAPL", Stock("Apple", 174.74, 174.44, 175.50, 898350570640, 174.96, 14026673)},
-        { "FB", Stock("Facebook", 182.78, 180.29, 183.15,  531123722959, 180.87, 9426283)},
-        { "AMZN", Stock("Amazon", 1186.41, 1160.70, 1186.84, 571697967142, 1156.16, 3442959)},
-        { "MSFT", Stock("Microsoft", 83.27, 82.78, 83.43, 642393925538, 83.11, 6056186)}
-    };
-    for(const auto& stock : stocks)
+    try
     {
-        cout << stock.first << endl;
-    }
+        //
+        // Instantiates node.
+        //
+        DataStorm::Node node(argc, argv, "config.writer");
 
-    string stock;
-    cout << "Please enter the stock to publish (default = all):\n";
-    getline(cin, stock);
+        //
+        // Instantiates the "stock" topic.
+        //
+        DataStorm::Topic<string, Stock> topic(node, "stocks");
 
-    //
-    // Instantiate writers for the choosen stocks.
-    //
-    vector<DataStorm::KeyWriter<string, Stock>> writers;
-    if(stock.empty() || stock == "all")
-    {
+        //
+        // Setup partial update updaters. The updater is responsiable for updating the
+        // element value when a partial update is received. Updaters must be set on
+        // both the topic reader and writer.
+        //
+        topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
+        topic.setUpdater<int>("volume", [](Stock& stock, int volume) { stock.volume = volume; });
+
+        //
+        // Setup few stocks
+        //
+        cout << "Available stocks: " << endl;
+        map<string, Stock> stocks {
+            { "GOOG", Stock("Google", 1040.61, 1035, 1043.178, 723018024728, 1035.96, 536996) },
+            { "AAPL", Stock("Apple", 174.74, 174.44, 175.50, 898350570640, 174.96, 14026673)},
+            { "FB", Stock("Facebook", 182.78, 180.29, 183.15,  531123722959, 180.87, 9426283)},
+            { "AMZN", Stock("Amazon", 1186.41, 1160.70, 1186.84, 571697967142, 1156.16, 3442959)},
+            { "MSFT", Stock("Microsoft", 83.27, 82.78, 83.43, 642393925538, 83.11, 6056186)}
+        };
         for(const auto& stock : stocks)
         {
-            writers.push_back(makeStock(topic, stock.first, stock.second));
+            cout << stock.first << endl;
         }
-    }
-    else
-    {
-        if(stocks.find(stock) == stocks.end())
-        {
-            cout << "unknown stock `" << stock << "'" << endl;
-            return 1;
-        }
-        writers.push_back(makeStock(topic, stock, stocks[stock]));
-    }
 
-    //
-    // Update the stock value or volume attributes.
-    //
-    while(true)
-    {
-        this_thread::sleep_for(chrono::seconds(1));
-        for(auto& w : writers)
+        string stock;
+        cout << "Please enter the stock to publish (default = all):\n";
+        getline(cin, stock);
+
+        //
+        // Instantiate writers for the choosen stocks.
+        //
+        vector<DataStorm::KeyWriter<string, Stock>> writers;
+        if(stock.empty() || stock == "all")
         {
-            updateStock(w);
+            for(const auto& stock : stocks)
+            {
+                writers.push_back(makeStock(topic, stock.first, stock.second));
+            }
+        }
+        else
+        {
+            if(stocks.find(stock) == stocks.end())
+            {
+                cout << "unknown stock `" << stock << "'" << endl;
+                return 1;
+            }
+            writers.push_back(makeStock(topic, stock, stocks[stock]));
+        }
+
+        //
+        // Update the stock value or volume attributes.
+        //
+        while(true)
+        {
+            this_thread::sleep_for(chrono::seconds(1));
+            for(auto& w : writers)
+            {
+                updateStock(w);
+            }
         }
     }
-
+    catch(const std::exception& ex)
+    {
+        cerr << ex.what() << endl;
+        return 1;
+    }
     return 0;
 }
