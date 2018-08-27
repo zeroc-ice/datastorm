@@ -113,6 +113,7 @@
     <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.targets" />
     <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.targets" />
     <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.targets" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.targets') and '$(DATASTORM_BIN_DIST)' == 'all'" />
+    <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v141.0.1.0\build\native\zeroc.datastorm.v141.targets" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v141.0.1.0\build\native\zeroc.datastorm.v141.targets') and '$(DATASTORM_BIN_DIST)' == 'all'" />
     <Import Project="..\..\..\..\..\msbuild\packages\zeroc.icebuilder.msbuild.5.0.4\build\zeroc.icebuilder.msbuild.targets" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.icebuilder.msbuild.5.0.4\build\zeroc.icebuilder.msbuild.targets')" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
