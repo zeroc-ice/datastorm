@@ -2,7 +2,8 @@
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v140.3.7.1\build\native\zeroc.ice.v140.props" />
   <Import Project="..\..\..\..\..\msbuild\packages\zeroc.ice.v141.3.7.1\build\native\zeroc.ice.v141.props" />
-  <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props') and '$(DATASTORM_BIN_DIST)' == 'all'" />
+    <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v140.0.1.0\build\native\zeroc.datastorm.v140.props') and '$(DATASTORM_BIN_DIST)' == 'all'" />
+  <Import Project="..\..\..\..\..\msbuild\packages\zeroc.datastorm.v141.0.1.0\build\native\zeroc.datastorm.v141.props" Condition="Exists('..\..\..\..\..\msbuild\packages\zeroc.datastorm.v141.0.1.0\build\native\zeroc.datastorm.v141.props') and '$(DATASTORM_BIN_DIST)' == 'all'" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
