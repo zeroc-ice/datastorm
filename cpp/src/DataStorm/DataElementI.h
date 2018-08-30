@@ -77,7 +77,8 @@ private:
         {
             for(const auto& s : subscribers)
             {
-                if(!s.second->sampleFilter || s.second->sampleFilter->match(sample))
+                if((!s.second->filter || s.second->filter->match(sample->key)) &&
+                   (!s.second->sampleFilter || s.second->sampleFilter->match(sample)))
                 {
                     return true;
                 }
@@ -268,8 +269,7 @@ public:
     virtual void queue(const std::shared_ptr<Sample>&, int, const std::shared_ptr<SessionI>&, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&, bool) override;
 
-    virtual void onInit(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) override;
-    virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) override;
+    virtual void onSamples(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) override;
 
 protected:
 
@@ -283,8 +283,7 @@ protected:
     int _instanceCount;
     DataStorm::DiscardPolicy _discardPolicy;
     std::chrono::time_point<std::chrono::system_clock> _lastSendTime;
-    std::function<void(const std::vector<std::shared_ptr<Sample>>&)> _onInit;
-    std::function<void(const std::shared_ptr<Sample>&)> _onSample;
+    std::function<void(const std::vector<std::shared_ptr<Sample>>&)> _onSamples;
 };
 
 class DataWriterI : public DataElementI, public DataWriter

@@ -624,6 +624,7 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         {
             continue;
         }
+        assert(sample->key);
         valid.push_back(sample);
 
         if(!sample->hasValue())
@@ -646,9 +647,9 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
         out << this << ": discarded " << samples.size() - valid.size() << " samples from `" << element << '@' << topic << "'";
     }
 
-    if(_onInit)
+    if(_onSamples)
     {
-        _executor->queue(shared_from_this(), [this, valid] { _onInit(valid); });
+        _executor->queue(shared_from_this(), [this, valid] { _onSamples(valid); });
     }
 
     if(valid.empty())
@@ -766,9 +767,9 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
     }
     _lastSendTime = sample->timestamp;
 
-    if(_onSample)
+    if(_onSamples)
     {
-        _executor->queue(shared_from_this(), [this, sample] { _onSample(sample); });
+        _executor->queue(shared_from_this(), [this, sample] { _onSamples({ sample }); });
     }
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
@@ -812,17 +813,15 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
 }
 
 void
-DataReaderI::onInit(function<void(const vector<shared_ptr<Sample>>&)> callback)
+DataReaderI::onSamples(function<void(const vector<shared_ptr<Sample>>&)> callback)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onInit = move(callback);
-}
-
-void
-DataReaderI::onSample(function<void(const shared_ptr<Sample>&)> callback)
-{
-    unique_lock<mutex> lock(_parent->_mutex);
-    _onSample = move(callback);
+    _onSamples = move(callback);
+    if(_onSamples && !_samples.empty())
+    {
+        vector<shared_ptr<Sample>> samples(_samples.begin(), _samples.end());
+        _executor->queue(shared_from_this(), [this, samples] { _onSamples(samples); }, true);
+    }
 }
 
 bool
@@ -910,6 +909,7 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     {
         _samples.clear();
     }
+    assert(sample->key);
     _samples.push_back(sample);
     _last = sample;
 }

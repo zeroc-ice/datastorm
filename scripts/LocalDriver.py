@@ -410,7 +410,7 @@ class LocalDriver(Driver):
                     #
                     # Sort the test suites to run tests in the following order.
                     #
-                    runOrder = component.getRunOrder()
+                    runOrder = self.component.getRunOrder()
                     def testsuiteKey(testsuite):
                         for k in runOrder:
                             if testsuite.getId().startswith(k + '/'):
@@ -423,7 +423,7 @@ class LocalDriver(Driver):
                             continue
                         if testsuite.getId() == "Ice/echo":
                             continue
-                        elif (self.cross or self.allCross) and not component.isCross(testsuite.getId()):
+                        elif (self.cross or self.allCross) and not self.component.isCross(testsuite.getId()):
                             continue
                         elif isinstance(self.runner, RemoteTestCaseRunner) and not testsuite.isMultiHost():
                             continue
@@ -531,6 +531,10 @@ class LocalDriver(Driver):
 
             # Only run cross tests with allCross
             if self.allCross and cross == current.testcase.getMapping():
+                continue
+
+            # Skip if the cross test server mapping is another mapping than the cross mapping
+            if cross and cross != cross.getServerMapping():
                 continue
 
             # Skip if the mapping doesn't provide the test case

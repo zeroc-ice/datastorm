@@ -465,20 +465,12 @@ public:
     void onFilterDisconnect(std::function<void(WriterId, std::string)>);
 
     /**
-     * Calls the given lambda when a writer connects and provides its initialization
-     * samples. If a lambda is already set, it will be replaced with this new lambda.
+     * Calls the given lambda when samples are queued with this reader. If a
+     * lambda is already set, it will be replaced with this new lambda.
      *
-     * @param callback The lambda to call when initialization samples are received.
+     * @param callback The lambda to call when samples are received.
      **/
-    void onInit(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)>);
-
-    /**
-     * Calls the given lambda when a sample is queued with this reader. If
-     * a lambda is already set, it will be replaced with this new lambda.
-     *
-     * @param callback The lambda to call when a sample is queued.
-     **/
-    void onSample(std::function<void(Sample<Key, Value, UpdateTag>)>);
+    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)>);
 
 protected:
 
@@ -696,8 +688,8 @@ makeMultiKeyReader(Topic<K, V, UT>& topic,
 template<typename K, typename V, typename UT>
 std::shared_ptr<MultiKeyReader<K, V, UT>>
 makeSharedMultiKeyReader(Topic<K, V, UT>& topic,
-                   std::vector<typename Topic<K, V, UT>::KeyType> keys,
-                   ReaderConfig config = ReaderConfig())
+                         std::vector<typename Topic<K, V, UT>::KeyType> keys,
+                         ReaderConfig config = ReaderConfig())
 {
     return std::make_shared<MultiKeyReader<K, V, UT>>(topic, keys, config);
 }
@@ -1511,10 +1503,10 @@ Reader<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(WriterId, s
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onInit(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback)
+Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback)
 {
     auto communicator = _impl->getCommunicator();
-    _impl->onInit([communicator, callback](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
+    _impl->onSamples([communicator, callback](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
     {
         std::vector<Sample<Key, Value, UpdateTag>> samples;
         samples.reserve(samplesI.size());
@@ -1523,16 +1515,6 @@ Reader<Key, Value, UpdateTag>::onInit(std::function<void(std::vector<Sample<Key,
             samples.emplace_back(s);
         }
         callback(move(samples));
-    });
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onSample(std::function<void(Sample<Key, Value, UpdateTag>)> callback)
-{
-    auto communicator = _impl->getCommunicator();
-    _impl->onSample([communicator, callback](const std::shared_ptr<DataStormI::Sample>& sample)
-    {
-        callback(Sample<Key, Value, UpdateTag>(sample));
     });
 }
 

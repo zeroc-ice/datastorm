@@ -91,6 +91,7 @@ NodeI::destroy()
     _publisherSessions.clear();
     _instance->getForwarderManager()->remove(_subscriberForwarder->ice_getIdentity());
     _instance->getForwarderManager()->remove(_publisherForwarder->ice_getIdentity());
+    _instance->getCallbackExecutor()->destroy();
 }
 
 bool

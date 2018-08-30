@@ -176,8 +176,7 @@ public:
     virtual bool hasUnread() const = 0;
     virtual std::shared_ptr<Sample> getNextUnread() = 0;
 
-    virtual void onInit(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) = 0;
-    virtual void onSample(std::function<void(const std::shared_ptr<Sample>&)>) = 0;
+    virtual void onSamples(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) = 0;
 };
 
 class DataWriter : virtual public DataElement

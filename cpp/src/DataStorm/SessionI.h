@@ -182,7 +182,7 @@ protected:
             }
         }
 
-        std::map<long long int, std::pair<std::shared_ptr<Key>, std::set<long long int>>> keys;
+        std::map<long long int, std::pair<std::shared_ptr<Key>, std::map<long long int, int>>> keys;
         std::map<long long int, std::shared_ptr<Tag>> tags;
         int sessionInstanceId;
 

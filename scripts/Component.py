@@ -24,23 +24,13 @@ class DataStormCppMapping(CppMapping):
 
 class Ice(Component):
 
-    def useBinDist(self, mapping, current):
-        return True
-
     def getInstallDir(self, mapping, current):
         return Component._getInstallDir(self, mapping, current, "ICE_HOME")
 
-    def getNugetPackage(self, mapping, compiler):
-        return "zeroc.ice.{0}".format(compiler)
-
-    def getNugetPackageVersion(self, mapping):
-        return "3.7.1"
+    def getNugetPackageVersionFile(self, mapping):
+        return os.path.join(mapping.getPath(), "test", "DataStorm", "api", "msbuild", "writer", "packages.config")
 
 class DataStorm(Component):
-
-    def __init__(self):
-        self.nugetVersion = None
-        self.ice = Ice()
 
     def useBinDist(self, mapping, current):
         return Component._useBinDist(self, mapping, current, "DATASTORM_BIN_DIST")
@@ -50,23 +40,11 @@ class DataStorm(Component):
         envHomeName = None if isinstance(platform, Windows) else "DATASTORM_HOME"
         return Component._getInstallDir(self, mapping, current, envHomeName)
 
-    def getNugetPackage(self, mapping, compiler):
-        return "zeroc.datastorm.{0}".format(compiler)
-
-    def getNugetPackageVersion(self, mapping):
-        if not self.nugetVersion:
-            with open(os.path.join(toplevel, "cpp", "msbuild", "zeroc.datastorm.v140.nuspec"), "r") as configFile:
-                self.nugetVersion = re.search("<version>(.*)</version>", configFile.read()).group(1)
-        return self.nugetVersion
+    def getNugetPackageVersionFile(self, mapping):
+        return os.path.join(mapping.getPath(), "test", "DataStorm", "api", "msbuild", "writer", "packages.config")
 
     def getDefaultSource(self, mapping, processType):
         return { "client" : "Writer.cpp", "server" : "Reader.cpp" }[processType]
-
-    def getDefaultProcesses(self, mapping, processType, testId):
-        return { "client": [ Writer() ], "server": [ Reader() ] }[processType] if processType else None
-
-    def getDefaultExe(self, mapping, processType, config):
-        return { "client" : "writer", "server" : "reader" }[processType]
 
 component = DataStorm()
 ice = Ice()
@@ -74,4 +52,4 @@ ice = Ice()
 #
 # Supported mappings
 #
-Mapping.add("cpp", DataStormCppMapping())
+Mapping.add("cpp", DataStormCppMapping(), component)

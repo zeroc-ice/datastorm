@@ -485,11 +485,11 @@ TopicI::attachElementsAck(long long int topicId,
                             function<void()> initCb;
                             if(spec.id < 0) // Filter
                             {
-                                e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
+                                initCb = e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
                             }
                             else if(filter->match(key))
                             {
-                                e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
+                                initCb = e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
                             if(initCb)
                             {
@@ -505,7 +505,7 @@ TopicI::attachElementsAck(long long int topicId,
 
     //
     // Initialize samples on data elements once all the elements have been attached. This is
-    // import for the priority configuration in case 2 writers with different priorities are
+    // important for the priority configuration in case 2 writers with different priorities are
     // attached from the same session.
     //
     for(auto initCb : initCallbacks)

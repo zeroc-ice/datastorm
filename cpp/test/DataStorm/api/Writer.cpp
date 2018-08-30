@@ -140,8 +140,7 @@ main(int argc, char* argv[])
             reader.onKeyDisconnect([](Topic<string, string>::WriterId, string) {});
             reader.onFilterConnect([](Topic<string, string>::WriterId, string) {});
             reader.onFilterDisconnect([](Topic<string, string>::WriterId, string) {});
-            reader.onInit([](vector<Sample<string, string>> samples) {});
-            reader.onSample([](Sample<string, string> sample) {});
+            reader.onSamples([](vector<Sample<string, string>> samples) {});
         };
 
         auto skr = makeSingleKeyReader(topic, "key");

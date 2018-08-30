@@ -420,6 +420,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                     {
                         key = topic->getKeyFactory()->decode(_instance->getCommunicator(), s.keyValue);
                     }
+                    assert(key);
 
                     samplesI.push_back(sampleFactory->create(_id,
                                                              topicId,
@@ -436,8 +437,11 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                     if(!ks.second.initialized)
                     {
                         ks.second.initialized = true;
-                        ks.second.lastId = samplesI.empty() ? 0 : samplesI.back()->id;
-                        ks.first->initSamples(samplesI, topicId, samples.id, k->priority, now, samples.id < 0);
+                        if(!samplesI.empty())
+                        {
+                            ks.second.lastId = samplesI.back()->id;
+                            ks.first->initSamples(samplesI, topicId, samples.id, k->priority, now, samples.id < 0);
+                        }
                     }
                 }
             }
@@ -710,7 +714,7 @@ SessionI::subscribeToKey(long long topicId, long long int elementId, const std::
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": subscribed element `e" << elementId << '@' << topicId << "' to `" << element << "'";
+        out << _id << ": subscribed element `e" << elementId << '[' << keyId << "]@" << topicId << "' to `" << element << "'";
         if(!facet.empty())
         {
             out << " (facet=" << facet << ')';
@@ -724,7 +728,7 @@ SessionI::subscribeToKey(long long topicId, long long int elementId, const std::
     {
         p.first = key;
     }
-    p.second.insert(elementId);
+    ++p.second[elementId];
 }
 
 void
@@ -739,16 +743,23 @@ SessionI::unsubscribeFromKey(long long topicId, long long int elementId, const s
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
+            out << _id << ": unsubscribed element `e" << elementId << '[' << keyId << "]@" << topicId << "' from `" << element << "'";
         }
         k->removeSubscriber(element);
+        if(k->getSubscribers().empty())
+        {
+            subscriber.remove(elementId);
+        }
     }
 
     auto& p = subscriber.keys[keyId];
-    p.second.erase(elementId);
-    if(p.second.empty())
+    if(--p.second[elementId] == 0)
     {
-        subscriber.keys.erase(keyId);
+        p.second.erase(elementId);
+        if(p.second.empty())
+        {
+            subscriber.keys.erase(keyId);
+        }
     }
 }
 
@@ -799,6 +810,10 @@ SessionI::unsubscribeFromFilter(long long topicId, long long int elementId, cons
             out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
         }
         f->removeSubscriber(element);
+        if(f->getSubscribers().empty())
+        {
+            subscriber.remove(-elementId);
+        }
     }
 }
 
@@ -824,9 +839,9 @@ SessionI::getLastIds(long long topicId, long long int keyId, const std::shared_p
     if(p != _topics.end())
     {
         auto& subscriber = p->second.getSubscriber(element->getTopic());
-        for(auto id : subscriber.keys[keyId].second)
+        for(auto q : subscriber.keys[keyId].second)
         {
-            lastIds.emplace(id, subscriber.get(id)->getSubscriber(element)->lastId);
+            lastIds.emplace(q.first, subscriber.get(q.first)->getSubscriber(element)->lastId);
         }
     }
     return lastIds;
@@ -858,7 +873,7 @@ SessionI::subscriberInitialized(long long int topicId,
     auto keyFactory = element->getTopic()->getKeyFactory();
     for(auto& s : samples)
     {
-        assert(!key || key == subscriber.keys[s.keyId].first);
+        assert(!key && !s.keyValue.empty() || key == subscriber.keys[s.keyId].first);
 
         samplesI.push_back(sampleFactory->create(_id,
                                                  topicId,
@@ -869,6 +884,7 @@ SessionI::subscriberInitialized(long long int topicId,
                                                  subscriber.tags[s.tag],
                                                  s.value,
                                                  s.timestamp));
+        assert(samplesI.back()->key);
     }
     return samplesI;
 }
@@ -984,7 +1000,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
         if(current.con != _connection)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": discarding sample `" << s.id << "' from `" << elementId << '@' << topicId << "'";
+            out << _id << ": discarding sample `" << s.id << "' from `e" << elementId << '@' << topicId << "'";
             out << current.con->toString() << " " << (_connection ? _connection->toString() : "null");
         }
         return;
@@ -993,12 +1009,12 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
     runWithTopics(topicId, [&](TopicI* topic, TopicSubscriber& subscriber, TopicSubscribers& topicSubscribers)
     {
         auto e = subscriber.get(elementId);
-        if(e)
+        if(e && !e->getSubscribers().empty())
         {
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": queuing sample `" << s.id << "' from `" << elementId << '@' << topicId << "'";
+                out << _id << ": queuing sample `" << s.id << '[' << s.keyId << "]' from `e" << elementId << '@' << topicId << "'";
                 if(!current.facet.empty())
                 {
                     out << " facet=" << current.facet;
@@ -1028,6 +1044,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
             {
                 key = topic->getKeyFactory()->decode(_instance->getCommunicator(), s.keyValue);
             }
+            assert(key);
 
             auto impl = topic->getSampleFactory()->create(_id,
                                                           topicId,
