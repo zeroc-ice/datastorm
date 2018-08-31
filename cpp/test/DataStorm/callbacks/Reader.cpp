@@ -38,6 +38,7 @@ main(int argc, char* argv[])
                 p.set_value();
             });
             p.get_future().wait();
+            while(writers.getNextUnread().getValue());
         }
         {
             auto reader = makeSingleKeyReader(topic, "elem2", config);
@@ -59,6 +60,7 @@ main(int argc, char* argv[])
                 p.set_value();
             });
             p.get_future().wait();
+            while(writers.getNextUnread().getValue());
         }
     }
 

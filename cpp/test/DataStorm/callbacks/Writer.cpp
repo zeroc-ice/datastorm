@@ -33,8 +33,8 @@ main(int argc, char* argv[])
             writer.add("value1");
             writers.update(true);
             writer.waitForReaders();
-            writer.waitForNoReaders();
             writers.update(false);
+            writer.waitForNoReaders();
         }
         {
             auto writer = makeSingleKeyWriter(topic, "elem2", config);
@@ -49,8 +49,8 @@ main(int argc, char* argv[])
             writer.remove();
             writers.update(true);
             writer.waitForReaders();
-            writer.waitForNoReaders();
             writers.update(false);
+            writer.waitForNoReaders();
         }
     }
     cout << "ok" << endl;
