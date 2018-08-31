@@ -245,20 +245,40 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                 }
             }
 
-            auto p = _filteredElements.find(alwaysMatchFilter);
-            if(p != _filteredElements.end())
+            if(filter == alwaysMatchFilter)
             {
-                ElementDataSeq elements;
-                for(auto f : p->second)
+                for(auto e : _filteredElements)
                 {
-                    elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                    ElementDataSeq elements;
+                    for(auto f : e.second)
+                    {
+                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                    }
+                    specs.push_back({ move(elements),
+                                      -e.first->getId(),
+                                      e.first->getName(),
+                                      e.first->encode(_instance->getCommunicator()),
+                                      info.id,
+                                      info.name });
                 }
-                specs.push_back({ move(elements),
-                                  -alwaysMatchFilter->getId(),
-                                  alwaysMatchFilter->getName(),
-                                  alwaysMatchFilter->encode(_instance->getCommunicator()),
-                                  info.id,
-                                  info.name });
+            }
+            else
+            {
+                auto p = _filteredElements.find(alwaysMatchFilter);
+                if(p != _filteredElements.end())
+                {
+                    ElementDataSeq elements;
+                    for(auto f : p->second)
+                    {
+                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                    }
+                    specs.push_back({ move(elements),
+                                      -alwaysMatchFilter->getId(),
+                                      alwaysMatchFilter->getName(),
+                                      alwaysMatchFilter->encode(_instance->getCommunicator()),
+                                      info.id,
+                                      info.name });
+                }
             }
         }
     }

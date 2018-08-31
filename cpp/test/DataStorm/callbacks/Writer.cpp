@@ -38,8 +38,8 @@ main(int argc, char* argv[])
         }
         {
             auto writer = makeSingleKeyWriter(topic, "elem2", config);
-            writer.add("value1");
             writer.waitForReaders();
+            writer.add("value1");
             writer.waitForNoReaders();
         }
         {
