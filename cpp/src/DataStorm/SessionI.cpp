@@ -873,7 +873,7 @@ SessionI::subscriberInitialized(long long int topicId,
     auto keyFactory = element->getTopic()->getKeyFactory();
     for(auto& s : samples)
     {
-        assert(!key && !s.keyValue.empty() || key == subscriber.keys[s.keyId].first);
+        assert((!key && !s.keyValue.empty()) || key == subscriber.keys[s.keyId].first);
 
         samplesI.push_back(sampleFactory->create(_id,
                                                  topicId,
