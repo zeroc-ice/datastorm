@@ -29,12 +29,11 @@ main(int argc, char* argv[])
     cout << "testing onSamples... " << flush;
     {
         {
+            writers.update(false);
             auto writer = makeSingleKeyWriter(topic, "elem1", config);
             writer.add("value1");
             writers.update(true);
-            writer.waitForReaders();
-            writers.update(false);
-            writer.waitForNoReaders();
+            while(!readers.getNextUnread().getValue());
         }
         {
             auto writer = makeSingleKeyWriter(topic, "elem2", config);
@@ -43,14 +42,13 @@ main(int argc, char* argv[])
             writer.waitForNoReaders();
         }
         {
+            writers.update(false);
             auto writer = makeSingleKeyWriter(topic, "elem3", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
             writers.update(true);
-            writer.waitForReaders();
-            writers.update(false);
-            writer.waitForNoReaders();
+            while(!readers.getNextUnread().getValue());
         }
     }
     cout << "ok" << endl;

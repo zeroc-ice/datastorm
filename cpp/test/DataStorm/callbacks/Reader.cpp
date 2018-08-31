@@ -29,6 +29,7 @@ main(int argc, char* argv[])
     // onSamples
     {
         {
+            readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", config);
             while(!writers.getNextUnread().getValue());
             promise<void> p;
@@ -38,7 +39,7 @@ main(int argc, char* argv[])
                 p.set_value();
             });
             p.get_future().wait();
-            while(writers.getNextUnread().getValue());
+            readers.update(true);
         }
         {
             auto reader = makeSingleKeyReader(topic, "elem2", config);
@@ -51,6 +52,7 @@ main(int argc, char* argv[])
             p.get_future().wait();
         }
         {
+            readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem3", config);
             while(!writers.getNextUnread().getValue());
             promise<void> p;
@@ -60,7 +62,7 @@ main(int argc, char* argv[])
                 p.set_value();
             });
             p.get_future().wait();
-            while(writers.getNextUnread().getValue());
+            readers.update(true);
         }
     }
 
