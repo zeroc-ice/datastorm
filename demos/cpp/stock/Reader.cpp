@@ -101,7 +101,7 @@ main(int argc, char* argv[])
                     cout << "Volume: " << value.volume << endl;
                     cout << endl;
                 }
-                if(s.getEvent() == DataStorm::SampleEvent::PartialUpdate)
+                else if(s.getEvent() == DataStorm::SampleEvent::PartialUpdate)
                 {
                     if(s.getUpdateTag() == "price")
                     {

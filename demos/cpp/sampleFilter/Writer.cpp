@@ -30,9 +30,10 @@ main(int argc, char* argv[])
         topic.setWriterDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
 
         //
-        // Instantiate the foo writer.
+        // Instantiate the foo writer and wait for a reader to connect.
         //
         auto writer = DataStorm::makeSingleKeyWriter(topic, "foo");
+        topic.waitForReaders();
 
         //
         // Publish samples
@@ -44,9 +45,8 @@ main(int argc, char* argv[])
         writer.update("good afternoon");
 
         //
-        // Wait for a reader to connect and then disconnect.
+        // Wait for readers to disconnect.
         //
-        topic.waitForReaders();
         topic.waitForNoReaders();
     }
     catch(const std::exception& ex)

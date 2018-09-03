@@ -33,6 +33,11 @@ main(int argc, char* argv[])
         auto writere = DataStorm::makeSingleKeyWriter(topic, "fooe");
 
         //
+        // Wait for a reader to connect
+        //
+        topic.waitForReaders();
+
+        //
         // Publish a sample on each writer.
         //
         writera.update("hello");
@@ -42,9 +47,8 @@ main(int argc, char* argv[])
         writere.update("hello");
 
         //
-        // Wait for a reader to connect and then disconnect.
+        // Wait for readers to disconnect.
         //
-        topic.waitForReaders();
         topic.waitForNoReaders();
     }
     catch(const std::exception& ex)

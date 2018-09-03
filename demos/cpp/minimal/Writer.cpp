@@ -24,9 +24,10 @@ main(int argc, char* argv[])
         DataStorm::Topic<string, string> topic(node, "hello");
 
         //
-        // Instantiate a writer with the key "foo".
+        // Instantiate a writer with the key "foo" and wait for a reader to connect.
         //
         auto writer = DataStorm::makeSingleKeyWriter(topic, "foo");
+        writer.waitForReaders();
 
         //
         // Publish a sample.
@@ -34,9 +35,8 @@ main(int argc, char* argv[])
         writer.update("hello");
 
         //
-        // Wait for a reader to connect and then disconnect.
+        // Wait for the reader to disconnect.
         //
-        writer.waitForReaders();
         writer.waitForNoReaders();
     }
     catch(const std::exception& ex)
