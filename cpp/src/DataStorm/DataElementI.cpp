@@ -174,7 +174,10 @@ DataElementI::attachKey(long long int topicId,
     auto subscriber = p->second.addOrGet(topicId, elementId, keyId, nullptr, sampleFilter, priority);
     if(addConnectedKey(key, subscriber))
     {
-        ++subscriber->keyCount;
+        if(key)
+        {
+            subscriber->keys.insert(key);
+        }
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
@@ -219,7 +222,11 @@ DataElementI::detachKey(long long int topicId,
     auto subscriber = p->second.get(topicId, elementId);
     if(removeConnectedKey(key, subscriber))
     {
-        if(--subscriber->keyCount == 0 && p->second.remove(topicId, elementId))
+        if(key)
+        {
+            subscriber->keys.erase(key);
+        }
+        if(subscriber->keys.empty() && p->second.remove(topicId, elementId))
         {
             _listeners.erase(p);
         }
@@ -272,7 +279,10 @@ DataElementI::attachFilter(long long int topicId,
     auto subscriber = p->second.addOrGet(topicId, -elementId, filterId, filter, sampleFilter, priority);
     if(addConnectedKey(key, subscriber))
     {
-        ++subscriber->keyCount;
+        if(key)
+        {
+            subscriber->keys.insert(key);
+        }
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
@@ -317,7 +327,11 @@ DataElementI::detachFilter(long long int topicId,
     auto subscriber = p->second.get(topicId, -elementId);
     if(removeConnectedKey(key, subscriber))
     {
-        if(--subscriber->keyCount == 0 && p->second.remove(topicId, elementId))
+        if(key)
+        {
+            subscriber->keys.erase(key);
+        }
+        if(subscriber->keys.empty() && p->second.remove(topicId, elementId))
         {
             _listeners.erase(p);
         }
@@ -530,7 +544,8 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
 {
     for(const auto& listener : _listeners)
     {
-        if(!_sample || listener.second.matchOne(_sample)) // If there's at least one subscriber interested in the update
+        // If there's at least one subscriber interested in the update
+        if(!_sample || listener.second.matchOne(_sample, false))
         {
             listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
         }
@@ -1157,6 +1172,19 @@ KeyDataWriterI::send(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
     _sample->key = key ? key : _keys[0];
     _subscribers->s(_parent->getId(), _keys.empty() ? -_id : _id, toSample(sample, getCommunicator(), _keys.empty()));
     _sample = nullptr;
+}
+
+void
+KeyDataWriterI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
+{
+    for(const auto& listener : _listeners)
+    {
+        // If there's at least one subscriber interested in the update (check the key if any writer)
+        if(!_sample || listener.second.matchOne(_sample, _keys.empty()))
+        {
+            listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+        }
+    }
 }
 
 FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,

@@ -29,6 +29,10 @@ main(int argc, char* argv[])
         Node n2(Ice::initialize());
         n2.getCommunicator()->destroy();
 
+        auto c = Ice::initialize();
+        Node n22(c);
+        c->destroy();
+
         Node n3(Ice::InitializationData {});
 
         try

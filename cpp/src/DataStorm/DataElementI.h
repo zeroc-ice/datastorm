@@ -32,17 +32,18 @@ protected:
         Subscriber(long long int id,
                    const std::shared_ptr<Filter>& filter,
                    const std::shared_ptr<Filter>& sampleFilter,
-                   int priority) : id(id), filter(filter), sampleFilter(sampleFilter), priority(priority), keyCount(0)
+                   int priority) :
+            id(id), filter(filter), sampleFilter(sampleFilter), priority(priority)
         {
         }
 
         long long int topicId;
         long long int elementId;
         long long int id;
+        std::set<std::shared_ptr<Key>> keys;
         std::shared_ptr<Filter> filter;
         std::shared_ptr<Filter> sampleFilter;
         int priority;
-        int keyCount;
     };
 
 private:
@@ -73,11 +74,12 @@ private:
         {
         }
 
-        bool matchOne(const std::shared_ptr<Sample>& sample) const
+        bool matchOne(const std::shared_ptr<Sample>& sample, bool matchKey) const
         {
             for(const auto& s : subscribers)
             {
-                if((!s.second->filter || s.second->filter->match(sample->key)) &&
+                if((!matchKey || s.second->keys.empty() || s.second->keys.find(sample->key) != s.second->keys.end()) &&
+                   (!s.second->filter || s.second->filter->match(sample->key)) &&
                    (!s.second->sampleFilter || s.second->sampleFilter->match(sample)))
                 {
                     return true;
@@ -234,13 +236,13 @@ protected:
     std::shared_ptr<DataStormContract::ElementConfig> _config;
     std::shared_ptr<CallbackExecutor> _executor;
     std::map<std::shared_ptr<Key>, std::vector<std::shared_ptr<Subscriber>>> _connectedKeys;
+    std::map<ListenerKey, Listener> _listeners;
 
 private:
 
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
     std::shared_ptr<TopicI> _parent;
-    std::map<ListenerKey, Listener> _listeners;
     mutable size_t _waiters;
     mutable size_t _notified;
 
@@ -351,6 +353,7 @@ public:
 private:
 
     virtual void send(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) const override;
+    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
     const std::vector<std::shared_ptr<Key>> _keys;
 };

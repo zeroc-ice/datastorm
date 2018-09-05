@@ -1324,8 +1324,7 @@ makeSharedSingleKeyWriter(const Topic<K, V, UT>& topic,
  * @param keys The keys.
  * @param config The optional writer configuration.
  */
-template<typename K, typename V, typename UT>
-MultiKeyWriter<K, V, UT>
+template<typename K, typename V, typename UT> MultiKeyWriter<K, V, UT>
 makeMultiKeyWriter(const Topic<K, V, UT>& topic,
                    const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                    const WriterConfig& config = WriterConfig())
@@ -1342,8 +1341,7 @@ makeMultiKeyWriter(const Topic<K, V, UT>& topic,
  * @param keys The keys.
  * @param config The optional writer configuration.
  */
-template<typename K, typename V, typename UT>
-std::shared_ptr<MultiKeyWriter<K, V, UT>>
+template<typename K, typename V, typename UT> std::shared_ptr<MultiKeyWriter<K, V, UT>>
 makeSharedMultiKeyWriter(const Topic<K, V, UT>& topic,
                          const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                          const WriterConfig& config = WriterConfig())
