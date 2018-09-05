@@ -25,6 +25,21 @@ main(int argc, char* argv[])
         auto nm2 = move(nm);
         nm2.getCommunicator();
         nm2.getSessionConnection("s");
+
+        Node n2(Ice::initialize());
+        n2.getCommunicator()->destroy();
+
+        Node n3(Ice::InitializationData {});
+
+        try
+        {
+            Node n4(argc, argv, "config.file");
+        }
+        catch(const Ice::FileException&)
+        {
+        }
+
+        Node n5(argc, argv, Ice::InitializationData {});
     }
     cout << endl;
 

@@ -36,18 +36,31 @@ public:
     /**
      * Construct a DataStorm node.
      *
+     * A node is the main DataStorm object. It is required to construct topics.
+     * The node uses the given Ice communicator if provided. If not provided, a
+     * default communicator is created.
+     *
+     * @param communicator The Ice communicator used by the topic factory for
+     *                     its configuration and communications.
+     */
+    Node(std::shared_ptr<Ice::Communicator> communicator = nullptr);
+
+    /**
+     * Construct a DataStorm node.
+     *
+     * A node is the main DataStorm object. It is required to construct topics.
      * This constructor parses the command line arguments into Ice properties and
-     * initialize a new Node. The constructor also initializes the Ice communicator.
-     * If the communicator creation fails, the Ice exception is raised.
+     * initialize a new Node. The constructor initializes the Ice communicator
+     * using the given Ice arguments. If the communicator creation fails, an Ice
+     * exception is raised.
      *
      * @param argc The number of command line arguments in the argv array.
      * @param argv The command line arguments
      * @param iceArgs Additonal arguments which are passed to the Ice::initialize
-     *                method in addition to the argc and argv arguments.
+     *                function in addition to the argc and argv arguments.
      */
     template<typename V, class... T>
-    Node(int& argc, V argv, T&&... iceArgs) :
-        _ownsCommunicator(true)
+    Node(int& argc, V argv, T&&... iceArgs) : _ownsCommunicator(true)
     {
         auto communicator = Ice::initialize(argc, argv, std::forward<T>(iceArgs)...);
         auto args = Ice::argsToStringSeq(argc, argv);
@@ -59,24 +72,29 @@ public:
     /**
      * Construct a DataStorm node.
      *
-     * A node is the main DataStorm object. It is required to construct topic readers or writers.
-     * The node uses the given Ice communicator if provided. If not provided, a communicator is
-     * created.
+     * A node is the main DataStorm object. It is required to construct topics.
+     * The constructor initializes the Ice communicator using the given arguments.
+     * If the communicator creation fails, an Ice exception is raised.
      *
-     * @param communicator The Ice communicator used by the topic factory for its configuration
-     *                     and communications.
+     * @param iceArgs Arguments which are passed to the Ice::initialize function.
      */
-    Node(const std::shared_ptr<Ice::Communicator>& communicator = nullptr);
+    template<class... T>
+    Node(T&&... iceArgs) : _ownsCommunicator(true)
+    {
+        init(Ice::initialize(std::forward<T>(iceArgs)...));
+    }
 
     /**
      * Construct a new Node by taking ownership of the given node.
      *
      * @param node The node to transfer ownership from.
      */
-    Node(Node&&);
+    Node(Node&& node);
 
     /**
      * Destruct the node. The node destruction releases associated resources.
+     * If the node created the Ice communicator, the communicator is destroyed.
+     *
      */
     ~Node();
 
@@ -85,7 +103,7 @@ public:
      *
      * @param node The node.
      **/
-    Node& operator=(Node&&);
+    Node& operator=(Node&& node);
 
     /**
      * Returns the Ice communicator associated with the node.
@@ -93,9 +111,12 @@ public:
     std::shared_ptr<Ice::Communicator> getCommunicator() const;
 
     /**
-     * Returns the Ice connection associated with a session.
+     * Returns the Ice connection associated with a session given a session
+     * identifir. Session identifiers are provided with the sample origin
+     * data member as the first tuple element.
      *
      * @param ident The session identifier.
+     * @see DataStorm::Sample::ElementId DataStorm::Sample::getOrigin
      */
     std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const;
 

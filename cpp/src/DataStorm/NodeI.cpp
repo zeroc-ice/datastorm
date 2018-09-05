@@ -85,6 +85,10 @@ void
 NodeI::destroy()
 {
     unique_lock<mutex> lock(_mutex);
+    //
+    // TODO: destroy explicitly the sessions? The communicator might not be destroyed
+    // at this point if it's not owned by the node.
+    //
     _subscribers.clear();
     _publishers.clear();
     _subscriberSessions.clear();
