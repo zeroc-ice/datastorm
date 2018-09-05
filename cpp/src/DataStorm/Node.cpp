@@ -15,9 +15,9 @@ using namespace std;
 using namespace DataStorm;
 
 Node::Node(std::shared_ptr<Ice::Communicator> communicator) :
-    _ownsCommunicator(communicator == nullptr)
+    _ownsCommunicator(false)
 {
-    init(communicator == nullptr ? Ice::initialize() : communicator);
+    init(communicator);
 }
 
 void

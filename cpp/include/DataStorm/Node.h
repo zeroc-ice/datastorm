@@ -37,13 +37,12 @@ public:
      * Construct a DataStorm node.
      *
      * A node is the main DataStorm object. It is required to construct topics.
-     * The node uses the given Ice communicator if provided. If not provided, a
-     * default communicator is created.
+     * The node uses the given Ice communicator.
      *
      * @param communicator The Ice communicator used by the topic factory for
      *                     its configuration and communications.
      */
-    Node(std::shared_ptr<Ice::Communicator> communicator = nullptr);
+    Node(std::shared_ptr<Ice::Communicator> communicator);
 
     /**
      * Construct a DataStorm node.
