@@ -66,5 +66,11 @@ Instance::destroy(bool ownsCommunicator)
     {
         _communicator->destroy();
     }
+    else
+    {
+        _adapter->destroy();
+        _collocatedAdapter->destroy();
+        _multicastAdapter->destroy();
+    }
     _node->destroy();
 }
