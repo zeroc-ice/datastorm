@@ -910,6 +910,22 @@ TopicReaderI::parseConfig(const string& prefix) const
     DataStorm::ReaderConfig config;
     auto properties = _instance->getCommunicator()->getProperties()->getPropertiesForPrefix(prefix);
     parseConfigImpl(properties, prefix, config);
+    auto p = properties.find(prefix + ".DiscardPolicy");
+    if(p != properties.end())
+    {
+        if(p->second == "None")
+        {
+            config.discardPolicy = DataStorm::DiscardPolicy::None;
+        }
+        else if(p->second == "SendTime")
+        {
+            config.discardPolicy = DataStorm::DiscardPolicy::SendTime;
+        }
+        else if(p->second == "SendTime")
+        {
+            config.discardPolicy = DataStorm::DiscardPolicy::Priority;
+        }
+    }
     return config;
 }
 
@@ -1021,6 +1037,14 @@ TopicWriterI::parseConfig(const string& prefix) const
     DataStorm::WriterConfig config;
     auto properties = _instance->getCommunicator()->getProperties()->getPropertiesForPrefix(prefix);
     parseConfigImpl(properties, prefix, config);
+    auto p = properties.find(prefix + ".Priority");
+    if(p != properties.end())
+    {
+        istringstream is(p->second);
+        int priority;
+        is >> priority;
+        config.priority = priority;
+    }
     return config;
 }
 

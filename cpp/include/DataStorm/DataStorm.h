@@ -729,8 +729,7 @@ makeSharedSingleKeyReader(const Topic<K, V, UT>& topic,
  * @param keys The keys.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename UT>
-MultiKeyReader<K, V, UT>
+template<typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
 makeMultiKeyReader(const Topic<K, V, UT>& topic,
                    const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                    const ReaderConfig& config = ReaderConfig())
@@ -748,8 +747,7 @@ makeMultiKeyReader(const Topic<K, V, UT>& topic,
  * @param keys The keys.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename UT>
-std::shared_ptr<MultiKeyReader<K, V, UT>>
+template<typename K, typename V, typename UT> std::shared_ptr<MultiKeyReader<K, V, UT>>
 makeSharedMultiKeyReader(const Topic<K, V, UT>& topic,
                          const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                          const ReaderConfig& config = ReaderConfig())
@@ -770,8 +768,30 @@ makeSharedMultiKeyReader(const Topic<K, V, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename UT>
-std::shared_ptr<MultiKeyReader<K, V, UT>>
+template<typename SFC, typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
+makeMultiKeyReader(const Topic<K, V, UT>& topic,
+                   const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
+                   const std::string& sampleFilter,
+                   const SFC& sampleFilterCriteria,
+                   const ReaderConfig& config = ReaderConfig())
+{
+    return MultiKeyReader<K, V, UT>(topic, keys, sampleFilter, sampleFilterCriteria, config);
+}
+
+/**
+ * Creates a multi-key reader for the given topic and using the given sample filter
+ * criteria type. This helper method deduces the topic Key and Value types from the
+ * topic argument.
+ *
+ * The reader will only receive samples for the given set of keys.
+ *
+ * @param topic The topic.
+ * @param keys The keys.
+ * @param sampleFilter The sample filter name.
+ * @param sampleFilterCriteria The sample filter criteria.
+ * @param config The optional reader configuration.
+ */
+template<typename SFC, typename K, typename V, typename UT> std::shared_ptr<MultiKeyReader<K, V, UT>>
 makeSharedMultiKeyReader(const Topic<K, V, UT>& topic,
                          const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                          const std::string& sampleFilter,
@@ -790,8 +810,7 @@ makeSharedMultiKeyReader(const Topic<K, V, UT>& topic,
  * @param topic The topic.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename UT>
-MultiKeyReader<K, V, UT>
+template<typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
 makeAnyKeyReader(const Topic<K, V, UT>& topic, const ReaderConfig& config = ReaderConfig())
 {
     return MultiKeyReader<K, V, UT>(topic, {}, config);
@@ -806,8 +825,7 @@ makeAnyKeyReader(const Topic<K, V, UT>& topic, const ReaderConfig& config = Read
  * @param topic The topic.
  * @param config The optional reader configuration.
  */
-template<typename K, typename V, typename UT>
-std::shared_ptr<MultiKeyReader<K, V, UT>>
+template<typename K, typename V, typename UT> std::shared_ptr<MultiKeyReader<K, V, UT>>
 makeSharedAnyKeyReader(const Topic<K, V, UT>& topic, const ReaderConfig& config = ReaderConfig())
 {
     return std::make_shared<MultiKeyReader<K, V, UT>>(topic, std::vector<K> {}, config);
@@ -825,8 +843,7 @@ makeSharedAnyKeyReader(const Topic<K, V, UT>& topic, const ReaderConfig& config 
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename UT>
-MultiKeyReader<K, V, UT>
+template<typename SFC, typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
 makeAnyKeyReader(const Topic<K, V, UT>& topic,
                  const std::string& sampleFilter,
                  const SFC& sampleFilterCriteria,
@@ -847,8 +864,7 @@ makeAnyKeyReader(const Topic<K, V, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename SFC, typename K, typename V, typename UT>
-std::shared_ptr<MultiKeyReader<K, V, UT>>
+template<typename SFC, typename K, typename V, typename UT> std::shared_ptr<MultiKeyReader<K, V, UT>>
 makeSharedAnyKeyReader(const Topic<K, V, UT>& topic,
                        const std::string& sampleFilter,
                        const SFC& sampleFilterCriteria,
@@ -924,8 +940,7 @@ public:
  * @param criteria The key filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename K, typename V, typename UT>
-FilteredReader<K, V, UT>
+template<typename KFC, typename K, typename V, typename UT> FilteredReader<K, V, UT>
 makeFilteredReader(const Topic<K, V, UT>& topic,
                    const std::string& filter,
                    const KFC& criteria,
@@ -943,8 +958,7 @@ makeFilteredReader(const Topic<K, V, UT>& topic,
  * @param criteria The key filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename K, typename V, typename UT>
-std::shared_ptr<FilteredReader<K, V, UT>>
+template<typename KFC, typename K, typename V, typename UT> std::shared_ptr<FilteredReader<K, V, UT>>
 makeSharedFilteredReader(const Topic<K, V, UT>& topic,
                          const std::string& filter,
                          const KFC& criteria,
@@ -964,8 +978,7 @@ makeSharedFilteredReader(const Topic<K, V, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename SFC, typename K, typename V, typename UT>
-FilteredReader<K, V, UT>
+template<typename KFC, typename SFC, typename K, typename V, typename UT> FilteredReader<K, V, UT>
 makeFilteredReader(const Topic<K, V, UT>& topic,
                    const std::string& keyFilter,
                    const KFC& keyFilterCriteria,
@@ -987,8 +1000,7 @@ makeFilteredReader(const Topic<K, V, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename SFC, typename K, typename V, typename UT>
-std::shared_ptr<FilteredReader<K, V, UT>>
+template<typename KFC, typename SFC, typename K, typename V, typename UT> std::shared_ptr<FilteredReader<K, V, UT>>
 makeSharedFilteredReader(const Topic<K, V, UT>& topic,
                          const std::string& keyFilter,
                          const KFC& keyFilterCriteria,
@@ -1374,7 +1386,7 @@ makeAnyKeyWriter(const Topic<K, V, UT>& topic, const WriterConfig& config = Writ
 template<typename K, typename V, typename UT> std::shared_ptr<MultiKeyWriter<K, V, UT>>
 makeSharedAnyKeyWriter(const Topic<K, V, UT>& topic, const WriterConfig& config = WriterConfig())
 {
-    return std::make_shared<MultiKeyWriter<K, V, UT>>(topic, {}, config);
+    return std::make_shared<MultiKeyWriter<K, V, UT>>(topic, std::vector<K> {}, config);
 }
 
 }

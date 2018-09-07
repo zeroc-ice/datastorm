@@ -394,7 +394,6 @@ public:
 
     const Value& getValue() const
     {
-        assert(_hasValue);
         return _value;
     }
 

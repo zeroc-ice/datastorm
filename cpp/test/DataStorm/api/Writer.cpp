@@ -134,6 +134,9 @@ main(int argc, char* argv[])
         skwm.update<int>("updatetag", 10);
         skwm.remove();
 
+        auto skws = makeSharedSingleKeyWriter(topic, "key");
+        skws = makeSharedSingleKeyWriter(topic, "key", WriterConfig());
+
         auto mkw = makeMultiKeyWriter(topic, { "key" });
         mkw = makeMultiKeyWriter(topic, { "key" }, WriterConfig());
 
@@ -144,11 +147,17 @@ main(int argc, char* argv[])
         mkwm.update<int>("key", "updatetag", 10);
         mkwm.remove("key");
 
+        auto mkws = makeSharedMultiKeyWriter(topic, { "key" });
+        mkws = makeSharedMultiKeyWriter(topic, { "key" }, WriterConfig());
+
         auto akw = makeAnyKeyWriter(topic);
         akw = makeAnyKeyWriter(topic, WriterConfig());
 
         auto akwm = move(akw);
         testWriter(akwm);
+
+        auto akws = makeSharedAnyKeyWriter(topic);
+        akws = makeSharedAnyKeyWriter(topic, WriterConfig());
     }
     cout << "ok" << endl;
 
@@ -187,6 +196,46 @@ main(int argc, char* argv[])
         auto akr = makeAnyKeyReader(topic);
         akr = makeAnyKeyReader(topic, ReaderConfig());
         testReader(akr);
+
+        auto fr = makeFilteredReader<string>(topic, "_regex", ".*");
+        fr = makeFilteredReader<string>(topic, "_regex", ".*", ReaderConfig());
+        testReader(fr);
+
+        auto skrs = makeSharedSingleKeyReader(topic, "key");
+        skrs = makeSharedSingleKeyReader(topic, "key", ReaderConfig());
+
+        auto mkrs = makeSharedMultiKeyReader(topic, { "key" });
+        mkrs = makeSharedMultiKeyReader(topic, { "key" }, ReaderConfig());
+
+        auto akrs = makeSharedAnyKeyReader(topic);
+        akrs = makeSharedAnyKeyReader(topic, ReaderConfig());
+
+        auto frs = makeSharedFilteredReader<string>(topic, "_regex", ".*");
+        frs = makeSharedFilteredReader<string>(topic, "_regex", ".*", ReaderConfig());
+    }
+    cout << "ok" << endl;
+
+    cout << "testing sample... " << flush;
+    {
+        Topic<string, string> topic(node, "topic");
+        auto skw = makeSingleKeyWriter(topic, "key");
+        skw.add("test");
+        test(skw.getLast().getKey() == "key");
+        test(skw.getLast().getValue() == "test");
+        test(skw.getLast().getEvent() == SampleEvent::Add);
+        skw.update("test2");
+        test(skw.getLast().getKey() == "key");
+        test(skw.getLast().getValue() == "test2");
+        test(skw.getLast().getEvent() == SampleEvent::Update);
+        skw.remove();
+        test(skw.getLast().getKey() == "key");
+        test(skw.getLast().getValue() == "");
+        test(skw.getLast().getEvent() == SampleEvent::Remove);
+        skw.update<string>("partialupdate", "update");
+        test(skw.getLast().getKey() == "key");
+        test(skw.getLast().getValue() == "");
+        test(skw.getLast().getUpdateTag() == "partialupdate");
+        test(skw.getLast().getEvent() == SampleEvent::PartialUpdate);
     }
     cout << "ok" << endl;
 
