@@ -23,7 +23,7 @@ BEGIN
             VALUE "FileDescription", "DataStorm C++ Library\0"
             VALUE "FileVersion", "10\0"
             VALUE "InternalName", DATASTORM_LIBNAME("datastorm")"\0"
-            VALUE "LegalCopyright", "\251 2003-2018 ZeroC, Inc.\0"
+            VALUE "LegalCopyright", "\251 2018-present ZeroC, Inc.\0"
             VALUE "OriginalFilename", DATASTORM_LIBNAME("datastorm")".dll\0"
             VALUE "ProductName", "DataStorm\0"
             VALUE "ProductVersion", DATASTORM_STRING_VERSION "\0"
