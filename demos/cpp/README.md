@@ -75,27 +75,6 @@ Then select your target configuration (Debug or Release) and platform (Win32
 or x64). Right click on the desired demo in the Solution Explorer window and
 select `Build`.
 
-#### Building the demos with DataStorm source distribution:
-
-- Build from command line:
-  * Open a Visual Studio command prompt
-  ```
-  cd datastorm\demos\cpp
-  MSBuild /p:DataStormHome=<DataStorm dist path> /p:Configuration=<Release or Debug> msbuild\datastorm.proj"
-  ```
-
-- Build from Visual Studio
-  * Open a Visual Studio command prompt
-  ```
-  cd datastorm\demos\cpp
-  MSBuild /p:IceHome=<DataStorm dist path> /p:Configuration=<Release or Debug> /t:InstallLocalPackages msbuild\datastorm.proj"
-  ```
-
-  * Start Visual Studio and open `DataStorm C++ demos.sln` solution file, select
-    your target configuration (Debug or Release) and platform (Win32 or x64).
-    Right click on the desired demo in the Solution Explorer window and select
-    `Build`.
-
 ### Running the Demos
 
 You need to add the DataStorm `bin` directory to your PATH before running the
