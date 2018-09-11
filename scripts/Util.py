@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2018-present ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -307,6 +307,9 @@ class Linux(Platform):
     def __init__(self):
         Platform.__init__(self)
         self.multiArch = {}
+        if self.linuxId in ["ubuntu", "debian"]:
+            for p in [self.buildPlatform] + self.foreignPlatforms:
+                self.multiArch[p] = run("dpkg-architecture -f -a{0} -qDEB_HOST_MULTIARCH 2> /dev/null".format(p))
 
     def init(self, component):
         Platform.init(self, component)
@@ -315,9 +318,7 @@ class Linux(Platform):
             "build-platform" : ("buildPlatform", None),
             "foreign-platforms" : ("foreignPlatforms", lambda s : s.split(" ") if s else []),
         })
-        if self.linuxId in ["ubuntu", "debian"]:
-            for p in [self.buildPlatform] + self.foreignPlatforms:
-                self.multiArch[p] = run("dpkg-architecture -f -a{0} -qDEB_HOST_MULTIARCH 2> /dev/null".format(p))
+
 
     def hasOpenSSL(self):
         return True

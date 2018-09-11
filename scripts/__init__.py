@@ -1,5 +1,5 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2018-present ZeroC, Inc. All rights reserved.
+# Copyright (c) 2018-present ZeroC, Inc. All rights reserved.
 #
 # **********************************************************************
