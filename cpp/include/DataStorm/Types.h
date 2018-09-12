@@ -15,7 +15,7 @@ namespace DataStorm
 {
 
 /**
- * The discard policy to specify how samples are discarded by receivers upon receival.
+ * The discard policy specifies how samples are discarded by readers upon receival.
  */
 enum struct DiscardPolicy
 {
@@ -39,7 +39,7 @@ enum struct DiscardPolicy
 
 /**
  * The clear history policy specifies when the history is cleared. The history
- * can be never cleared or cleared when a Add or Remove sample is received.
+ * can be cleared based on the event of the received sample.
  **/
 enum struct ClearHistoryPolicy
 {
@@ -67,6 +67,16 @@ class Config
 {
 public:
 
+    /**
+     * Construct a Config object.
+     *
+     * The constructor accepts optional parameters for each of the Config data
+     * members.
+     *
+     * @param sampleCount The optional sample count.
+     * @param sampleLifetime The optional sample lifetime.
+     * @param clearHistory The optional clear history policy.
+     */
     Config(Ice::optional<int> sampleCount = Ice::nullopt,
            Ice::optional<int> sampleLifetime = Ice::nullopt,
            Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt) :
@@ -99,10 +109,28 @@ public:
     Ice::optional<ClearHistoryPolicy> clearHistory;
 };
 
+/**
+ * The ReaderConfig class specifies configuration options specific to readers.
+ *
+ * It extends the Config class and therefore inherits its configuration
+ * options.
+ *
+ */
 class ReaderConfig : public Config
 {
 public:
 
+    /**
+     * Construct a ReaderConfig object.
+     *
+     * The constructor accepts optional parameters for each of the ReaderConfig data
+     * members.
+     *
+     * @param sampleCount The optional sample count.
+     * @param sampleLifetime The optional sample lifetime.
+     * @param clearHistory The optional clear history policy.
+     * @param discardPolicy The discard policy.
+     */
     ReaderConfig(Ice::optional<int> sampleCount = Ice::nullopt,
                  Ice::optional<int> sampleLifetime = Ice::nullopt,
                  Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt,
@@ -119,10 +147,28 @@ public:
     Ice::optional<DiscardPolicy> discardPolicy;
 };
 
+/**
+ * The WriterConfig class specifies configuration options specific to writers.
+ *
+ * It extends the Config class and therefore inherits its configuration
+ * options.
+ *
+ */
 class WriterConfig : public Config
 {
 public:
 
+    /**
+     * Construct a WriterConfig object.
+     *
+     * The constructor accepts optional parameters for each of the WriterConfig data
+     * members.
+     *
+     * @param sampleCount The optional sample count.
+     * @param sampleLifetime The optional sample lifetime.
+     * @param clearHistory The optional clear history policy.
+     * @param priority The writer priority.
+     */
     WriterConfig(Ice::optional<int> sampleCount = Ice::nullopt,
                  Ice::optional<int> sampleLifetime  = Ice::nullopt,
                  Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt,
@@ -174,7 +220,7 @@ template<typename T, typename Enabler=void>
 struct Decoder
 {
     /**
-     * Unencodes a value. This method decodes the given byte sequence and returns the
+     * Decode a value. This method decodes the given byte sequence and returns the
      * resulting value. The communicator parameter is provided to allow the
      * implementation to eventually use the Ice encoding.
      *
@@ -246,9 +292,9 @@ struct Cloner<std::shared_ptr<T>, typename std::enable_if<std::is_base_of<::Ice:
     }
 };
 
-//
-// Encoder template implementation
-//
+/**
+ * Encoder template implementation
+ */
 template<typename T, typename E> std::vector<unsigned char>
 Encoder<T, E>::encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
 {
@@ -259,9 +305,9 @@ Encoder<T, E>::encode(const std::shared_ptr<Ice::Communicator>& communicator, co
     return v;
 }
 
-//
-// Decoder template implementation
-//
+/**
+ * Decoder template implementation
+ */
 template<typename T, typename E> T
 Decoder<T, E>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value)
 {
