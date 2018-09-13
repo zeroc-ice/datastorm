@@ -6,6 +6,8 @@
 
 #include <DataStorm/DataStorm.h>
 
+#include <iomanip>
+
 using namespace std;
 
 namespace DataStorm
@@ -15,7 +17,7 @@ namespace DataStorm
         static vector<unsigned char>
         encode(const chrono::system_clock::time_point& time)
         {
-            assert(false); // Not used by the writer but it still needs to be declared.
+            assert(false); // Not used by the reader but it still needs to be declared.
             return vector<unsigned char>();
         }
     };
@@ -72,12 +74,7 @@ main(int argc, char* argv[])
             for(auto& sample : samples)
             {
                 auto time = chrono::system_clock::to_time_t(sample.getValue());
-                char timeString[100];
-                if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
-                {
-                    timeString[0] = '\0';
-                }
-                cout << "received time for `" << sample.getKey() << "': " << timeString << endl;
+                cout << "received time for `" << sample.getKey() << "': " << put_time(localtime(&time), "%X") << endl;
             }
         });
 
