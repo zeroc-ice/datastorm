@@ -4,10 +4,6 @@
 //
 // **********************************************************************
 
-#if defined(_MSC_VER) && _MSC_VER == 1900 // Visual Studio 2015
-#   pragma warning(disable:4503) // decorated name length exceeded, name was truncated
-#endif
-
 #include <DataStorm/DataStorm.h>
 
 using namespace std;
