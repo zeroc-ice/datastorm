@@ -197,8 +197,8 @@ main(int argc, char* argv[])
         akr = makeAnyKeyReader(topic, ReaderConfig());
         testReader(akr);
 
-        auto fr = makeFilteredReader<string>(topic, "_regex", ".*");
-        fr = makeFilteredReader<string>(topic, "_regex", ".*", ReaderConfig());
+        auto fr = makeFilteredKeyReader<string>(topic, "_regex", ".*");
+        fr = makeFilteredKeyReader<string>(topic, "_regex", ".*", ReaderConfig());
         testReader(fr);
 
         auto skrs = makeSharedSingleKeyReader(topic, "key");
@@ -210,8 +210,8 @@ main(int argc, char* argv[])
         auto akrs = makeSharedAnyKeyReader(topic);
         akrs = makeSharedAnyKeyReader(topic, ReaderConfig());
 
-        auto frs = makeSharedFilteredReader<string>(topic, "_regex", ".*");
-        frs = makeSharedFilteredReader<string>(topic, "_regex", ".*", ReaderConfig());
+        auto frs = makeSharedFilteredKeyReader<string>(topic, "_regex", ".*");
+        frs = makeSharedFilteredKeyReader<string>(topic, "_regex", ".*", ReaderConfig());
     }
     cout << "ok" << endl;
 

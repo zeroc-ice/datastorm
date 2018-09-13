@@ -32,7 +32,7 @@ main(int argc, char* argv[])
         //
         // Instantiate a filtered reader for keys matching the foo[ace] regular expression.
         //
-        auto reader = DataStorm::makeFilteredReader<string>(topic, "_regex", "foo[ace]");
+        auto reader = DataStorm::makeFilteredKeyReader<string>(topic, "_regex", "foo[ace]");
 
         //
         // Get the samples published by the writers fooa, fooc and fooe.

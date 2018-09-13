@@ -32,7 +32,7 @@ template<typename, typename, typename> class Reader;
 template<typename, typename, typename> class Writer;
 template<typename, typename, typename> class KeyReader;
 template<typename, typename, typename> class KeyWriter;
-template<typename, typename, typename> class FilteredReader;
+template<typename, typename, typename> class FilteredKeyReader;
 
 /**
  * A sample provides information about a data element update.
@@ -378,7 +378,7 @@ private:
     template<typename, typename, typename> friend class KeyReader;
     template<typename, typename, typename> friend class MultiKeyWriter;
     template<typename, typename, typename> friend class MultiKeyReader;
-    template<typename, typename, typename> friend class FilteredReader;
+    template<typename, typename, typename> friend class FilteredKeyReader;
 
     const std::string _name;
     const std::shared_ptr<DataStormI::TopicFactory> _topicFactory;
@@ -884,7 +884,7 @@ makeSharedAnyKeyReader(const Topic<K, V, UT>& topic,
  * The filtered reader to read data elements whose key match a given filter.
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
-class FilteredReader : public Reader<Key, Value, UpdateTag>
+class FilteredKeyReader : public Reader<Key, Value, UpdateTag>
 {
 public:
 
@@ -898,10 +898,10 @@ public:
      * @param config The reader configuration.
      */
     template<typename KeyFilterCriteria>
-    FilteredReader(const Topic<Key, Value, UpdateTag>&,
-                   const std::string&,
-                   const KeyFilterCriteria&,
-                   const ReaderConfig& = ReaderConfig());
+    FilteredKeyReader(const Topic<Key, Value, UpdateTag>&,
+                      const std::string&,
+                      const KeyFilterCriteria&,
+                      const ReaderConfig& = ReaderConfig());
 
     /**
      * Construct a new reader for the given key filter and sample filter criterias. The
@@ -916,26 +916,26 @@ public:
      * @param config The reader configuration.
      */
     template<typename KeyFilterCriteria, typename SampleFilterCriteria>
-    FilteredReader(const Topic<Key, Value, UpdateTag>&,
-                   const std::string&,
-                   const KeyFilterCriteria&,
-                   const std::string&,
-                   const SampleFilterCriteria&,
-                   const ReaderConfig& = ReaderConfig());
+    FilteredKeyReader(const Topic<Key, Value, UpdateTag>&,
+                      const std::string&,
+                      const KeyFilterCriteria&,
+                      const std::string&,
+                      const SampleFilterCriteria&,
+                      const ReaderConfig& = ReaderConfig());
 
     /**
      * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/
-    FilteredReader(FilteredReader&&);
+    FilteredKeyReader(FilteredKeyReader&&);
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    FilteredReader& operator=(FilteredReader&&);
+    FilteredKeyReader& operator=(FilteredKeyReader&&);
 };
 
 /**
@@ -947,13 +947,13 @@ public:
  * @param criteria The key filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename K, typename V, typename UT> FilteredReader<K, V, UT>
-makeFilteredReader(const Topic<K, V, UT>& topic,
-                   const std::string& filter,
-                   const KFC& criteria,
-                   const ReaderConfig& config = ReaderConfig())
+template<typename KFC, typename K, typename V, typename UT> FilteredKeyReader<K, V, UT>
+makeFilteredKeyReader(const Topic<K, V, UT>& topic,
+                      const std::string& filter,
+                      const KFC& criteria,
+                      const ReaderConfig& config = ReaderConfig())
 {
-    return FilteredReader<K, V, UT>(topic, filter, criteria, config);
+    return FilteredKeyReader<K, V, UT>(topic, filter, criteria, config);
 }
 
 /**
@@ -965,13 +965,13 @@ makeFilteredReader(const Topic<K, V, UT>& topic,
  * @param criteria The key filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename K, typename V, typename UT> std::shared_ptr<FilteredReader<K, V, UT>>
-makeSharedFilteredReader(const Topic<K, V, UT>& topic,
-                         const std::string& filter,
-                         const KFC& criteria,
-                         const ReaderConfig& config = ReaderConfig())
+template<typename KFC, typename K, typename V, typename UT> std::shared_ptr<FilteredKeyReader<K, V, UT>>
+makeSharedFilteredKeyReader(const Topic<K, V, UT>& topic,
+                            const std::string& filter,
+                            const KFC& criteria,
+                            const ReaderConfig& config = ReaderConfig())
 {
-    return std::make_shared<FilteredReader<K, V, UT>>(topic, filter, criteria, config);
+    return std::make_shared<FilteredKeyReader<K, V, UT>>(topic, filter, criteria, config);
 }
 
 /**
@@ -985,15 +985,15 @@ makeSharedFilteredReader(const Topic<K, V, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename SFC, typename K, typename V, typename UT> FilteredReader<K, V, UT>
-makeFilteredReader(const Topic<K, V, UT>& topic,
-                   const std::string& keyFilter,
-                   const KFC& keyFilterCriteria,
-                   const std::string& sampleFilter,
-                   const SFC& sampleFilterCriteria,
-                   const ReaderConfig& config = ReaderConfig())
+template<typename KFC, typename SFC, typename K, typename V, typename UT> FilteredKeyReader<K, V, UT>
+makeFilteredKeyReader(const Topic<K, V, UT>& topic,
+                      const std::string& keyFilter,
+                      const KFC& keyFilterCriteria,
+                      const std::string& sampleFilter,
+                      const SFC& sampleFilterCriteria,
+                      const ReaderConfig& config = ReaderConfig())
 {
-    return FilteredReader<K, V, UT>(topic, keyFilter, keyFilterCriteria, sampleFilter, sampleFilterCriteria, config);
+    return FilteredKeyReader<K, V, UT>(topic, keyFilter, keyFilterCriteria, sampleFilter, sampleFilterCriteria, config);
 }
 
 /**
@@ -1008,16 +1008,16 @@ makeFilteredReader(const Topic<K, V, UT>& topic,
  * @param sampleFilterCriteria The sample filter criteria.
  * @param config The optional reader configuration.
  */
-template<typename KFC, typename SFC, typename K, typename V, typename UT> std::shared_ptr<FilteredReader<K, V, UT>>
-makeSharedFilteredReader(const Topic<K, V, UT>& topic,
-                         const std::string& keyFilter,
-                         const KFC& keyFilterCriteria,
-                         const std::string& sampleFilter,
-                         const SFC& sampleFilterCriteria,
-                         const ReaderConfig& config = ReaderConfig())
+template<typename KFC, typename SFC, typename K, typename V, typename UT> std::shared_ptr<FilteredKeyReader<K, V, UT>>
+makeSharedFilteredKeyReader(const Topic<K, V, UT>& topic,
+                            const std::string& keyFilter,
+                            const KFC& keyFilterCriteria,
+                            const std::string& sampleFilter,
+                            const SFC& sampleFilterCriteria,
+                            const ReaderConfig& config = ReaderConfig())
 {
-    return std::make_shared<FilteredReader<K, V, UT>>(topic, keyFilter, keyFilterCriteria, sampleFilter,
-                                                      sampleFilterCriteria, config);
+    return std::make_shared<FilteredKeyReader<K, V, UT>>(topic, keyFilter, keyFilterCriteria, sampleFilter,
+                                                         sampleFilterCriteria, config);
 }
 
 /**
@@ -1684,22 +1684,22 @@ MultiKeyReader<Key, Value, UpdateTag>::operator=(MultiKeyReader&& reader)
 }
 
 template<typename Key, typename Value, typename UpdateTag> template<typename KFC>
-FilteredReader<Key, Value, UpdateTag>::FilteredReader(const Topic<Key, Value, UpdateTag>& topic,
-                                                      const std::string& filter,
-                                                      const KFC& criteria,
-                                                      const ReaderConfig& config) :
+FilteredKeyReader<Key, Value, UpdateTag>::FilteredKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                                                            const std::string& filter,
+                                                            const KFC& criteria,
+                                                            const ReaderConfig& config) :
     Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(
         topic._keyFilterFactories->create(filter, KFC(criteria)), config))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag> template<typename KFC, typename SFC>
-FilteredReader<Key, Value, UpdateTag>::FilteredReader(const Topic<Key, Value, UpdateTag>& topic,
-                                                      const std::string& keyFilter,
-                                                      const KFC& keyFilterCriteria,
-                                                      const std::string& sampleFilter,
-                                                      const SFC& sampleFilterCriteria,
-                                                      const ReaderConfig& config) :
+FilteredKeyReader<Key, Value, UpdateTag>::FilteredKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                                                            const std::string& keyFilter,
+                                                            const KFC& keyFilterCriteria,
+                                                            const std::string& sampleFilter,
+                                                            const SFC& sampleFilterCriteria,
+                                                            const ReaderConfig& config) :
     Reader<Key, Value, UpdateTag>(topic.getReader()->createFiltered(
         topic._keyFilterFactories->create(keyFilter, KFC(keyFilterCriteria)),
         config,
@@ -1708,13 +1708,13 @@ FilteredReader<Key, Value, UpdateTag>::FilteredReader(const Topic<Key, Value, Up
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-FilteredReader<Key, Value, UpdateTag>::FilteredReader(FilteredReader<Key, Value, UpdateTag>&& reader) :
+FilteredKeyReader<Key, Value, UpdateTag>::FilteredKeyReader(FilteredKeyReader<Key, Value, UpdateTag>&& reader) :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
-template<typename Key, typename Value, typename UpdateTag> FilteredReader<Key, Value, UpdateTag>&
-FilteredReader<Key, Value, UpdateTag>::operator=(FilteredReader&& reader)
+template<typename Key, typename Value, typename UpdateTag> FilteredKeyReader<Key, Value, UpdateTag>&
+FilteredKeyReader<Key, Value, UpdateTag>::operator=(FilteredKeyReader&& reader)
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
