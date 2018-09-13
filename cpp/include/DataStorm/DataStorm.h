@@ -492,9 +492,9 @@ public:
     Sample<Key, Value, UpdateTag> getNextUnread();
 
     /**
-     * Calls the given lambda when a new key writer connects to this reader.
+     * Calls the given function when a new key writer connects to this reader.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -502,9 +502,9 @@ public:
     void onKeyConnect(std::function<void(WriterId, Key)>);
 
     /**
-     * Calls the given lambda when a new key writer disconnects from this reader.
+     * Calls the given function when a new key writer disconnects from this reader.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -512,9 +512,9 @@ public:
     void onKeyDisconnect(std::function<void(WriterId, Key)>);
 
     /**
-     * Calls the given lambda when a new filter writer connects to this reader.
+     * Calls the given function when a new filter writer connects to this reader.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the filter name are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -522,9 +522,9 @@ public:
     void onFilterConnect(std::function<void(WriterId, std::string)>);
 
     /**
-     * Calls the given lambda when a new filter writer disconnects from this reader.
+     * Calls the given function when a new filter writer disconnects from this reader.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the filter name are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -532,10 +532,10 @@ public:
     void onFilterDisconnect(std::function<void(WriterId, std::string)>);
 
     /**
-     * Calls the given lambda when samples are queued with this reader. If a
-     * lambda is already set, it will be replaced with this new lambda.
+     * Calls the given function when samples are queued with this reader. If a
+     * function is already set, it will be replaced with this new function.
      *
-     * @param callback The lambda to call when samples are received.
+     * @param callback The function to call when samples are received.
      **/
     void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)>);
 
@@ -1107,9 +1107,9 @@ public:
 
     /**
      *
-     * Calls the given lambda when a new key reader connects to this writer.
+     * Calls the given function when a new key reader connects to this writer.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -1118,9 +1118,9 @@ public:
 
     /**
      *
-     * Calls the given lambda when a new key reader disconnects from this writer.
+     * Calls the given function when a new key reader disconnects from this writer.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the key are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -1129,9 +1129,9 @@ public:
 
     /**
      *
-     * Calls the given lambda when a new filter reader connects to this writer.
+     * Calls the given function when a new filter reader connects to this writer.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the filter name are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
@@ -1140,9 +1140,9 @@ public:
 
     /**
      *
-     * Calls the given lambda when a new filter reader disconnects from this writer.
+     * Calls the given function when a new filter reader disconnects from this writer.
      *
-     * @param callback The lambda to call when a new reader disconnects. The ID and
+     * @param callback The function to call when a new reader disconnects. The ID and
      *                 the filter name are provided to the callback.
      *
      * @see Sample<K, V, U>::getOrigin
