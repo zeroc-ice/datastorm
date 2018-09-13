@@ -237,30 +237,48 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered1");
 
-        auto writer5 = makeSingleKeyWriter(topic, "elem5", config);
-        writer5.add(make_shared<Test::Base>("value1"));
-        writer5.update(make_shared<Test::Base>("value2"));
-        writer5.remove();
+        topic.setKeyFilter<string>("startswith", [](const string& prefix)
+        {
+            return [prefix](const string& key)
+            {
+                return key.size() >= prefix.size() && key.compare(0, prefix.size(), prefix) == 0;
+            };
+        });
 
-        auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
-        writer1.waitForReaders(1);
-        test(writer1.hasReaders());
-        writer1.add(make_shared<Test::Base>("value1"));
-        writer1.update(make_shared<Test::Base>("value2"));
-        writer1.remove();
+        {
+            auto writer5 = makeSingleKeyWriter(topic, "elem5", config);
+            writer5.add(make_shared<Test::Base>("value1"));
+            writer5.update(make_shared<Test::Base>("value2"));
+            writer5.remove();
 
-        auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
-        writer2.waitForReaders(1);
-        writer2.update(make_shared<Test::Base>("value1"));
+            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
+            writer1.waitForReaders(1);
+            test(writer1.hasReaders());
+            writer1.add(make_shared<Test::Base>("value1"));
+            writer1.update(make_shared<Test::Base>("value2"));
+            writer1.remove();
 
-        auto writer3 = makeSingleKeyWriter(topic, "elem3", config);
-        writer3.waitForReaders(1);
-        writer3.remove();
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+            writer2.waitForReaders(1);
+            writer2.update(make_shared<Test::Base>("value1"));
 
-        auto writer4 = makeSingleKeyWriter(topic, "elem4", config);
-        writer4.waitForReaders(1);
-        writer4.add(make_shared<Test::Base>("value1"));
-        writer4.waitForNoReaders();
+            auto writer3 = makeSingleKeyWriter(topic, "elem3", config);
+            writer3.waitForReaders(1);
+            writer3.remove();
+
+            auto writer4 = makeSingleKeyWriter(topic, "elem4", config);
+            writer4.waitForReaders(1);
+            writer4.add(make_shared<Test::Base>("value1"));
+            writer4.waitForNoReaders();
+        }
+        {
+            auto writer1 = makeSingleKeyWriter(topic, "nonvalue", config);
+            auto writer2 = makeSingleKeyWriter(topic, "value", config);
+            test(!writer1.hasReaders());
+            writer2.waitForReaders(1);
+            test(!writer1.hasReaders());
+            writer2.waitForNoReaders();
+        }
     }
     cout << "ok" << endl;
 
@@ -317,6 +335,14 @@ main(int argc, char* argv[])
     cout << "testing filtered sample reader... " << flush;
     {
         Topic<string, string> topic(node, "filtered reader key/value filter");
+        topic.setSampleFilter<string>("startswith", [](const string& prefix)
+        {
+            return [prefix](const Sample<string, string>& sample)
+            {
+                auto value = sample.getValue();
+                return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+            };
+        });
 
         auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
         writer1.waitForReaders(3);
@@ -332,6 +358,11 @@ main(int argc, char* argv[])
         writer2.update("value3");
         writer2.update("value4");
         writer2.update("value5");
+
+        auto writer3 = makeSingleKeyWriter(topic, "elem3", config);
+        writer3.waitForReaders(1);
+        writer3.update("nonvalue");
+        writer3.update("value");
 
         writer1.waitForNoReaders();
         writer2.waitForNoReaders();

@@ -105,6 +105,10 @@ class Component(object):
     def getTestDir(self, mapping):
         if isinstance(mapping, JavaMapping):
             return os.path.join(mapping.getPath(), "test/src/main/java/test")
+        elif isinstance(mapping, XamarinMapping):
+            return os.path.join(mapping.getPath(), "../..")
+        elif isinstance(mapping, AndroidMappingMixin):
+            return os.path.join(mapping.getPath(), "../src/main/java/test")
         return os.path.join(mapping.getPath(), "test")
 
     def getScriptDir(self):
@@ -639,10 +643,10 @@ class Mapping(object):
 
                     yield self.__class__(options)
 
-            return [c for c in gen(current.driver.filterOptions(component.getOptions(testcase, current)))]
+            return [c for c in gen(current.driver.filterOptions(current.driver.getComponent().getOptions(testcase, current)))]
 
         def canRun(self, testId, current):
-            if not component.canRun(testId, current.testcase.getMapping(), current):
+            if not current.driver.getComponent().canRun(testId, current.testcase.getMapping(), current):
                 return False
 
             options = {}
@@ -808,7 +812,9 @@ class Mapping(object):
         currentMapping = self
         try:
             origsyspath = sys.path
-            sys.path = [self.component.getScriptDir()] + sys.path
+            prefix = os.path.commonprefix([toplevel, self.component.getScriptDir()])
+            moduleprefix = self.component.getScriptDir()[len(prefix) + 1:].replace(os.sep, ".") + "."
+            sys.path = [prefix] + sys.path
             for test in tests or [""]:
                 for root, dirs, files in os.walk(os.path.join(self.component.getTestDir(self), test.replace('/', os.sep))):
                     testId = root[len(self.component.getTestDir(self)) + 1:]
@@ -837,7 +843,7 @@ class Mapping(object):
                     # script for the test in scripts/tests. If there's one we use it.
                     #
                     if os.path.isfile(os.path.join(self.component.getScriptDir(), testId + ".py")):
-                        runpy.run_module(testId.replace("/", "."), init_globals=globals(), run_name=root)
+                        runpy.run_module(moduleprefix + testId.replace("/", "."), init_globals=globals(), run_name=root)
                         continue
 
                     #
@@ -885,6 +891,10 @@ class Mapping(object):
             testcases.append(ClientServerTestCase())
         if checkClient("client") and checkServer("serveramd") and self.getServerMapping(testId) == self:
             testcases.append(ClientAMDServerTestCase())
+        if checkClient("client") and checkServer("servertie") and self.getServerMapping(testId) == self:
+            testcases.append(ClientTieServerTestCase())
+        if checkClient("client") and checkServer("serveramdtie") and self.getServerMapping(testId) == self:
+            testcases.append(ClientAMDTieServerTestCase())
         if checkClient("client") and len(testcases) == 0:
             testcases.append(ClientTestCase())
         if checkClient("collocated"):
@@ -1436,9 +1446,10 @@ class TestCase(Runnable):
         # If no clients are explicitly specified, we instantiate one if getClientType()
         # returns the type of client to instantiate (client, collocated, etc)
         #
+        testId = self.testsuite.getId()
         if not self.clients:
             if self.getClientType():
-                self.clients = self.mapping.getClientMapping().getDefaultProcesses(self.getClientType(), testsuite)
+                self.clients = self.mapping.getClientMapping(testId).getDefaultProcesses(self.getClientType(), testsuite)
             else:
                 self.clients = []
 
@@ -1448,7 +1459,7 @@ class TestCase(Runnable):
         #
         if not self.servers:
             if self.getServerType():
-                self.servers = self.mapping.getServerMapping().getDefaultProcesses(self.getServerType(), testsuite)
+                self.servers = self.mapping.getServerMapping(testId).getDefaultProcesses(self.getServerType(), testsuite)
             else:
                 self.servers = []
 
@@ -1662,6 +1673,22 @@ class ClientAMDServerTestCase(ClientServerTestCase):
     def getServerType(self):
         return "serveramd"
 
+class ClientTieServerTestCase(ClientServerTestCase):
+
+    def __init__(self, name="client/tie server", *args, **kargs):
+        ClientServerTestCase.__init__(self, name, *args, **kargs)
+
+    def getServerType(self):
+        return "servertie"
+
+class ClientAMDTieServerTestCase(ClientServerTestCase):
+
+    def __init__(self, name="client/amd tie server", *args, **kargs):
+        ClientServerTestCase.__init__(self, name, *args, **kargs)
+
+    def getServerType(self):
+        return "serveramdtie"
+
 class Result:
 
     getKey = lambda self, current: (current.testcase, current.config) if isinstance(current, Driver.Current) else current
@@ -1865,7 +1892,7 @@ class TestSuite(object):
         for m in [XamarinUWPMapping, AndroidMappingMixin, XamarinIOSMapping]:
             if isinstance(self.mapping, m):
                 return True
-        for m in [CppMapping, JavaMapping, CSharpMapping]:
+        for m in [CppMapping, JavaMapping, CSharpMapping, PythonMapping, PhpMapping, RubyMapping]:
             if driver.getComponent().isMainThreadOnly(self.id):
                 return True
             elif isinstance(self.mapping, m):
@@ -2494,6 +2521,7 @@ class UWPProcessController(RemoteProcessController):
 
         print("Registering application to run from layout...")
 
+        print(os.path.join(os.path.dirname(packageFullPath), "Dependencies", arch))
         for root, dirs, files in os.walk(os.path.join(os.path.dirname(packageFullPath), "Dependencies", arch)):
             for f in files:
                 self.installPackage(os.path.join(root, f), arch)
@@ -2571,7 +2599,8 @@ class BrowserProcessController(RemoteProcessController):
                     # contains our Test CA cert. It should be possible to avoid this by setting the webdriver
                     # acceptInsecureCerts capability but it's only supported by latest Firefox releases.
                     #
-                    profile = webdriver.FirefoxProfile(os.path.join(comopnent.getSourceDir(), "scripts", "selenium", "firefox"))
+                    profilepath = os.path.join(current.driver.getComponent().getSourceDir(), "scripts", "selenium", "firefox")
+                    profile = webdriver.FirefoxProfile(profilepath)
                     self.driver = webdriver.Firefox(firefox_profile=profile)
                 elif driver == "Ie":
                     # Make sure we start with a clean cache
@@ -3050,6 +3079,8 @@ class CppMapping(Mapping):
             "server" : "Server.cpp",
             "serveramd" : "ServerAMD.cpp",
             "collocated" : "Collocated.cpp",
+            "subscriber" : "Subscriber.cpp",
+            "publisher" : "Publisher.cpp",
         }[processType]
 
     def _getDefaultExe(self, processType):
@@ -3131,6 +3162,8 @@ class JavaMapping(Mapping):
             "client" : "Client.java",
             "server" : "Server.java",
             "serveramd" : "AMDServer.java",
+            "servertie" : "TieServer.java",
+            "serveramdtie" : "AMDTieServer.java",
             "collocated" : "Collocated.java",
         }[processType]
 
@@ -3143,6 +3176,12 @@ class JavaCompatMapping(JavaMapping):
             "IceDiscovery" : "IceDiscovery.PluginFactory",
             "IceLocatorDiscovery" : "IceLocatorDiscovery.PluginFactory"
         }[plugin]
+
+    def getEnv(self, process, current):
+        classPath = [os.path.join(self.path, "lib", "test.jar")]
+        if os.path.exists(os.path.join(self.path, "lib", "IceTestLambda.jar")):
+            classPath += [os.path.join(self.path, "lib", "IceTestLambda.jar")]
+        return { "CLASSPATH" : os.pathsep.join(classPath) }
 
 class AndroidMappingMixin():
 
@@ -3178,14 +3217,8 @@ class AndroidMappingMixin():
             "IceSSL.Keystore": "server.bks" if isinstance(process, Server) else "client.bks"})
         return props
 
-    def getTestDir(self):
-        return os.path.join(self.path, "../test/src/main/java/test")
-
-    def getTestCommonScriptDir(self):
-        return os.path.join(self.path, "..", "..", "scripts", "tests")
-
     def getApk(self, current):
-        return os.path.join(self.getPath(), "controller", "build", "outputs", "apk", "debug", "testController-debug.apk")
+        return os.path.join(self.getPath(), "controller", "build", "outputs", "apk", "debug", "controller-debug.apk")
 
     def getActivityName(self):
         return "com.zeroc.testcontroller/.ControllerActivity"
@@ -3292,6 +3325,8 @@ class CSharpMapping(Mapping):
             "client" : "Client.cs",
             "server" : "Server.cs",
             "serveramd" : "ServerAMD.cs",
+            "servertie" : "ServerTie.cs",
+            "serveramdtie" : "ServerAMDTie.cs",
             "collocated" : "Collocated.cs",
         }[processType]
 
@@ -3330,6 +3365,9 @@ class XamarinMapping(CSharpMapping):
         })
         return props
 
+    def _getDefaultExe(self, processType):
+        return processType
+
     def getProps(self, process, current):
         props = Mapping.getProps(self, process, current)
         #
@@ -3347,7 +3385,7 @@ class XamarinMapping(CSharpMapping):
         return {"mx" : ["False"]} if current.config.protocol in ["ssl", "wss"] else {}
 
     def getTestCommonScriptDir(self):
-        return os.path.join(self.path, "..", "..", "..", "scripts", "tests")
+        return os.path.join(self.path, "..", "..", "..", "..", "scripts", "tests")
 
 class XamarinAndroidMapping(AndroidMappingMixin, XamarinMapping):
 
@@ -3358,16 +3396,9 @@ class XamarinAndroidMapping(AndroidMappingMixin, XamarinMapping):
     def getSDKPackage(self):
         return "system-images;android-27;google_apis;x86"
 
-    def getTestDir(self):
-        return os.path.join(self.path, "../../test")
-
-    def getTestCommonScriptDir(self):
-        return os.path.join(self.path, "..", "..", "..", "scripts", "tests")
-
     def getApk(self, current):
         buildConfig = current.config.buildConfig
-        return os.path.join(self.getPath(), "..", "controller", "controller.Android", "bin", buildConfig,
-                            "com.zeroc.testcontroller-Signed.apk")
+        return os.path.join(self.path, "bin", buildConfig, "com.zeroc.testcontroller-Signed.apk")
 
     def getActivityName(self):
         return "com.zeroc.testcontroller/controller.MainActivity"
@@ -3379,12 +3410,6 @@ class XamarinUWPMapping(XamarinMapping):
 
     def __init__(self):
         CSharpMapping.__init__(self)
-
-    def getTestDir(self):
-        return os.path.join(self.path, "../../test")
-
-    def getTestCommonScriptDir(self):
-        return os.path.join(self.path, "..", "..", "..", "scripts", "tests")
 
     def getUWPPackageName(self):
         return "ice-uwp-controller.xamarin"
@@ -3398,19 +3423,13 @@ class XamarinUWPMapping(XamarinMapping):
 
     def getUWPPackageFullPath(self, platform, config):
         prefix = "controller.UWP_1.0.0.0_{0}{1}".format(platform, "_{0}".format(config) if config == "Debug" else "")
-        return os.path.join(self.component.getSourceDir(), "csharp", "xamarin", "controller", "controller.UWP",
-                            "AppPackages", "{0}_Test".format(prefix), "{0}.appx".format(prefix))
+        return os.path.join(self.component.getSourceDir(), "csharp", "test", "xamarin", "controller.UWP", "AppPackages",
+                            "{0}_Test".format(prefix), "{0}.appx".format(prefix))
 
 class XamarinIOSMapping(XamarinMapping):
 
     def __init__(self):
         CSharpMapping.__init__(self)
-
-    def getTestDir(self):
-        return os.path.join(self.path, "../../test")
-
-    def getTestCommonScriptDir(self):
-        return os.path.join(self.path, "..", "..", "..", "scripts", "tests")
 
     def getIOSControllerIdentity(self, current):
         if current.config.buildPlatform == "iphonesimulator":
@@ -3422,8 +3441,8 @@ class XamarinIOSMapping(XamarinMapping):
         return "controller.iOS.app"
 
     def getIOSAppFullPath(self, current):
-        return os.path.join(self.getPath(), "..", "controller", "controller.iOS", "bin", "iPhoneSimulator",
-                            current.config.buildConfig, self.getIOSAppName(current))
+        return os.path.join(self.getPath(), "bin", "iPhoneSimulator", current.config.buildConfig,
+                            self.getIOSAppName(current))
 
 class CppBasedMapping(Mapping):
 

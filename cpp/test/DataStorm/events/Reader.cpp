@@ -212,31 +212,45 @@ main(int argc, char* argv[])
 
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered1");
-
-        auto reader = makeFilteredReader<string>(topic, "_regex", "elem[0-4]", config);
-
-        reader.waitForWriters(1);
-        test(reader.hasWriters());
-
-        auto testSample = [&reader](SampleEvent event, string key, string value = "")
+        topic.setKeyFilter<string>("startswith", [](const string& prefix)
         {
-            reader.waitForUnread(1);
-            auto sample = reader.getNextUnread();
-            test(sample.getKey() == key);
-            test(sample.getEvent() == event);
-            if(event != SampleEvent::Remove)
+            return [prefix](const string& key)
             {
-                test(sample.getValue()->b == value);
-            }
-        };
+                return key.size() >= prefix.size() && key.compare(0, prefix.size(), prefix) == 0;
+            };
+        });
 
-        testSample(SampleEvent::Add, "elem1", "value1");
-        testSample(SampleEvent::Update, "elem1", "value2");
-        testSample(SampleEvent::Remove, "elem1");
+        {
+            auto reader = makeFilteredReader<string>(topic, "_regex", "elem[0-4]", config);
 
-        testSample(SampleEvent::Update, "elem2", "value1");
-        testSample(SampleEvent::Remove, "elem3");
-        testSample(SampleEvent::Add, "elem4", "value1");
+            reader.waitForWriters(1);
+            test(reader.hasWriters());
+
+            auto testSample = [&reader](SampleEvent event, string key, string value = "")
+            {
+                reader.waitForUnread(1);
+                auto sample = reader.getNextUnread();
+                test(sample.getKey() == key);
+                test(sample.getEvent() == event);
+                if(event != SampleEvent::Remove)
+                {
+                    test(sample.getValue()->b == value);
+                }
+            };
+
+            testSample(SampleEvent::Add, "elem1", "value1");
+            testSample(SampleEvent::Update, "elem1", "value2");
+            testSample(SampleEvent::Remove, "elem1");
+
+            testSample(SampleEvent::Update, "elem2", "value1");
+            testSample(SampleEvent::Remove, "elem3");
+            testSample(SampleEvent::Add, "elem4", "value1");
+        }
+        {
+            auto reader = makeFilteredReader<string>(topic, "startswith", "val", config);
+            reader.waitForWriters(1);
+            test(reader.hasWriters());
+        }
     }
 
     {
@@ -346,6 +360,25 @@ main(int argc, char* argv[])
             testSample(reader2, SampleEvent::Update, "elem2", "value2");
             testSample(reader2, SampleEvent::Update, "elem2", "value3");
             testSample(reader2, SampleEvent::Update, "elem2", "value4");
+        }
+        {
+            auto testSample = [](typename decltype(topic)::ReaderType& reader,
+                                 SampleEvent event,
+                                 string key,
+                                 string value = "")
+            {
+                reader.waitForUnread(1);
+                auto sample = reader.getNextUnread();
+                test(sample.getKey() == key);
+                test(sample.getEvent() == event);
+                if(event != SampleEvent::Remove)
+                {
+                    test(sample.getValue() == value);
+                }
+            };
+
+            auto reader2 = makeSingleKeyReader<string, string>(topic, "elem3", "startswith", "val", config);
+            testSample(reader2, SampleEvent::Update, "elem3", "value");
         }
      }
 
