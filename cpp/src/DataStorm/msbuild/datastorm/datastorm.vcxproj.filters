@@ -158,25 +158,13 @@
     <ClInclude Include="..\..\..\..\include\generated\Win32\Debug\DataStorm\Sample.h">
       <Filter>Header Files\Win32\Debug</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\generated\Win32\Debug\DataStorm\Contract.h">
-      <Filter>Header Files\Win32\Debug</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\generated\x64\Debug\DataStorm\Sample.h">
-      <Filter>Header Files\x64\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\include\generated\x64\Debug\DataStorm\Contract.h">
       <Filter>Header Files\x64\Debug</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\generated\Win32\Release\DataStorm\Sample.h">
       <Filter>Header Files\Win32\Release</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\generated\Win32\Release\DataStorm\Contract.h">
-      <Filter>Header Files\Win32\Release</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\generated\x64\Release\DataStorm\Sample.h">
-      <Filter>Header Files\x64\Release</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\include\generated\x64\Release\DataStorm\Contract.h">
       <Filter>Header Files\x64\Release</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\DataStorm\Config.h">
@@ -196,6 +184,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\DataStorm\Types.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32\Debug\DataStorm\Contract.h">
+      <Filter>Header Files\Win32\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="x64\Debug\DataStorm\Contract.h">
+      <Filter>Header Files\x64\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32\Release\DataStorm\Contract.h">
+      <Filter>Header Files\Win32\Release</Filter>
+    </ClInclude>
+    <ClInclude Include="x64\Release\DataStorm\Contract.h">
+      <Filter>Header Files\x64\Release</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
