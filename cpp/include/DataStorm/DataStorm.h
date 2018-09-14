@@ -1209,17 +1209,15 @@ public:
     void update(const Value&);
 
     /**
-     * Partially update the data element. This generates a {@link PartialUpdate} sample
-     * with the given partial update value.
+     * Get an updater function for the given partial update tag. When called, the returned
+     * function generates a {@link PartialUpdate} sample with the given partial update value.
      *
-     * The Update template parameter is deduced by the compiler from the value parameter.
-     * Specifying the UpdateValue type is still necessary. It should match the UpdateValue
-     * type used to register the updater with the {@link Topic::setUpdater}.
+     * The UpdateValue template parameter must match the UpdateValue type used to register
+     * the updater with the {@link Topic::setUpdater} method.
      *
      * @param tag The partial update tag.
-     * @param value The partial update value.
      */
-    template<typename UpdateValue, typename Update> void update(const UpdateTag&, const Update&);
+    template<typename UpdateValue> std::function<void(const UpdateValue&)> getUpdater(const UpdateTag&);
 
     /**
      * Remove the data element. This generates a {@link Remove} sample.
@@ -1282,18 +1280,15 @@ public:
     void update(const Key&, const Value&);
 
     /**
-     * Partially update the data element. This generates a {@link PartialUpdate} sample
-     * with the given partial update value.
+     * Get an updater function for the given partial update tag. When called, the returned
+     * function generates a {@link PartialUpdate} sample with the given partial update value.
      *
-     * The Update template parameter is deduced by the compiler from the value parameter.
-     * Specifying the UpdateValue type is still necessary. It should match the UpdateValue
-     * type used to register the updater with the {@link Topic::setUpdater}.
+     * The UpdateValue template parameter must match the UpdateValue type used to register
+     * the updater with the {@link Topic::setUpdater} method.
      *
-     * @param key The key
      * @param tag The partial update tag.
-     * @param value The partial update value.
      */
-    template<typename UpdateValue, typename Update> void update(const Key&, const UpdateTag&, const Update&);
+    template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)> getUpdater(const UpdateTag&);
 
     /**
      * Remove the data element. This generates a {@link Remove} sample.
@@ -1898,12 +1893,15 @@ KeyWriter<Key, Value, UpdateTag>::update(const Value& value)
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-template<typename UpdateValue, typename Update> void
-KeyWriter<Key, Value, UpdateTag>::update(const UpdateTag& tag, const Update& value)
+template<typename UpdateValue> std::function<void(const UpdateValue&)>
+KeyWriter<Key, Value, UpdateTag>::getUpdater(const UpdateTag& tag)
 {
-    auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
-    Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
-        std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
+    auto impl = Writer<Key, Value, UpdateTag>::_impl;
+    auto updateTag = _tagFactory->create(tag);
+    return [impl, updateTag](const UpdateValue& value) {
+        auto encoded = Encoder<UpdateValue>::encode(impl->getCommunicator(), value);
+        impl->publish(nullptr, std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(encoded, updateTag));
+    };
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1953,12 +1951,17 @@ MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const Value& value
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-template<typename UpdateValue, typename Update> void
-MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const UpdateTag& tag, const Update& value)
+template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)>
+MultiKeyWriter<Key, Value, UpdateTag>::getUpdater(const UpdateTag& tag)
 {
-    auto encoded = Encoder<UpdateValue>::encode(Writer<Key, Value, UpdateTag>::_impl->getCommunicator(), value);
-    Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
-        std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(encoded, _tagFactory->create(tag)));
+    auto impl = Writer<Key, Value, UpdateTag>::_impl;
+    auto updateTag = _tagFactory->create(tag);
+    auto keyFactory = _keyFactory;
+    return [impl, updateTag, keyFactory](const Key& key, const UpdateValue& value) {
+        auto encoded = Encoder<UpdateValue>::encode(impl->getCommunicator(), value);
+        impl->publish(keyFactory->create(key),
+                      std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(encoded, updateTag));
+    };
 }
 
 template<typename Key, typename Value, typename UpdateTag> void

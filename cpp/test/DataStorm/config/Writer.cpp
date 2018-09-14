@@ -202,13 +202,13 @@ main(int argc, char* argv[])
             auto writer = makeSingleKeyWriter(topic, "elem1", config);
             writer.add("value1");
             writer.update("value2");
-            writer.update<string>("concat", "1");
+            writer.getUpdater<string>("concat")("1");
             writer.remove();
             writer.add("value3");
             writer.update("value");
-            writer.update<string>("concat", "1");
-            writer.update<string>("concat", "2");
-            writer.update<string>("concat", "3");
+            writer.getUpdater<string>("concat")("1");
+            writer.getUpdater<string>("concat")("2");
+            writer.getUpdater<string>("concat")("3");
             test(writer.getAll().size() == 4);
             test(writer.getAll()[1].getValue() == "value1");
             writers.update(true); // Ready
@@ -225,13 +225,13 @@ main(int argc, char* argv[])
         auto writer = makeSingleKeyWriter(topic, "elem1", config);
         writer.add("value1");
         writer.update("value2");
-        writer.update<string>("concat", "1");
+        writer.getUpdater<string>("concat")("1");
         writer.remove();
         writer.add("value3");
         writer.update("value");
-        writer.update<string>("concat", "1");
-        writer.update<string>("concat", "2");
-        writer.update<string>("concat", "3");
+        writer.getUpdater<string>("concat")("1");
+        writer.getUpdater<string>("concat")("2");
+        writer.getUpdater<string>("concat")("3");
         writers.update(true); // Ready
 
         while(!readers.getNextUnread().getValue()); // Wait for reader to be done
@@ -248,12 +248,12 @@ main(int argc, char* argv[])
 
         writer1.add("value1");
         writer1.update("value2");
-        writer1.update<string>("concat", "1");
+        writer1.getUpdater<string>("concat")("1");
         writer1.remove();
 
         writer2.add("novalue1");
         writer2.update("novalue2");
-        writer2.update<string>("concat", "no1");
+        writer2.getUpdater<string>("concat")("no1");
         writer2.remove();
 
         while(!readers.getNextUnread().getValue()); // Wait for reader to be done
@@ -269,12 +269,12 @@ main(int argc, char* argv[])
 
         writer1.add("novalue1");
         writer1.update("novalue2");
-        writer1.update<string>("concat", "no1");
+        writer1.getUpdater<string>("concat")("no1");
         writer1.remove();
 
         writer2.add("value1");
         writer2.update("value2");
-        writer2.update<string>("concat", "1");
+        writer2.getUpdater<string>("concat")("1");
         writer2.remove();
 
         while(!readers.getNextUnread().getValue()); // Wait for reader to be done

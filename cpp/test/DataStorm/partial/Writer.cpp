@@ -39,8 +39,8 @@ main(int argc, char* argv[])
         auto writer = makeSingleKeyWriter(topic, "AAPL");
         writer.waitForReaders();
         writer.add(Stock(12.0f, 13.0f, 14.0f));
-        writer.update<float>("price", 15.0f);
-        writer.update<float>("price", 18);
+        writer.getUpdater<float>("price")(15.0f);
+        writer.getUpdater<float>("price")(18);
         writer.waitForNoReaders();
     }
     cout << "ok" << endl;

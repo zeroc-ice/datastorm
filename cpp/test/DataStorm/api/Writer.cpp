@@ -131,7 +131,7 @@ main(int argc, char* argv[])
         testWriter(skwm);
         skwm.add("test");
         skwm.update(string("test"));
-        skwm.update<int>("updatetag", 10);
+        skwm.getUpdater<int>("updatetag")(10);
         skwm.remove();
 
         auto skws = makeSharedSingleKeyWriter(topic, "key");
@@ -144,7 +144,7 @@ main(int argc, char* argv[])
         testWriter(mkwm);
         mkwm.add("key", "test");
         mkwm.update("key", string("test"));
-        mkwm.update<int>("key", "updatetag", 10);
+        mkwm.getUpdater<int>("updatetag")("key", 10);
         mkwm.remove("key");
 
         auto mkws = makeSharedMultiKeyWriter(topic, { "key" });
@@ -231,7 +231,7 @@ main(int argc, char* argv[])
         test(skw.getLast().getKey() == "key");
         test(skw.getLast().getValue() == "");
         test(skw.getLast().getEvent() == SampleEvent::Remove);
-        skw.update<string>("partialupdate", "update");
+        skw.getUpdater<string>("partialupdate")("update");
         test(skw.getLast().getKey() == "key");
         test(skw.getLast().getValue() == "");
         test(skw.getLast().getUpdateTag() == "partialupdate");
