@@ -20,19 +20,25 @@ using namespace DataStormI;
 Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator)
 {
     shared_ptr<Ice::Properties> properties = _communicator->getProperties();
-    if(properties->getProperty("DataStorm.Server.Endpoints").empty())
+    if(properties->getProperty("DataStorm.Node.Server.Endpoints").empty())
     {
-        properties->setProperty("DataStorm.Server.Endpoints", "tcp");
+        properties->setProperty("DataStorm.Node.Server.Endpoints", "tcp");
     }
-    properties->setProperty("DataStorm.Server.ThreadPool.SizeMax", "1");
-    properties->setProperty("DataStorm.Collocated.AdapterId", IceUtil::generateUUID());
-    properties->setProperty("DataStorm.Multicast.Endpoints", "udp -h 239.255.0.1 -p 10000");
-    properties->setProperty("DataStorm.Multicast.ProxyOptions", "-d");
-    properties->setProperty("DataStorm.Multicast.ThreadPool.SizeMax", "1");
+    properties->setProperty("DataStorm.Node.Server.ThreadPool.SizeMax", "1");
+    properties->setProperty("DataStorm.Node.Multicast.Endpoints", "udp -h 239.255.0.1 -p 10000");
+    properties->setProperty("DataStorm.Node.Multicast.ProxyOptions", "-d");
+    properties->setProperty("DataStorm.Node.Multicast.ThreadPool.SizeMax", "1");
 
-    _adapter = _communicator->createObjectAdapter("DataStorm.Server");
-    _collocatedAdapter = _communicator->createObjectAdapter("DataStorm.Collocated");
-    _multicastAdapter = _communicator->createObjectAdapter("DataStorm.Multicast");
+    _adapter = _communicator->createObjectAdapter("DataStorm.Node.Server");
+    _multicastAdapter = _communicator->createObjectAdapter("DataStorm.Node.Multicast");
+
+    //
+    // Create a collocated object adapter with a random name to prevent user configuration
+    // of the adapter.
+    //
+    string collocated = IceUtil::generateUUID();
+    properties->setProperty(collocated + ".AdapterId", collocated);
+    _collocatedAdapter = _communicator->createObjectAdapter(collocated);
 
     _executor = make_shared<CallbackExecutor>();
     _sessionManager = make_shared<SessionManager>(_executor);

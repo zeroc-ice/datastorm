@@ -6,12 +6,12 @@ Ice.Default.Host=localhost
 #
 # DataStorm server endpoint
 #
-#DataStorm.Server.Endpoints=tcp
+#DataStorm.Node.Server.Endpoints=tcp
 
 #
 # DataStorm multicast endpoint
 #
-#DataStorm.Multicast.Endpoints=udp -h 239.255.0.1 -p 10000
+#DataStorm.Node.Multicast.Endpoints=udp -h 239.255.0.1 -p 10000
 
 #
 # DataStorm Tracing
