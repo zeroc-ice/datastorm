@@ -152,12 +152,8 @@ public:
 
     using Id = std::tuple<std::string, long long int, long long int>;
 
-    virtual void onKeyConnect(std::function<void(Id, std::shared_ptr<Key>)>) = 0;
-    virtual void onKeyDisconnect(std::function<void(Id, std::shared_ptr<Key>)>) = 0;
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const = 0;
-
-    virtual void onFilterConnect(std::function<void(Id, std::shared_ptr<Filter>)>) = 0;
-    virtual void onFilterDisconnect(std::function<void(Id, std::shared_ptr<Filter>)>) = 0;
+    virtual void onConnectedKeys(std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)>) = 0;
 
     virtual void destroy() = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;

@@ -41,18 +41,50 @@ main(int argc, char* argv[])
             // (we use the `_event' predefined sample filter with an empty set of sample
             // events to discard events on the writer).
             //
-            auto stocks = DataStorm::makeAnyKeyReader<DataStorm::SampleEventSeq>(topic,
-                                                                                 "_event",
-                                                                                 DataStorm::SampleEventSeq {});
+            auto stocks = DataStorm::makeAnyKeyReader(topic,
+                DataStorm::Filter<DataStorm::SampleEventSeq>("_event", DataStorm::SampleEventSeq {}));
             stocks.waitForWriters();
 
             //
             // Get the set of stocks connected with the any reader and display their ticker.
             //
-            cout << "Available stocks: " << endl;
-            for(auto ticker : stocks.getConnectedKeys())
+            std::promise<vector<string>> p;
+            stocks.onConnectedKeys([&p](DataStorm::ConnectedKeyAction action, vector<string> tickers)
             {
-                cout << ticker << endl;
+                if(action == DataStorm::ConnectedKeyAction::Initialize)
+                {
+                    p.set_value(tickers);
+                }
+                else
+                {
+                    if(action == DataStorm::ConnectedKeyAction::Add)
+                    {
+                        cout << "New stock(s) available: ";
+                    }
+                    else
+                    {
+                        cout << "Stock(s) no longer available: ";
+                    }
+                    for(auto ticker : tickers)
+                    {
+                        cout << ticker << " ";
+                    }
+                    cout << endl;
+                }
+            });
+
+            auto tickers = p.get_future().get();
+            if(tickers.empty())
+            {
+                cout << "Waiting for stocks to be available..." << endl;
+            }
+            else
+            {
+                cout << "Available stock(s): " << endl;
+                for(auto ticker : tickers)
+                {
+                    cout << ticker << endl;
+                }
             }
 
             string stock;

@@ -186,6 +186,23 @@ public:
 };
 
 /**
+ * The connection key action enumurator specifies whether or not
+ * the connected keys callback is called following initialization,
+ * addition or removal of a connected key.
+ */
+enum struct ConnectedKeyAction
+{
+    /** The initial set of connected keys. */
+    Initialize,
+
+    /** The set of new connected keys. */
+    Add,
+
+    /** The set of removed connected keys. */
+    Remove
+};
+
+/**
  * The Encoder template provides a method to encode decode user types.
  *
  * The encoder template can be specialized to provide encoding for types that don't

@@ -183,12 +183,8 @@ public:
                       const std::string&,
                       bool);
 
-    virtual void onKeyConnect(std::function<void(Id, std::shared_ptr<Key>)>) override;
-    virtual void onKeyDisconnect(std::function<void(Id, std::shared_ptr<Key>)>) override;
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
-
-    virtual void onFilterConnect(std::function<void(Id, std::shared_ptr<Filter>)>) override;
-    virtual void onFilterDisconnect(std::function<void(Id, std::shared_ptr<Filter>)>) override;
+    virtual void onConnectedKeys(std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)>) override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int, int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool);
@@ -246,10 +242,7 @@ private:
     mutable size_t _waiters;
     mutable size_t _notified;
 
-    std::function<void(Id, std::shared_ptr<Key>)> _onKeyConnect;
-    std::function<void(Id, std::shared_ptr<Key>)> _onKeyDisconnect;
-    std::function<void(Id, std::shared_ptr<Filter>)> _onFilterConnect;
-    std::function<void(Id, std::shared_ptr<Filter>)> _onFilterDisconnect;
+    std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)> _onConnectedKeys;
 };
 
 class DataReaderI : public DataElementI, public DataReader

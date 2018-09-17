@@ -23,6 +23,7 @@ main(int argc, char* argv[])
         Topic<string, string> topic(node, "string");
         auto barrier = makeSingleKeyWriter(topic, "barrier");
         barrier.waitForReaders();
+        barrier.update("");
         auto reader = makeSingleKeyReader(topic, "element", config);
         test(reader.getNextUnread().getValue() == "add");
         test(reader.getNextUnread().getValue() == "update1");

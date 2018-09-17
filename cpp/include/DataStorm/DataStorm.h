@@ -492,48 +492,29 @@ public:
     Sample<Key, Value, UpdateTag> getNextUnread();
 
     /**
-     * Calls the given function when a new key writer connects to this reader.
+     * Calls the given function when the set of connected keys is updated.
      *
-     * @param callback The function to call when a new writer connects. The ID and
-     *                 the key are provided to the callback.
+     * If a function is already set, it will be replaced.
      *
-     * @see Sample<K, V, U>::getOrigin
+     * The connected keys represent the set of keys for which writers are
+     * connected to this reader.
+     *
+     * The callback is always called after this method returns to provide the
+     * initial set of connected keys. It's then called when keys are added or
+     * removed from the set of connected keys.
+     *
+     * @param callback The function to call when a new writer connects or
+     *                 disconnects for a given set of keys.
      **/
-    void onKeyConnect(std::function<void(WriterId, Key)>);
+    void onConnectedKeys(std::function<void(ConnectedKeyAction, std::vector<Key>)>);
 
     /**
-     * Calls the given function when a new key writer disconnects from this reader.
+     * Calls the given function when samples are queued with this reader.
      *
-     * @param callback The function to call when a new writer disconnects. The ID and
-     *                 the key are provided to the callback.
+     * If a function is already set, it will be replaced.
      *
-     * @see Sample<K, V, U>::getOrigin
-     **/
-    void onKeyDisconnect(std::function<void(WriterId, Key)>);
-
-    /**
-     * Calls the given function when a new filter writer connects to this reader.
-     *
-     * @param callback The function to call when a new writer connects. The ID and
-     *                 the filter name are provided to the callback.
-     *
-     * @see Sample<K, V, U>::getOrigin
-     **/
-    void onFilterConnect(std::function<void(WriterId, std::string)>);
-
-    /**
-     * Calls the given function when a new filter writer disconnects from this reader.
-     *
-     * @param callback The function to call when a new writer disconnects. The ID and
-     *                 the filter name are provided to the callback.
-     *
-     * @see Sample<K, V, U>::getOrigin
-     **/
-    void onFilterDisconnect(std::function<void(WriterId, std::string)>);
-
-    /**
-     * Calls the given function when samples are queued with this reader. If a
-     * function is already set, it will be replaced with this new function.
+     * The callback is called this method returns only if there are unread
+     * samples queued with the reader.
      *
      * @param callback The function to call when samples are received.
      **/
@@ -1089,48 +1070,21 @@ public:
     std::vector<Sample<Key, Value, UpdateTag>> getAll();
 
     /**
+     * Calls the given function when the set of connected keys is updated.
      *
-     * Calls the given function when a new key reader connects to this writer.
+     * If a function is already set, it will be replaced.
      *
-     * @param callback The function to call when a new reader connects. The ID and
-     *                 the key are provided to the callback.
+     * The connected keys represent the set of keys for which writers are
+     * connected to this reader.
      *
-     * @see Sample<K, V, U>::getOrigin
+     * The callback is always called after this method returns to provide the
+     * initial set of connected keys. It's then called when keys are added or
+     * removed from the set of connected keys.
+     *
+     * @param callback The function to call when a new writer connects or
+     *                 disconnects for a given set of keys.
      **/
-    void onKeyConnect(std::function<void(ReaderId, Key)>);
-
-    /**
-     *
-     * Calls the given function when a new key reader disconnects from this writer.
-     *
-     * @param callback The function to call when a new reader disconnects. The ID and
-     *                 the key are provided to the callback.
-     *
-     * @see Sample<K, V, U>::getOrigin
-     **/
-    void onKeyDisconnect(std::function<void(ReaderId, Key)>);
-
-    /**
-     *
-     * Calls the given function when a new filter reader connects to this writer.
-     *
-     * @param callback The function to call when a new reader connects. The ID and
-     *                 the filter name are provided to the callback.
-     *
-     * @see Sample<K, V, U>::getOrigin
-     **/
-    void onFilterConnect(std::function<void(ReaderId, std::string)>);
-
-    /**
-     *
-     * Calls the given function when a new filter reader disconnects from this writer.
-     *
-     * @param callback The function to call when a new reader disconnects. The ID and
-     *                 the filter name are provided to the callback.
-     *
-     * @see Sample<K, V, U>::getOrigin
-     **/
-    void onFilterDisconnect(std::function<void(ReaderId, std::string)>);
+    void onConnectedKeys(std::function<void(ConnectedKeyAction, std::vector<Key>)>);
 
 protected:
 
@@ -1519,63 +1473,19 @@ Reader<Key, Value, UpdateTag>::getNextUnread()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onKeyConnect(std::function<void(WriterId, Key)> callback)
+Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedKeyAction, std::vector<Key>)> callback)
 {
-    if(callback)
+    _impl->onConnectedKeys([callback](ConnectedKeyAction action,
+                                      std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
-        _impl->onKeyConnect([callback](WriterId id, std::shared_ptr<DataStormI::Key> k) {
-            callback(id, std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
-        });
-    }
-    else
-    {
-        _impl->onKeyConnect(nullptr);
-    }
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onKeyDisconnect(std::function<void(WriterId, Key)> callback)
-{
-    if(callback)
-    {
-        _impl->onKeyDisconnect([callback](WriterId id, std::shared_ptr<DataStormI::Key> k) {
-            callback(id, std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
-        });
-    }
-    else
-    {
-        _impl->onKeyDisconnect(nullptr);
-    }
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onFilterConnect(std::function<void(WriterId, std::string)> callback)
-{
-    if(callback)
-    {
-        _impl->onFilterConnect([callback](WriterId id, std::shared_ptr<DataStormI::Filter> f) {
-            callback(id, f->getName());
-        });
-    }
-    else
-    {
-        _impl->onFilterConnect(nullptr);
-    }
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(WriterId, std::string)> callback)
-{
-    if(callback)
-    {
-        _impl->onFilterDisconnect([callback](WriterId id, std::shared_ptr<DataStormI::Filter> f) {
-            callback(id, f->getName());
-        });
-    }
-    else
-    {
-        _impl->onFilterDisconnect(nullptr);
-    }
+        std::vector<Key> keys;
+        keys.reserve(connectedKeys.size());
+        for(const auto& k : connectedKeys)
+        {
+            keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
+        }
+        callback(action, move(keys));
+    });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1775,63 +1685,19 @@ Writer<Key, Value, UpdateTag>::getAll()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onKeyConnect(std::function<void(ReaderId, Key)> callback)
+Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedKeyAction, std::vector<Key>)> callback)
 {
-    if(callback)
+    _impl->onConnectedKeys([callback](ConnectedKeyAction action,
+                                      std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
-        _impl->onKeyConnect([callback](ReaderId id, std::shared_ptr<DataStormI::Key> k) {
-            callback(id, std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
-        });
-    }
-    else
-    {
-        _impl->onKeyConnect(nullptr);
-    }
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onKeyDisconnect(std::function<void(ReaderId, Key)> callback)
-{
-    if(callback)
-    {
-        _impl->onKeyDisconnect([callback](ReaderId id, std::shared_ptr<DataStormI::Key> k) {
-            callback(id, std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
-        });
-    }
-    else
-    {
-        _impl->onKeyDisconnect(nullptr);
-    }
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onFilterConnect(std::function<void(ReaderId, std::string)> callback)
-{
-    if(callback)
-    {
-        _impl->onFilterConnect([callback](ReaderId id, std::shared_ptr<DataStormI::Filter> f) {
-            callback(id, f->getName());
-        });
-    }
-    else
-    {
-        _impl->onFilterConnect(nullptr);
-    }
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onFilterDisconnect(std::function<void(ReaderId, std::string)> callback)
-{
-    if(callback)
-    {
-        _impl->onFilterDisconnect([callback](ReaderId id, std::shared_ptr<DataStormI::Filter> f) {
-            callback(id, f->getName());
-        });
-    }
-    else
-    {
-        _impl->onFilterDisconnect(nullptr);
-    }
+        std::vector<Key> keys;
+        keys.reserve(connectedKeys.size());
+        for(const auto& k : connectedKeys)
+        {
+            keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
+        }
+        callback(action, move(keys));
+    });
 }
 
 template<typename Key, typename Value, typename UpdateTag>

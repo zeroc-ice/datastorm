@@ -25,15 +25,10 @@ main(int argc, char* argv[])
         auto writer = makeSingleKeyWriter(topic, "element", config);
         writer.add("add");
         writer.update("update1");
-        std::promise<shared_ptr<Ice::Connection>> promise;
-        writer.onKeyConnect([&node, &promise, &writer](decltype(writer)::ReaderId reader, string key)
-        {
-            promise.set_value(node.getSessionConnection(get<0>(reader)));
-            writer.onKeyConnect(nullptr);
-        });
         auto barrier = makeSingleKeyReader(topic, "barrier");
+        auto sample = barrier.getNextUnread();
         writer.waitForReaders();
-        auto connection = promise.get_future().get();
+        auto connection = node.getSessionConnection(get<0>(sample.getOrigin()));
         test(connection);
         connection->close(Ice::ConnectionClose::Gracefully);
         writer.update("update2");

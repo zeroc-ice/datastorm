@@ -33,7 +33,7 @@ main(int argc, char* argv[])
         // Instantiate the reader for the key "foo". The reader uses the predefined
         // _regex sample filter and the "good.*"" regular expression as the criteria.
         //
-        auto reader = DataStorm::makeSingleKeyReader<string>(topic, "foo", "_regex", "good.*");
+        auto reader = DataStorm::makeSingleKeyReader(topic, "foo", DataStorm::Filter<string>("_regex", "good.*"));
 
         //
         // Get the 2 samples starting with good published by the writer.

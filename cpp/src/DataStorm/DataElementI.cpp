@@ -192,13 +192,6 @@ DataElementI::attachKey(long long int topicId,
         _parent->incListenerCount(session);
         session->subscribeToKey(topicId, elementId, shared_from_this(), facet, key, keyId, priority);
         notifyListenerWaiters(session->getTopicLock());
-        if(_onKeyConnect)
-        {
-            _executor->queue(shared_from_this(), [=]
-            {
-                _onKeyConnect(make_tuple(session->getId(), topicId, elementId), key);
-            });
-        }
         return true;
     }
     return false;
@@ -246,13 +239,6 @@ DataElementI::detachKey(long long int topicId,
         {
             session->unsubscribeFromKey(topicId, elementId, shared_from_this(), subscriber->id);
         }
-        if(_onKeyDisconnect)
-        {
-            _executor->queue(shared_from_this(), [=]
-                             {
-                                _onKeyDisconnect(make_tuple(session->getId(), topicId, elementId), key);
-                             });
-        }
         notifyListenerWaiters(session->getTopicLock());
     }
 }
@@ -296,13 +282,6 @@ DataElementI::attachFilter(long long int topicId,
         ++_listenerCount;
         _parent->incListenerCount(session);
         session->subscribeToFilter(topicId, elementId, shared_from_this(), facet, key, priority);
-        if(_onFilterConnect)
-        {
-            _executor->queue(shared_from_this(), [=]
-                             {
-                                _onFilterConnect(make_tuple(session->getId(), topicId, elementId), filter);
-                             });
-        }
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -352,43 +331,8 @@ DataElementI::detachFilter(long long int topicId,
         {
             session->unsubscribeFromFilter(topicId, elementId, shared_from_this(), subscriber->id);
         }
-        if(_onFilterDisconnect)
-        {
-            _executor->queue(shared_from_this(), [=]
-                             {
-                                _onFilterDisconnect(make_tuple(session->getId(), topicId, elementId), subscriber->filter);
-                             });
-        }
         notifyListenerWaiters(session->getTopicLock());
     }
-}
-
-void
-DataElementI::onKeyConnect(function<void(Id, shared_ptr<Key>)> callback)
-{
-    unique_lock<mutex> lock(_parent->_mutex);
-    _onKeyConnect = move(callback);
-}
-
-void
-DataElementI::onKeyDisconnect(function<void(Id, shared_ptr<Key>)> callback)
-{
-    unique_lock<mutex> lock(_parent->_mutex);
-    _onKeyDisconnect = move(callback);
-}
-
-void
-DataElementI::onFilterConnect(function<void(Id, shared_ptr<Filter>)> callback)
-{
-    unique_lock<mutex> lock(_parent->_mutex);
-    _onFilterConnect = move(callback);
-}
-
-void
-DataElementI::onFilterDisconnect(function<void(Id, shared_ptr<Filter>)> callback)
-{
-    unique_lock<mutex> lock(_parent->_mutex);
-    _onFilterDisconnect = move(callback);
 }
 
 vector<shared_ptr<Key>>
@@ -401,6 +345,26 @@ DataElementI::getConnectedKeys() const
         keys.push_back(key.first);
     }
     return keys;
+}
+
+void
+DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)> cb)
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    _onConnectedKeys = move(cb);
+    if(_onConnectedKeys)
+    {
+        vector<shared_ptr<Key>> keys;
+        for(const auto& key : _connectedKeys)
+        {
+            keys.push_back(key.first);
+        }
+        _executor->queue(shared_from_this(),
+                         [this, keys]
+                         {
+                             _onConnectedKeys(DataStorm::ConnectedKeyAction::Initialize, keys);
+                         }, true);
+    }
 }
 
 void
@@ -477,6 +441,13 @@ DataElementI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subsc
     auto& subscribers = _connectedKeys[key];
     if(find(subscribers.begin(), subscribers.end(), subscriber) == subscribers.end())
     {
+        if(subscribers.empty() && _onConnectedKeys)
+        {
+            _executor->queue(shared_from_this(), [=]
+            {
+                _onConnectedKeys(DataStorm::ConnectedKeyAction::Add, { key });
+            });
+        }
         subscribers.push_back(subscriber);
         return true;
     }
@@ -493,6 +464,13 @@ DataElementI::removeConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Su
         subscribers.erase(p);
         if(subscribers.empty())
         {
+            if(_onConnectedKeys)
+            {
+                _executor->queue(shared_from_this(), [=]
+                {
+                    _onConnectedKeys(DataStorm::ConnectedKeyAction::Remove, { key });
+                });
+            }
             _connectedKeys.erase(key);
         }
         return true;
