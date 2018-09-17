@@ -810,11 +810,11 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
 shared_ptr<DataReader>
 TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
                              DataStorm::ReaderConfig config,
-                             const string& sampleFilter,
+                             const string& sampleFilterName,
                              vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, sampleFilter,
+    auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, sampleFilterName,
                                                     move(sampleFilterCriteria), mergeConfigs(move(config)));
     element->init();
     addFiltered(element, filter);
@@ -824,12 +824,12 @@ TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
 shared_ptr<DataReader>
 TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
                      DataStorm::ReaderConfig config,
-                     const string& sampleFilter,
+                     const string& sampleFilterName,
                      vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, sampleFilter,
-                                               move(sampleFilterCriteria), mergeConfigs(move(config)));
+    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, sampleFilterName, move(sampleFilterCriteria),
+                                               mergeConfigs(move(config)));
     element->init();
     if(keys.empty())
     {

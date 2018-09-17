@@ -131,7 +131,7 @@ main(int argc, char* argv[])
         testWriter(skwm);
         skwm.add("test");
         skwm.update(string("test"));
-        skwm.getUpdater<int>("updatetag")(10);
+        skwm.partialUpdate<int>("updatetag")(10);
         skwm.remove();
 
         auto skws = makeSharedSingleKeyWriter(topic, "key");
@@ -144,7 +144,7 @@ main(int argc, char* argv[])
         testWriter(mkwm);
         mkwm.add("key", "test");
         mkwm.update("key", string("test"));
-        mkwm.getUpdater<int>("updatetag")("key", 10);
+        mkwm.partialUpdate<int>("updatetag")("key", 10);
         mkwm.remove("key");
 
         auto mkws = makeSharedMultiKeyWriter(topic, { "key" });
@@ -197,8 +197,8 @@ main(int argc, char* argv[])
         akr = makeAnyKeyReader(topic, ReaderConfig());
         testReader(akr);
 
-        auto fr = makeFilteredKeyReader<string>(topic, "_regex", ".*");
-        fr = makeFilteredKeyReader<string>(topic, "_regex", ".*", ReaderConfig());
+        auto fr = makeFilteredKeyReader(topic, Filter<string>(string("_regex"), string(".*")));
+        fr = makeFilteredKeyReader(topic, Filter<string>("_regex", ".*"), ReaderConfig());
         testReader(fr);
 
         auto skrs = makeSharedSingleKeyReader(topic, "key");
@@ -210,8 +210,8 @@ main(int argc, char* argv[])
         auto akrs = makeSharedAnyKeyReader(topic);
         akrs = makeSharedAnyKeyReader(topic, ReaderConfig());
 
-        auto frs = makeSharedFilteredKeyReader<string>(topic, "_regex", ".*");
-        frs = makeSharedFilteredKeyReader<string>(topic, "_regex", ".*", ReaderConfig());
+        auto frs = makeSharedFilteredKeyReader(topic, Filter<string>("_regex", ".*"));
+        frs = makeSharedFilteredKeyReader(topic, Filter<string>("_regex", ".*"), ReaderConfig());
     }
     cout << "ok" << endl;
 
@@ -231,7 +231,7 @@ main(int argc, char* argv[])
         test(skw.getLast().getKey() == "key");
         test(skw.getLast().getValue() == "");
         test(skw.getLast().getEvent() == SampleEvent::Remove);
-        skw.getUpdater<string>("partialupdate")("update");
+        skw.partialUpdate<string>("partialupdate")("update");
         test(skw.getLast().getKey() == "key");
         test(skw.getLast().getValue() == "");
         test(skw.getLast().getUpdateTag() == "partialupdate");

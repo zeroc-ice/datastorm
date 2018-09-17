@@ -221,7 +221,7 @@ main(int argc, char* argv[])
         });
 
         {
-            auto reader = makeFilteredKeyReader<string>(topic, "_regex", "elem[0-4]", config);
+            auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem[0-4]"), config);
 
             reader.waitForWriters(1);
             test(reader.hasWriters());
@@ -247,7 +247,7 @@ main(int argc, char* argv[])
             testSample(SampleEvent::Add, "elem4", "value1");
         }
         {
-            auto reader = makeFilteredKeyReader<string>(topic, "startswith", "val", config);
+            auto reader = makeFilteredKeyReader(topic, Filter<string>("startswith", "val"), config);
             reader.waitForWriters(1);
             test(reader.hasWriters());
         }
@@ -256,7 +256,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered2");
 
-        auto reader = makeFilteredKeyReader<string>(topic, "_regex", "elem[0-4]", config);
+        auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem[0-4]"), config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -285,7 +285,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered3");
 
-        auto reader = makeFilteredKeyReader<string>(topic, "_regex", "elem[0-4]", config);
+        auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem[0-4]"), config);
 
         reader.waitForWriters(1);
         test(reader.hasWriters());
@@ -330,12 +330,12 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader11 = makeFilteredKeyReader<string, SampleEventSeq>(topic, "_regex", "elem[1]", "_event",
-                                                                       SampleEventSeq { SampleEvent::Add }, config);
-            auto reader12 = makeFilteredKeyReader<string, SampleEventSeq>(topic, "_regex", "elem[1]", "_event",
-                                                                       SampleEventSeq { SampleEvent::Update }, config);
-            auto reader13 = makeFilteredKeyReader<string, SampleEventSeq>(topic, "_regex", "elem[1]", "_event",
-                                                                       SampleEventSeq { SampleEvent::Remove }, config);
+            auto reader11 = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem[1]"),
+                                      Filter<SampleEventSeq>("_event", SampleEventSeq { SampleEvent::Add }), config);
+            auto reader12 = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem[1]"),
+                                      Filter<SampleEventSeq>("_event", SampleEventSeq { SampleEvent::Update }), config);
+            auto reader13 = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem[1]"),
+                                      Filter<SampleEventSeq>("_event", SampleEventSeq { SampleEvent::Remove }), config);
             testSample(reader11, SampleEvent::Add, "elem1", "value1");
             testSample(reader12, SampleEvent::Update, "elem1", "value2");
             testSample(reader13, SampleEvent::Remove, "elem1");
@@ -356,7 +356,10 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader2 = makeFilteredKeyReader<string, string>(topic, "_regex", "elem[2]", "_regex", "value[2-4]", config);
+            auto reader2 = makeFilteredKeyReader(topic,
+                                                 Filter<string>("_regex", "elem[2]"),
+                                                 Filter<string>("_regex", "value[2-4]"),
+                                                 config);
             testSample(reader2, SampleEvent::Update, "elem2", "value2");
             testSample(reader2, SampleEvent::Update, "elem2", "value3");
             testSample(reader2, SampleEvent::Update, "elem2", "value4");
@@ -377,7 +380,7 @@ main(int argc, char* argv[])
                 }
             };
 
-            auto reader2 = makeSingleKeyReader<string, string>(topic, "elem3", "startswith", "val", config);
+            auto reader2 = makeSingleKeyReader(topic, "elem3", Filter<string>("startswith", "val"), config);
             testSample(reader2, SampleEvent::Update, "elem3", "value");
         }
      }

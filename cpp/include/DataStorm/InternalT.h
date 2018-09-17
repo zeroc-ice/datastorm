@@ -570,9 +570,9 @@ template<typename ValueT> class FilterManagerT : public FilterManager
         {
         }
 
-        std::shared_ptr<Filter> create(Criteria&& criteria)
+        std::shared_ptr<Filter> create(Criteria criteria)
         {
-            auto filter = std::static_pointer_cast<FilterT<Criteria, ValueT>>(filterFactory.create(std::forward<Criteria>(criteria)));
+            auto filter = std::static_pointer_cast<FilterT<Criteria, ValueT>>(filterFactory.create(criteria));
             filter->init(name, lambda(filter->get()));
             return filter;
         }
@@ -601,7 +601,7 @@ public:
     }
 
     template<typename Criteria> std::shared_ptr<Filter>
-    create(const std::string& name, Criteria&& criteria)
+    create(const std::string& name, const Criteria& criteria)
     {
         auto p = _factories.find(name);
         if(p == _factories.end())
@@ -615,7 +615,7 @@ public:
             throw std::invalid_argument("filter `" + name + "'");
         }
 
-        return factory->create(std::forward<Criteria>(criteria));
+        return factory->create(criteria);
     }
 
     virtual std::shared_ptr<Filter>

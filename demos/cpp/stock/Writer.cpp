@@ -39,12 +39,12 @@ updateStock(DataStorm::KeyWriter<string, Stock>& stock)
     if(uniform_int_distribution<int>(1, 10)(random) < 8)
     {
         auto price = stock.getLast().getValue().price;
-        stock.getUpdater<float>("price")(uniform_real_distribution<float>(price * 0.95f, price * 1.05f)(random));
+        stock.partialUpdate<float>("price")(uniform_real_distribution<float>(price * 0.95f, price * 1.05f)(random));
     }
     else
     {
         auto volume = stock.getLast().getValue().volume;
-        stock.getUpdater<int>("volume")(uniform_int_distribution<int>(volume * 95 / 100, volume * 105 / 100)(random));
+        stock.partialUpdate<int>("volume")(uniform_int_distribution<int>(volume * 95 / 100, volume * 105 / 100)(random));
     }
 }
 

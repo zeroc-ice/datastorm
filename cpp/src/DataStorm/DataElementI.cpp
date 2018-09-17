@@ -552,15 +552,18 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
     }
 }
 
-DataReaderI::DataReaderI(TopicReaderI* topic, long long int id, const string& sampleFilter,
-                         vector<unsigned char> sampleFilterCriteria, const DataStorm::ReaderConfig& config) :
+DataReaderI::DataReaderI(TopicReaderI* topic,
+                         long long int id,
+                         const string& sampleFilterName,
+                         vector<unsigned char> sampleFilterCriteria,
+                         const DataStorm::ReaderConfig& config) :
     DataElementI(topic, id, config),
     _parent(topic),
     _discardPolicy(config.discardPolicy ? *config.discardPolicy : DataStorm::DiscardPolicy::None)
 {
-    if(!sampleFilter.empty())
+    if(!sampleFilterName.empty())
     {
-        _config->sampleFilter = FilterInfo { sampleFilter, move(sampleFilterCriteria) };
+        _config->sampleFilter = FilterInfo { sampleFilterName, move(sampleFilterCriteria) };
     }
 }
 
@@ -932,10 +935,10 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
 KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
-                               const string& sampleFilter,
+                               const string& sampleFilterName,
                                const vector<unsigned char> sampleFilterCriteria,
                                const DataStorm::ReaderConfig& config) :
-    DataReaderI(topic, id, sampleFilter, sampleFilterCriteria, config),
+    DataReaderI(topic, id, sampleFilterName, sampleFilterCriteria, config),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -1190,10 +1193,10 @@ KeyDataWriterI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& curren
 FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
                                          long long int id,
                                          const shared_ptr<Filter>& filter,
-                                         const string& sampleFilter,
+                                         const string& sampleFilterName,
                                          vector<unsigned char> sampleFilterCriteria,
                                          const DataStorm::ReaderConfig& config) :
-    DataReaderI(topic, id, sampleFilter, sampleFilterCriteria, config),
+    DataReaderI(topic, id, sampleFilterName, sampleFilterCriteria, config),
     _filter(filter)
 {
     if(_traceLevels->data > 0)
