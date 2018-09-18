@@ -534,7 +534,7 @@ protected:
 template<typename T> struct Filter
 {
     template<typename TT>
-    Filter(const std::string& name, TT&& criteria) : name(name), criteria(std::forward<T>(criteria))
+    Filter(const std::string& name, TT&& criteria) : name(name), criteria(std::forward<TT>(criteria))
     {
     }
 
