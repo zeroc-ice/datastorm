@@ -284,7 +284,7 @@ main(int argc, char* argv[])
     cout << "testing send time discard policy... " << flush;
     {
         writers.update(false); // Not ready
-        vector<tuple<Ice::CommunicatorHolder, Node, Topic<string, int>, KeyWriter<string, int>>> w;
+        vector<tuple<Ice::CommunicatorHolder, Node, Topic<string, int>, SingleKeyWriter<string, int>>> w;
         int writerCount = 10;
         for(int i = 0; i < writerCount; ++i)
         {

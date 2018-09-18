@@ -131,8 +131,8 @@ main(int argc, char* argv[])
         skwm.partialUpdate<int>("updatetag")(10);
         skwm.remove();
 
-        auto skws = makeSharedSingleKeyWriter(topic, "key");
-        skws = makeSharedSingleKeyWriter(topic, "key", WriterConfig());
+        auto skws = make_shared<SingleKeyWriter<string, string>>(topic, "key");
+        skws = make_shared<SingleKeyWriter<string, string>>(topic, "key", WriterConfig());
 
         auto mkw = makeMultiKeyWriter(topic, { "key" });
         mkw = makeMultiKeyWriter(topic, { "key" }, WriterConfig());
@@ -144,8 +144,8 @@ main(int argc, char* argv[])
         mkwm.partialUpdate<int>("updatetag")("key", 10);
         mkwm.remove("key");
 
-        auto mkws = makeSharedMultiKeyWriter(topic, { "key" });
-        mkws = makeSharedMultiKeyWriter(topic, { "key" }, WriterConfig());
+        auto mkws = make_shared<MultiKeyWriter<string, string>>(topic, vector<string> { "key" });
+        mkws = make_shared<MultiKeyWriter<string, string>>(topic, vector<string> { "key" }, WriterConfig());
 
         auto akw = makeAnyKeyWriter(topic);
         akw = makeAnyKeyWriter(topic, WriterConfig());
@@ -153,8 +153,8 @@ main(int argc, char* argv[])
         auto akwm = move(akw);
         testWriter(akwm);
 
-        auto akws = makeSharedAnyKeyWriter(topic);
-        akws = makeSharedAnyKeyWriter(topic, WriterConfig());
+        auto akws = make_shared<MultiKeyWriter<string, string>>(topic, vector<string> {});
+        akws = make_shared<MultiKeyWriter<string, string>>(topic, vector<string> {}, WriterConfig());
     }
     cout << "ok" << endl;
 
@@ -195,17 +195,17 @@ main(int argc, char* argv[])
         fr = makeFilteredKeyReader(topic, Filter<string>("_regex", ".*"), ReaderConfig());
         testReader(fr);
 
-        auto skrs = makeSharedSingleKeyReader(topic, "key");
-        skrs = makeSharedSingleKeyReader(topic, "key", ReaderConfig());
+        auto skrs = make_shared<SingleKeyReader<string, string>>(topic, "key");
+        skrs = make_shared<SingleKeyReader<string, string>>(topic, "key", ReaderConfig());
 
-        auto mkrs = makeSharedMultiKeyReader(topic, { "key" });
-        mkrs = makeSharedMultiKeyReader(topic, { "key" }, ReaderConfig());
+        auto mkrs = make_shared<MultiKeyReader<string, string>>(topic, vector<string> { "key" });
+        mkrs = make_shared<MultiKeyReader<string, string>>(topic, vector<string> { "key" }, ReaderConfig());
 
-        auto akrs = makeSharedAnyKeyReader(topic);
-        akrs = makeSharedAnyKeyReader(topic, ReaderConfig());
+        auto akrs = make_shared<MultiKeyReader<string, string>>(topic, vector<string> {});
+        akrs = make_shared<MultiKeyReader<string, string>>(topic, vector<string> {}, ReaderConfig());
 
-        auto frs = makeSharedFilteredKeyReader(topic, Filter<string>("_regex", ".*"));
-        frs = makeSharedFilteredKeyReader(topic, Filter<string>("_regex", ".*"), ReaderConfig());
+        auto frs = make_shared<FilteredKeyReader<string, string>>(topic, Filter<string>("_regex", ".*"));
+        frs = make_shared<FilteredKeyReader<string, string>>(topic, Filter<string>("_regex", ".*"), ReaderConfig());
     }
     cout << "ok" << endl;
 
