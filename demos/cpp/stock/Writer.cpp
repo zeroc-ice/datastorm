@@ -18,7 +18,7 @@ namespace
 
 std::random_device random;
 
-DataStorm::KeyWriter<string, Stock>
+DataStorm::SingleKeyWriter<string, Stock>
 makeStock(DataStorm::Topic<string, Stock>& topic, string ticker, Stock stock)
 {
     //
@@ -31,7 +31,7 @@ makeStock(DataStorm::Topic<string, Stock>& topic, string ticker, Stock stock)
 }
 
 void
-updateStock(DataStorm::KeyWriter<string, Stock>& stock)
+updateStock(DataStorm::SingleKeyWriter<string, Stock>& stock)
 {
     //
     // Send a partial update to either update the price or the volume with the given writer.
@@ -96,7 +96,7 @@ main(int argc, char* argv[])
         //
         // Instantiate writers for the choosen stocks.
         //
-        vector<DataStorm::KeyWriter<string, Stock>> writers;
+        vector<DataStorm::SingleKeyWriter<string, Stock>> writers;
         if(stock.empty() || stock == "all")
         {
             for(const auto& stock : stocks)

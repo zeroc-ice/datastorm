@@ -96,7 +96,7 @@ main(int argc, char* argv[])
             //
             if(stock.empty() || stock == "all")
             {
-                reader = makeSharedAnyKeyReader(topic); // Returns a shared_ptr
+                reader = make_shared<DataStorm::MultiKeyReader<string, Stock>>(topic); // Returns a shared_ptr
             }
             else
             {
@@ -106,7 +106,7 @@ main(int argc, char* argv[])
                     cout << "unknown stock `" << stock << "'" << endl;
                     return 1;
                 }
-                reader = makeSharedSingleKeyReader(topic, stock); // Returns a shared_ptr
+                reader = make_shared<DataStorm::SingleKeyReader<string, Stock>>(topic, stock); // Returns a shared_ptr
             }
         }
 

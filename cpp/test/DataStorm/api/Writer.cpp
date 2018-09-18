@@ -123,6 +123,7 @@ main(int argc, char* argv[])
 
         auto skw = makeSingleKeyWriter(topic, "key");
         skw = makeSingleKeyWriter(topic, "key", WriterConfig());
+        SingleKeyWriter<string, string> skw1(topic, "key");
 
         auto skwm = move(skw);
         testWriter(skwm);
@@ -136,6 +137,7 @@ main(int argc, char* argv[])
 
         auto mkw = makeMultiKeyWriter(topic, { "key" });
         mkw = makeMultiKeyWriter(topic, { "key" }, WriterConfig());
+        MultiKeyWriter<string, string> mkw1(topic, { "key" });
 
         auto mkwm = move(mkw);
         testWriter(mkwm);
@@ -149,6 +151,7 @@ main(int argc, char* argv[])
 
         auto akw = makeAnyKeyWriter(topic);
         akw = makeAnyKeyWriter(topic, WriterConfig());
+        MultiKeyWriter<string, string> akw1(topic, {});
 
         auto akwm = move(akw);
         testWriter(akwm);

@@ -614,6 +614,15 @@ public:
     MultiKeyReader(const Topic<Key, Value, UpdateTag>&, const std::vector<Key>&, const ReaderConfig& = ReaderConfig());
 
     /**
+     * Construct a new reader for any key. The construction of the reader
+     * connects the reader to available writers.
+     *
+     * @param topic The topic.
+     * @param config The reader configuration.
+     */
+    MultiKeyReader(const Topic<Key, Value, UpdateTag>&, const ReaderConfig& = ReaderConfig());
+
+    /**
      * Construct a new reader for the given keys and sample filter criteria. The
      * construction of the reader connects the reader to writers with matching
      * keys. The writer will only send samples matching the given sample filter
@@ -627,6 +636,20 @@ public:
     template<typename SampleFilterCriteria>
     MultiKeyReader(const Topic<Key, Value, UpdateTag>&,
                    const std::vector<Key>&,
+                   const Filter<SampleFilterCriteria>&,
+                   const ReaderConfig& = ReaderConfig());
+
+    /**
+     * Construct a new reader for any key. The construction of the reader
+     * connects the reader to available writers. The writer will only send samples
+     * matching the given sample filter criteria to the reader.
+     *
+     * @param topic The topic.
+     * @param sampleFilter The sample filter.
+     * @param config The reader configuration.
+     */
+    template<typename SampleFilterCriteria>
+    MultiKeyReader(const Topic<Key, Value, UpdateTag>&,
                    const Filter<SampleFilterCriteria>&,
                    const ReaderConfig& = ReaderConfig());
 
@@ -731,7 +754,7 @@ makeMultiKeyReader(const Topic<K, V, UT>& topic,
 template<typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
 makeAnyKeyReader(const Topic<K, V, UT>& topic, const ReaderConfig& config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, UT>(topic, {}, config);
+    return MultiKeyReader<K, V, UT>(topic, config);
 }
 
 /**
@@ -749,7 +772,7 @@ makeAnyKeyReader(const Topic<K, V, UT>& topic,
                  const Filter<SFC>& sampleFilter,
                  const ReaderConfig& config = ReaderConfig())
 {
-    return MultiKeyReader<K, V, UT>(topic, {}, sampleFilter, config);
+    return MultiKeyReader<K, V, UT>(topic, sampleFilter, config);
 }
 
 /**
@@ -1031,14 +1054,23 @@ class MultiKeyWriter : public Writer<Key, Value, UpdateTag>
 public:
 
     /**
-     * Construct a new writer for the given key. The construction of the writer
-     * connects the writer to readers with a matching key.
+     * Construct a new writer for the given keys. The construction of the writer
+     * connects the writer to readers with matching keys.
      *
      * @param topic The topic.
      * @param keys The keys.
      * @param config The writer configuration.
      */
     MultiKeyWriter(const Topic<Key, Value, UpdateTag>&, const std::vector<Key>&, const WriterConfig& = WriterConfig());
+
+    /**
+     * Construct a new writer for any key. The construction of the writer
+     * connects the writer to all the available readers.
+     *
+     * @param topic The topic.
+     * @param config The writer configuration.
+     */
+    MultiKeyWriter(const Topic<Key, Value, UpdateTag>&, const WriterConfig& = WriterConfig());
 
     /**
      * Transfers the given writer to this writer.
@@ -1139,7 +1171,7 @@ makeMultiKeyWriter(const Topic<K, V, UT>& topic,
 template<typename K, typename V, typename UT> MultiKeyWriter<K, V, UT>
 makeAnyKeyWriter(const Topic<K, V, UT>& topic, const WriterConfig& config = WriterConfig())
 {
-    return MultiKeyWriter<K, V, UT>(topic, {}, config);
+    return MultiKeyWriter<K, V, UT>(topic, config);
 }
 
 }
@@ -1356,6 +1388,13 @@ MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, Up
 {
 }
 
+template<typename Key, typename Value, typename UpdateTag>
+MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                                                      const ReaderConfig& config) :
+    Reader<Key, Value, UpdateTag>(topic.getReader()->create(topic._keyFactory->create(std::vector<Key> {}), config))
+{
+}
+
 template<typename Key, typename Value, typename UpdateTag> template<typename SFC>
 MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
                                                       const std::vector<Key>& keys,
@@ -1363,6 +1402,16 @@ MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, Up
                                                       const ReaderConfig& config) :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create(
         topic._keyFactory->create(keys), config,
+        sampleFilter.name, Encoder<SFC>::encode(topic.getCommunicator(), sampleFilter.criteria)))
+{
+}
+
+template<typename Key, typename Value, typename UpdateTag> template<typename SFC>
+MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                                                      const Filter<SFC>& sampleFilter,
+                                                      const ReaderConfig& config) :
+    Reader<Key, Value, UpdateTag>(topic.getReader()->create(
+        topic._keyFactory->create(std::vector<Key> {}), config,
         sampleFilter.name, Encoder<SFC>::encode(topic.getCommunicator(), sampleFilter.criteria)))
 {
 }
@@ -1572,6 +1621,15 @@ MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(const Topic<Key, Value, Up
                                                       const std::vector<Key>& keys,
                                                       const WriterConfig& config) :
     Writer<Key, Value, UpdateTag>(topic.getWriter()->create(topic._keyFactory->create(keys), config)),
+    _keyFactory(topic._keyFactory),
+    _tagFactory(topic._tagFactory)
+{
+}
+
+template<typename Key, typename Value, typename UpdateTag>
+MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
+                                                      const WriterConfig& config) :
+    Writer<Key, Value, UpdateTag>(topic.getWriter()->create(topic._keyFactory->create(std::vector<Key> {}), config)),
     _keyFactory(topic._keyFactory),
     _tagFactory(topic._tagFactory)
 {
