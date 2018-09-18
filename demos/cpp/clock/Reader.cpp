@@ -6,8 +6,6 @@
 
 #include <DataStorm/DataStorm.h>
 
-#include <iomanip>
-
 using namespace std;
 
 namespace DataStorm
@@ -74,7 +72,12 @@ main(int argc, char* argv[])
             for(auto& sample : samples)
             {
                 auto time = chrono::system_clock::to_time_t(sample.getValue());
-                cout << "received time for `" << sample.getKey() << "': " << put_time(localtime(&time), "%X") << endl;
+                char timeString[100];
+                if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
+                {
+                    timeString[0] = '\0';
+                }
+                cout << "received time for `" << sample.getKey() << "': " << timeString << endl;
             }
         });
 
