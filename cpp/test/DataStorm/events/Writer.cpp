@@ -277,6 +277,7 @@ main(int argc, char* argv[])
             test(!writer1.hasReaders());
             writer2.waitForReaders(1);
             test(!writer1.hasReaders());
+            writer2.remove();
             writer2.waitForNoReaders();
         }
     }

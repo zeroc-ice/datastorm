@@ -250,6 +250,7 @@ main(int argc, char* argv[])
             auto reader = makeFilteredKeyReader(topic, Filter<string>("startswith", "val"), "", config);
             reader.waitForWriters(1);
             test(reader.hasWriters());
+            reader.getNextUnread();
         }
     }
 
