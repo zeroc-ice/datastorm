@@ -20,7 +20,7 @@ main(int argc, char* argv[])
     Topic<string, bool> controller(node, "controller");
 
     auto writers = makeSingleKeyWriter(controller, "writers");
-    auto readers = makeSingleKeyReader(controller, "readers", { -1, 0, ClearHistoryPolicy::Never });
+    auto readers = makeSingleKeyReader(controller, "readers", "", { -1, 0, ClearHistoryPolicy::Never });
 
     {
         WriterConfig config;
@@ -28,12 +28,20 @@ main(int argc, char* argv[])
         topic.setWriterDefaultConfig(config);
     }
 
+    cout << "testing writer/reader name... " << flush;
+    {
+        auto writer = makeSingleKeyWriter(topic, "key1", "writername1");
+        writer.update("update");
+        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+    }
+    cout << "ok" << endl;
+
     cout << "testing writer sampleCount... " << flush;
     {
         auto write = [&topic, &writers, &readers](WriterConfig config)
         {
             writers.update(false); // Not ready
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
@@ -98,7 +106,7 @@ main(int argc, char* argv[])
         // Keep 3ms worth of samples in the history
         WriterConfig config;
         config.sampleLifetime = 20;
-        auto writer = makeSingleKeyWriter(topic, "elem1", config);
+        auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
         writer.add("value1");
         writer.update("value2");
         writer.remove();
@@ -138,7 +146,7 @@ main(int argc, char* argv[])
             writers.update(false); // Not ready
             WriterConfig config;
             config.clearHistory = ClearHistoryPolicy::Never;
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
             for(int i = 0; i < 20; ++i)
             {
@@ -154,7 +162,7 @@ main(int argc, char* argv[])
             writers.update(false); // Not ready
             WriterConfig config;
             config.clearHistory = ClearHistoryPolicy::OnAdd;
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
@@ -169,7 +177,7 @@ main(int argc, char* argv[])
             writers.update(false); // Not ready
             WriterConfig config;
             config.clearHistory = ClearHistoryPolicy::OnRemove;
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
@@ -184,7 +192,7 @@ main(int argc, char* argv[])
             writers.update(false); // Not ready
             WriterConfig config;
             config.clearHistory = ClearHistoryPolicy::OnAll;
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
@@ -199,7 +207,7 @@ main(int argc, char* argv[])
             writers.update(false); // Not ready
             WriterConfig config;
             config.clearHistory = ClearHistoryPolicy::OnAllExceptPartialUpdate;
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
             writer.update("value2");
             writer.partialUpdate<string>("concat")("1");
@@ -222,7 +230,7 @@ main(int argc, char* argv[])
         writers.update(false); // Not ready
         WriterConfig config;
         config.clearHistory = ClearHistoryPolicy::Never;
-        auto writer = makeSingleKeyWriter(topic, "elem1", config);
+        auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
         writer.add("value1");
         writer.update("value2");
         writer.partialUpdate<string>("concat")("1");
@@ -242,9 +250,9 @@ main(int argc, char* argv[])
     {
         WriterConfig config;
         config.priority = 10;
-        auto writer1 = makeSingleKeyWriter(topic, "elemdp1", config);
+        auto writer1 = makeSingleKeyWriter(topic, "elemdp1", "", config);
         config.priority = 1;
-        auto writer2 = makeSingleKeyWriter(topic, "elemdp1", config);
+        auto writer2 = makeSingleKeyWriter(topic, "elemdp1", "", config);
 
         writer1.add("value1");
         writer1.update("value2");
@@ -261,9 +269,9 @@ main(int argc, char* argv[])
     {
         WriterConfig config;
         config.priority = 1;
-        auto writer1 = makeSingleKeyWriter(topic, "elemdp2", config);
+        auto writer1 = makeSingleKeyWriter(topic, "elemdp2", "", config);
         config.priority = 10;
-        auto writer2 = makeSingleKeyWriter(topic, "elemdp2", config);
+        auto writer2 = makeSingleKeyWriter(topic, "elemdp2", "", config);
 
         writer2.waitForReaders();
 

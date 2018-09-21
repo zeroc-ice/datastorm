@@ -22,13 +22,13 @@ main(int argc, char* argv[])
     cout << "testing writer connection closure... " << flush;
     {
         Topic<string, string> topic(node, "string");
-        auto writer = makeSingleKeyWriter(topic, "element", config);
+        auto writer = makeSingleKeyWriter(topic, "element", "", config);
         writer.add("add");
         writer.update("update1");
         auto barrier = makeSingleKeyReader(topic, "barrier");
         auto sample = barrier.getNextUnread();
         writer.waitForReaders();
-        auto connection = node.getSessionConnection(get<0>(sample.getOrigin()));
+        auto connection = node.getSessionConnection(sample.getSession());
         test(connection);
         connection->close(Ice::ConnectionClose::Gracefully);
         writer.update("update2");
@@ -41,7 +41,7 @@ main(int argc, char* argv[])
     cout << "testing reader connection closure... " << flush;
     {
         Topic<string, int> topic(node, "int");
-        auto writer = makeSingleKeyWriter(topic, "element", config);
+        auto writer = makeSingleKeyWriter(topic, "element", "", config);
         writer.waitForReaders();
         for(int i = 0; i < 1000; ++i)
         {

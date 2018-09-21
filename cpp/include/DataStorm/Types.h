@@ -190,7 +190,7 @@ public:
  * the connected keys callback is called following initialization,
  * addition or removal of a connected key.
  */
-enum struct ConnectedKeyAction
+enum struct ConnectedAction
 {
     /** The initial set of connected keys. */
     Initialize,

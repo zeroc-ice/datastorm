@@ -128,6 +128,9 @@ public:
     void decListenerCount(const std::shared_ptr<SessionI>&);
     void decListenerCount(size_t);
 
+    void removeFiltered(const std::shared_ptr<DataElementI>&, const std::shared_ptr<Filter>&);
+    void remove(const std::shared_ptr<DataElementI>&, const std::vector<std::shared_ptr<Key>>&);
+
 protected:
 
     void waitForListeners(int count) const;
@@ -192,10 +195,12 @@ public:
                  long long int);
 
     virtual std::shared_ptr<DataReader> createFiltered(const std::shared_ptr<Filter>&,
+                                                       const std::string&,
                                                        DataStorm::ReaderConfig,
                                                        const std::string&,
                                                        std::vector<unsigned char>) override;
     virtual std::shared_ptr<DataReader> create(const std::vector<std::shared_ptr<Key>>&,
+                                               const std::string&,
                                                DataStorm::ReaderConfig,
                                                const std::string&,
                                                std::vector<unsigned char>) override;
@@ -204,9 +209,6 @@ public:
     virtual void waitForWriters(int) const override;
     virtual bool hasWriters() const override;
     virtual void destroy() override;
-
-    void removeFiltered(const std::shared_ptr<Filter>&, const std::shared_ptr<DataElementI>&);
-    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<DataElementI>&);
 
 private:
 
@@ -230,14 +232,13 @@ public:
                  long long int);
 
     virtual std::shared_ptr<DataWriter> create(const std::vector<std::shared_ptr<Key>>&,
+                                               const std::string&,
                                                DataStorm::WriterConfig) override;
 
     virtual void setDefaultConfig(DataStorm::WriterConfig) override;
     virtual void waitForReaders(int) const override;
     virtual bool hasReaders() const override;
     virtual void destroy() override;
-
-    void remove(const std::vector<std::shared_ptr<Key>>&, const std::shared_ptr<DataElementI>&);
 
 private:
 

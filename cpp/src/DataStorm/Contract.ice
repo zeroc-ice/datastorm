@@ -112,6 +112,7 @@ class ElementConfig(1)
 {
     optional(1) string facet;
     optional(2) FilterInfo sampleFilter;
+    optional(3) string name;
     optional(4) int priority;
 
     optional(10) int sampleCount;

@@ -61,7 +61,7 @@ main(int argc, char* argv[])
         test(sample.getValue().price == 18.0f);
 
         // Late joining reader with limited sample count should receive one Update event and a PartialUpdate event
-        auto reader3 = makeSingleKeyReader(topic, "AAPL", ReaderConfig(2));
+        auto reader3 = makeSingleKeyReader(topic, "AAPL", "", ReaderConfig(2));
         sample = reader3.getNextUnread();
         test(sample.getEvent() == SampleEvent::Update);
         test(sample.getValue().price == 15.0f);

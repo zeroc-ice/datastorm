@@ -24,7 +24,7 @@ main(int argc, char* argv[])
         auto barrier = makeSingleKeyWriter(topic, "barrier");
         barrier.waitForReaders();
         barrier.update("");
-        auto reader = makeSingleKeyReader(topic, "element", config);
+        auto reader = makeSingleKeyReader(topic, "element", "", config);
         test(reader.getNextUnread().getValue() == "add");
         test(reader.getNextUnread().getValue() == "update1");
         test(reader.getNextUnread().getValue() == "update2");
@@ -36,7 +36,7 @@ main(int argc, char* argv[])
 
     {
         Topic<string, int> topic(node, "int");
-        auto reader = makeSingleKeyReader(topic, "element", config);
+        auto reader = makeSingleKeyReader(topic, "element", "", config);
         for(int i = 0; i < 1000; ++i)
         {
             auto sample = reader.getNextUnread();
@@ -47,11 +47,11 @@ main(int argc, char* argv[])
             }
             if((i % 50) == 0)
             {
-                auto connection = node.getSessionConnection(get<0>(sample.getOrigin()));
+                auto connection = node.getSessionConnection(sample.getSession());
                 while(!connection)
                 {
                     this_thread::sleep_for(chrono::milliseconds(200));
-                    connection = node.getSessionConnection(get<0>(sample.getOrigin()));
+                    connection = node.getSessionConnection(sample.getSession());
                 }
                 connection->close(Ice::ConnectionClose::Gracefully);
             }

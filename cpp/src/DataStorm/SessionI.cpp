@@ -423,8 +423,7 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
                     assert(key);
 
                     samplesI.push_back(sampleFactory->create(_id,
-                                                             topicId,
-                                                             samples.id,
+                                                             k->name,
                                                              s.id,
                                                              s.event,
                                                              key,
@@ -707,7 +706,8 @@ SessionI::disconnect(long long id, TopicI* topic)
 
 void
 SessionI::subscribeToKey(long long topicId, long long int elementId, const std::shared_ptr<DataElementI>& element,
-                         const string& facet, const shared_ptr<Key>& key, long long int keyId, int priority)
+                         const string& facet, const shared_ptr<Key>& key, long long int keyId, const string& name,
+                         int priority)
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
@@ -721,7 +721,7 @@ SessionI::subscribeToKey(long long topicId, long long int elementId, const std::
         }
     }
 
-    subscriber.add(elementId, priority)->addSubscriber(element, key, facet, _sessionInstanceId);
+    subscriber.add(elementId, name, priority)->addSubscriber(element, key, facet, _sessionInstanceId);
 
     auto& p = subscriber.keys[keyId];
     if(!p.first)
@@ -779,7 +779,7 @@ SessionI::disconnectFromKey(long long topicId, long long int elementId, const st
 
 void
 SessionI::subscribeToFilter(long long topicId, long long int elementId, const std::shared_ptr<DataElementI>& element,
-                            const string& facet, const shared_ptr<Key>& key, int priority)
+                            const string& facet, const shared_ptr<Key>& key, const string& name, int priority)
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
@@ -792,7 +792,7 @@ SessionI::subscribeToFilter(long long topicId, long long int elementId, const st
             out << " (facet=" << facet << ')';
         }
     }
-    subscriber.add(-elementId, priority)->addSubscriber(element, key, facet, _sessionInstanceId);
+    subscriber.add(-elementId, name, priority)->addSubscriber(element, key, facet, _sessionInstanceId);
 }
 
 void
@@ -856,7 +856,8 @@ SessionI::subscriberInitialized(long long int topicId,
 {
     assert(_topics.find(topicId) != _topics.end());
     auto& subscriber = _topics.at(topicId).getSubscriber(element->getTopic());
-    auto s = subscriber.get(elementId)->getSubscriber(element);
+    auto e = subscriber.get(elementId);
+    auto s = e->getSubscriber(element);
     assert(s);
 
     if(_traceLevels->session > 1)
@@ -876,8 +877,7 @@ SessionI::subscriberInitialized(long long int topicId,
         assert((!key && !s.keyValue.empty()) || key == subscriber.keys[s.keyId].first);
 
         samplesI.push_back(sampleFactory->create(_id,
-                                                 topicId,
-                                                 elementId,
+                                                 e->name,
                                                  s.id,
                                                  s.event,
                                                  key ? key : keyFactory->decode(_instance->getCommunicator(), s.keyValue),
@@ -1047,8 +1047,8 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
             assert(key);
 
             auto impl = topic->getSampleFactory()->create(_id,
-                                                          topicId,
-                                                          elementId,
+                                                          e->name,
+
                                                           s.id,
                                                           s.event,
                                                           key,

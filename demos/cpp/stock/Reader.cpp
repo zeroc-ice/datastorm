@@ -49,15 +49,15 @@ main(int argc, char* argv[])
             // Get the set of stocks connected with the any reader and display their ticker.
             //
             std::promise<vector<string>> p;
-            stocks.onConnectedKeys([&p](DataStorm::ConnectedKeyAction action, vector<string> tickers)
+            stocks.onConnectedKeys([&p](DataStorm::ConnectedAction action, vector<string> tickers)
             {
-                if(action == DataStorm::ConnectedKeyAction::Initialize)
+                if(action == DataStorm::ConnectedAction::Initialize)
                 {
                     p.set_value(tickers);
                 }
                 else
                 {
-                    if(action == DataStorm::ConnectedKeyAction::Add)
+                    if(action == DataStorm::ConnectedAction::Add)
                     {
                         cout << "New stock(s) available: ";
                     }
@@ -96,7 +96,7 @@ main(int argc, char* argv[])
             //
             if(stock.empty() || stock == "all")
             {
-                reader = make_shared<DataStorm::MultiKeyReader<string, Stock>>(topic); // Returns a shared_ptr
+                reader = make_shared<DataStorm::MultiKeyReader<string, Stock>>(topic, vector<string> {});
             }
             else
             {
@@ -106,7 +106,7 @@ main(int argc, char* argv[])
                     cout << "unknown stock `" << stock << "'" << endl;
                     return 1;
                 }
-                reader = make_shared<DataStorm::SingleKeyReader<string, Stock>>(topic, stock); // Returns a shared_ptr
+                reader = make_shared<DataStorm::SingleKeyReader<string, Stock>>(topic, stock);
             }
         }
 

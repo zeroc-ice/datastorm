@@ -352,15 +352,14 @@ template<typename Key, typename Value, typename UpdateTag> class SampleT :
 public:
 
     SampleT(const std::string& session,
-            long long int topic,
-            long long int element,
+            const std::string& origin,
             long long int id,
             DataStorm::SampleEvent event,
             const std::shared_ptr<DataStormI::Key>& key,
             const std::shared_ptr<DataStormI::Tag>& tag,
             std::vector<unsigned char> value,
             long long int timestamp) :
-        Sample(session, topic, element, id, event, key, tag, value, timestamp), _hasValue(false)
+        Sample(session, origin, id, event, key, tag, value, timestamp), _hasValue(false)
     {
     }
 
@@ -463,8 +462,7 @@ template<typename Key, typename Value, typename UpdateTag> class SampleFactoryT 
 public:
 
     virtual std::shared_ptr<Sample> create(const std::string& session,
-                                           long long int topic,
-                                           long long int element,
+                                           const std::string& origin,
                                            long long int id,
                                            DataStorm::SampleEvent type,
                                            const std::shared_ptr<DataStormI::Key>& key,
@@ -473,8 +471,7 @@ public:
                                            long long int timestamp)
     {
         return std::make_shared<SampleT<Key, Value, UpdateTag>>(session,
-                                                                topic,
-                                                                element,
+                                                                origin,
                                                                 id,
                                                                 type,
                                                                 key,
@@ -557,6 +554,8 @@ template<typename ValueT> class FilterManagerT : public FilterManager
 
     struct Factory
     {
+        virtual ~Factory() = default;
+
         virtual std::shared_ptr<Filter> get(long long int) const = 0;
 
         virtual std::shared_ptr<Filter>

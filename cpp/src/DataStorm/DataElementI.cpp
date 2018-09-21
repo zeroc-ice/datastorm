@@ -46,18 +46,23 @@ cleanOldSamples(deque<shared_ptr<Sample>>& samples,
 
 }
 
-DataElementI::DataElementI(TopicI* parent, long long int id, const DataStorm::Config& config) :
+DataElementI::DataElementI(TopicI* parent, const string& name, long long int id, const DataStorm::Config& config) :
     _traceLevels(parent->getInstance()->getTraceLevels()),
+    _name(name),
     _id(id),
-    _listenerCount(0),
     _config(make_shared<ElementConfig>()),
     _executor(parent->getInstance()->getCallbackExecutor()),
+    _listenerCount(0),
     _parent(parent->shared_from_this()),
     _waiters(0),
     _notified(0)
 {
     _config->sampleCount = config.sampleCount;
     _config->sampleLifetime = config.sampleLifetime;
+    if(!name.empty())
+    {
+        _config->name = name;
+    }
     if(config.clearHistory)
     {
         _config->clearHistory = static_cast<ClearHistoryPolicy>(*config.clearHistory);
@@ -106,8 +111,19 @@ DataElementI::attach(long long int topicId,
     }
     string facet = data.config->facet ? *data.config->facet : string();
     int priority = data.config->priority ? *data.config->priority : 0;
-    if((id > 0 && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet, id, priority)) ||
-       (id < 0 && attachFilter(topicId, data.id, key, sampleFilter, session, prx, facet, id, filter, priority)))
+    string name;
+    if(data.config->name)
+    {
+        name = *data.config->name;
+    }
+    else
+    {
+        ostringstream os;
+        os << session->getId() << '-' << topicId << '-' << data.id;
+        name = os.str();
+    }
+    if((id > 0 && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet, id, name, priority)) ||
+       (id < 0 && attachFilter(topicId, data.id, key, sampleFilter, session, prx, facet, id, filter, name, priority)))
     {
         auto q = data.lastIds.find(_id);
         long long lastId = q != data.lastIds.end() ? q->second : 0;
@@ -136,8 +152,19 @@ DataElementI::attach(long long int topicId,
     }
     string facet = data.config->facet ? *data.config->facet : string();
     int priority = data.config->priority ? *data.config->priority : 0;
-    if((id > 0 && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet, id, priority)) ||
-       (id < 0 && attachFilter(topicId, data.id, key, sampleFilter, session, prx, facet, id, filter, priority)))
+    string name;
+    if(data.config->name)
+    {
+        name = *data.config->name;
+    }
+    else
+    {
+        ostringstream os;
+        os << session->getId() << '-' << topicId << '-' << data.id;
+        name = os.str();
+    }
+    if((id > 0 && attachKey(topicId, data.id, key, sampleFilter, session, prx, facet, id, name, priority)) ||
+       (id < 0 && attachFilter(topicId, data.id, key, sampleFilter, session, prx, facet, id, filter, name, priority)))
     {
         auto q = data.lastIds.find(_id);
         long long lastId = q != data.lastIds.end() ? q->second : 0;
@@ -162,6 +189,7 @@ DataElementI::attachKey(long long int topicId,
                         const shared_ptr<SessionPrx>& prx,
                         const string& facet,
                         long long int keyId,
+                        const string& name,
                         int priority)
 {
     // No locking necessary, called by the session with the mutex locked
@@ -171,7 +199,15 @@ DataElementI::attachKey(long long int topicId,
         p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
 
-    auto subscriber = p->second.addOrGet(topicId, elementId, keyId, nullptr, sampleFilter, priority);
+    bool added = false;
+    auto subscriber = p->second.addOrGet(topicId, elementId, keyId, nullptr, sampleFilter, name, priority, added);
+    if(_onConnected && added)
+    {
+        _executor->queue(shared_from_this(), [=]
+        {
+            _onConnected(DataStorm::ConnectedAction::Add, { name });
+        });
+    }
     if(addConnectedKey(key, subscriber))
     {
         if(key)
@@ -190,7 +226,7 @@ DataElementI::attachKey(long long int topicId,
 
         ++_listenerCount;
         _parent->incListenerCount(session);
-        session->subscribeToKey(topicId, elementId, shared_from_this(), facet, key, keyId, priority);
+        session->subscribeToKey(topicId, elementId, shared_from_this(), facet, key, keyId, name, priority);
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -219,9 +255,19 @@ DataElementI::detachKey(long long int topicId,
         {
             subscriber->keys.erase(key);
         }
-        if(subscriber->keys.empty() && p->second.remove(topicId, elementId))
+        if(subscriber->keys.empty())
         {
-            _listeners.erase(p);
+            if(_onConnected)
+            {
+                _executor->queue(shared_from_this(), [=]
+                {
+                    _onConnected(DataStorm::ConnectedAction::Remove, { subscriber->name });
+                });
+            }
+            if(p->second.remove(topicId, elementId))
+            {
+                _listeners.erase(p);
+            }
         }
 
         if(_traceLevels->data > 1)
@@ -253,6 +299,7 @@ DataElementI::attachFilter(long long int topicId,
                            const string& facet,
                            long long int filterId,
                            const shared_ptr<Filter>& filter,
+                           const string& name,
                            int priority)
 {
     // No locking necessary, called by the session with the mutex locked
@@ -262,7 +309,15 @@ DataElementI::attachFilter(long long int topicId,
         p = _listeners.emplace(ListenerKey { session, facet }, Listener(prx, facet)).first;
     }
 
-    auto subscriber = p->second.addOrGet(topicId, -elementId, filterId, filter, sampleFilter, priority);
+    bool added = false;
+    auto subscriber = p->second.addOrGet(topicId, -elementId, filterId, filter, sampleFilter, name, priority, added);
+    if(_onConnected && added)
+    {
+        _executor->queue(shared_from_this(), [=]
+        {
+            _onConnected(DataStorm::ConnectedAction::Add, { name });
+        });
+    }
     if(addConnectedKey(key, subscriber))
     {
         if(key)
@@ -281,7 +336,7 @@ DataElementI::attachFilter(long long int topicId,
 
         ++_listenerCount;
         _parent->incListenerCount(session);
-        session->subscribeToFilter(topicId, elementId, shared_from_this(), facet, key, priority);
+        session->subscribeToFilter(topicId, elementId, shared_from_this(), facet, key, name, priority);
         notifyListenerWaiters(session->getTopicLock());
         return true;
     }
@@ -310,9 +365,19 @@ DataElementI::detachFilter(long long int topicId,
         {
             subscriber->keys.erase(key);
         }
-        if(subscriber->keys.empty() && p->second.remove(topicId, elementId))
+        if(subscriber->keys.empty())
         {
-            _listeners.erase(p);
+            if(_onConnected)
+            {
+                _executor->queue(shared_from_this(), [=]
+                {
+                    _onConnected(DataStorm::ConnectedAction::Remove, { subscriber->name });
+                });
+            }
+            if(p->second.remove(topicId, elementId))
+            {
+                _listeners.erase(p);
+            }
         }
 
         if(_traceLevels->data > 1)
@@ -348,7 +413,7 @@ DataElementI::getConnectedKeys() const
 }
 
 void
-DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)> cb)
+DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)> cb)
 {
     unique_lock<mutex> lock(_parent->_mutex);
     _onConnectedKeys = move(cb);
@@ -362,7 +427,30 @@ DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedKeyAction, 
         _executor->queue(shared_from_this(),
                          [this, keys]
                          {
-                             _onConnectedKeys(DataStorm::ConnectedKeyAction::Initialize, keys);
+                             _onConnectedKeys(DataStorm::ConnectedAction::Initialize, keys);
+                         }, true);
+    }
+}
+
+void
+DataElementI::onConnected(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)> cb)
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    _onConnected = move(cb);
+    if(_onConnected)
+    {
+        vector<string> elements;
+        for(const auto& listener : _listeners)
+        {
+            for(const auto& subscriber : listener.second.subscribers)
+            {
+                elements.push_back(subscriber.second->name);
+            }
+        }
+        _executor->queue(shared_from_this(),
+                         [this, elements]
+                         {
+                             _onConnected(DataStorm::ConnectedAction::Initialize, elements);
                          }, true);
     }
 }
@@ -441,11 +529,11 @@ DataElementI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subsc
     auto& subscribers = _connectedKeys[key];
     if(find(subscribers.begin(), subscribers.end(), subscriber) == subscribers.end())
     {
-        if(subscribers.empty() && _onConnectedKeys)
+        if(key && subscribers.empty() && _onConnectedKeys)
         {
             _executor->queue(shared_from_this(), [=]
             {
-                _onConnectedKeys(DataStorm::ConnectedKeyAction::Add, { key });
+                _onConnectedKeys(DataStorm::ConnectedAction::Add, { key });
             });
         }
         subscribers.push_back(subscriber);
@@ -464,11 +552,11 @@ DataElementI::removeConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Su
         subscribers.erase(p);
         if(subscribers.empty())
         {
-            if(_onConnectedKeys)
+            if(key && _onConnectedKeys)
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnectedKeys(DataStorm::ConnectedKeyAction::Remove, { key });
+                    _onConnectedKeys(DataStorm::ConnectedAction::Remove, { key });
                 });
             }
             _connectedKeys.erase(key);
@@ -507,7 +595,7 @@ DataElementI::disconnect()
             const auto& k = ks.first;
             if(k.second < 0)
             {
-               listener.first.session->disconnectFromFilter(k.first, k.second, shared_from_this(), ks.second->id);
+                listener.first.session->disconnectFromFilter(k.first, k.second, shared_from_this(), ks.second->id);
             }
             else
             {
@@ -531,11 +619,12 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
 }
 
 DataReaderI::DataReaderI(TopicReaderI* topic,
+                         const string& name,
                          long long int id,
                          const string& sampleFilterName,
                          vector<unsigned char> sampleFilterCriteria,
                          const DataStorm::ReaderConfig& config) :
-    DataElementI(topic, id, config),
+    DataElementI(topic, name, id, config),
     _parent(topic),
     _discardPolicy(config.discardPolicy ? *config.discardPolicy : DataStorm::DiscardPolicy::None)
 {
@@ -842,8 +931,11 @@ DataReaderI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subscr
     }
 }
 
-DataWriterI::DataWriterI(TopicWriterI* topic, long long int id, const DataStorm::WriterConfig& config) :
-    DataElementI(topic, id, config),
+DataWriterI::DataWriterI(TopicWriterI* topic,
+                         const string& name,
+                         long long int id,
+                         const DataStorm::WriterConfig& config) :
+    DataElementI(topic, name, id, config),
     _parent(topic)
 {
     _config->priority = config.priority;
@@ -911,12 +1003,13 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
 }
 
 KeyDataReaderI::KeyDataReaderI(TopicReaderI* topic,
+                               const string& name,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
                                const string& sampleFilterName,
                                const vector<unsigned char> sampleFilterCriteria,
                                const DataStorm::ReaderConfig& config) :
-    DataReaderI(topic, id, sampleFilterName, sampleFilterCriteria, config),
+    DataReaderI(topic, name, id, sampleFilterName, sampleFilterCriteria, config),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -953,7 +1046,7 @@ KeyDataReaderI::destroyImpl()
     {
         _parent->forwarderException();
     }
-    _parent->remove(_keys, shared_from_this());
+    _parent->remove(shared_from_this(), _keys);
 }
 
 void
@@ -992,10 +1085,11 @@ KeyDataReaderI::matchKey(const shared_ptr<Key>& key) const
 }
 
 KeyDataWriterI::KeyDataWriterI(TopicWriterI* topic,
+                               const string& name,
                                long long int id,
                                const vector<shared_ptr<Key>>& keys,
                                const DataStorm::WriterConfig& config) :
-    DataWriterI(topic, id, config),
+    DataWriterI(topic, name, id, config),
     _keys(keys)
 {
     if(_traceLevels->data > 0)
@@ -1021,7 +1115,7 @@ KeyDataWriterI::destroyImpl()
     {
         _parent->forwarderException();
     }
-    _parent->remove(_keys, shared_from_this());
+    _parent->remove(shared_from_this(), _keys);
 }
 
 void
@@ -1169,12 +1263,13 @@ KeyDataWriterI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& curren
 }
 
 FilteredDataReaderI::FilteredDataReaderI(TopicReaderI* topic,
+                                         const string& name,
                                          long long int id,
                                          const shared_ptr<Filter>& filter,
                                          const string& sampleFilterName,
                                          vector<unsigned char> sampleFilterCriteria,
                                          const DataStorm::ReaderConfig& config) :
-    DataReaderI(topic, id, sampleFilterName, sampleFilterCriteria, config),
+    DataReaderI(topic, name, id, sampleFilterName, sampleFilterCriteria, config),
     _filter(filter)
 {
     if(_traceLevels->data > 0)
@@ -1211,7 +1306,7 @@ FilteredDataReaderI::destroyImpl()
     {
         _parent->forwarderException();
     }
-    _parent->removeFiltered(_filter, shared_from_this());
+    _parent->removeFiltered(shared_from_this(), _filter);
 }
 
 void

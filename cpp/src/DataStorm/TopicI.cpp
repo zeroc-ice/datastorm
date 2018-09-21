@@ -612,6 +612,43 @@ TopicI::decListenerCount(size_t listenerCount)
 }
 
 void
+TopicI::removeFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Filter>& filter)
+{
+    auto p = _filteredElements.find(filter);
+    if(p != _filteredElements.end())
+    {
+        p->second.erase(element);
+        if(p->second.empty())
+        {
+            _filteredElements.erase(p);
+        }
+    }
+}
+
+void
+TopicI::remove(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key>>& keys)
+{
+    if(keys.empty())
+    {
+        removeFiltered(element, alwaysMatchFilter);
+        return;
+    }
+
+    for(auto key : keys)
+    {
+        auto p = _keyElements.find(key);
+        if(p != _keyElements.end())
+        {
+            p->second.erase(element);
+            if(p->second.empty())
+            {
+                _keyElements.erase(p);
+            }
+        }
+    }
+}
+
+void
 TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -705,6 +742,12 @@ TopicI::forwarderException() const
 void
 TopicI::add(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key>>& keys)
 {
+    if(keys.empty())
+    {
+        addFiltered(element, alwaysMatchFilter);
+        return;
+    }
+
     ElementInfoSeq infos;
     for(const auto& key : keys)
     {
@@ -809,12 +852,13 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
 
 shared_ptr<DataReader>
 TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
+                             const string& name,
                              DataStorm::ReaderConfig config,
                              const string& sampleFilterName,
                              vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<FilteredDataReaderI>(this, ++_nextFilteredId, filter, sampleFilterName,
+    auto element = make_shared<FilteredDataReaderI>(this, name, ++_nextFilteredId, filter, sampleFilterName,
                                                     move(sampleFilterCriteria), mergeConfigs(move(config)));
     element->init();
     addFiltered(element, filter);
@@ -823,22 +867,16 @@ TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
 
 shared_ptr<DataReader>
 TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
+                     const string& name,
                      DataStorm::ReaderConfig config,
                      const string& sampleFilterName,
                      vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataReaderI>(this, ++_nextId, keys, sampleFilterName, move(sampleFilterCriteria),
+    auto element = make_shared<KeyDataReaderI>(this, name, ++_nextId, keys, sampleFilterName, move(sampleFilterCriteria),
                                                mergeConfigs(move(config)));
     element->init();
-    if(keys.empty())
-    {
-        addFiltered(element, alwaysMatchFilter);
-    }
-    else
-    {
-        add(element, keys);
-    }
+    add(element, keys);
     return element;
 }
 
@@ -870,37 +908,6 @@ TopicReaderI::destroy()
     if(factory)
     {
         factory->removeTopicReader(_name, shared_from_this());
-    }
-}
-
-void
-TopicReaderI::removeFiltered(const shared_ptr<Filter>& filter, const shared_ptr<DataElementI>& element)
-{
-    auto p = _filteredElements.find(filter);
-    if(p != _filteredElements.end())
-    {
-        p->second.erase(element);
-        if(p->second.empty())
-        {
-            _filteredElements.erase(p);
-        }
-    }
-}
-
-void
-TopicReaderI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataElementI>& element)
-{
-    for(auto key : keys)
-    {
-        auto p = _keyElements.find(key);
-        if(p != _keyElements.end())
-        {
-            p->second.erase(element);
-            if(p->second.empty())
-            {
-                _keyElements.erase(p);
-            }
-        }
     }
 }
 
@@ -967,19 +974,14 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::create(const vector<shared_ptr<Key>>& keys, DataStorm::WriterConfig config)
+TopicWriterI::create(const vector<shared_ptr<Key>>& keys,
+                     const string& name,
+                     DataStorm::WriterConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataWriterI>(this, ++_nextId, keys, mergeConfigs(move(config)));
+    auto element = make_shared<KeyDataWriterI>(this, name, ++_nextId, keys, mergeConfigs(move(config)));
     element->init();
-    if(keys.empty())
-    {
-        addFiltered(element, alwaysMatchFilter);
-    }
-    else
-    {
-        add(element, keys);
-    }
+    add(element, keys);
     return element;
 }
 
@@ -1011,23 +1013,6 @@ TopicWriterI::destroy()
     if(factory)
     {
         factory->removeTopicWriter(_name, shared_from_this());
-    }
-}
-
-void
-TopicWriterI::remove(const vector<shared_ptr<Key>>& keys, const shared_ptr<DataElementI>& element)
-{
-    for(auto key : keys)
-    {
-        auto p = _keyElements.find(key);
-        if(p != _keyElements.end())
-        {
-            p->second.erase(element);
-            if(p->second.empty())
-            {
-                _keyElements.erase(p);
-            }
-        }
     }
 }
 

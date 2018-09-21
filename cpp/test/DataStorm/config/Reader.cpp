@@ -20,9 +20,16 @@ main(int argc, char* argv[])
     Topic<string, bool> controller(node, "controller");
 
     auto readers = makeSingleKeyWriter(controller, "readers");
-    auto writers = makeSingleKeyReader(controller, "writers", { -1, 0, ClearHistoryPolicy::Never });
+    auto writers = makeSingleKeyReader(controller, "writers", "", { -1, 0, ClearHistoryPolicy::Never });
 
     writers.waitForWriters();
+
+    // Writer/reader name
+    {
+        auto reader = makeSingleKeyReader(topic, "key1", "readername1");
+        test(reader.getNextUnread().getOrigin() == "writername1");
+        readers.update(true); // Reader is done
+    }
 
     // Writer sample count
     {
@@ -34,7 +41,7 @@ main(int argc, char* argv[])
 
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::Never;
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
             test(count < 4 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
@@ -56,7 +63,7 @@ main(int argc, char* argv[])
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
 
             readers.update(false);
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             test(count < 6 || reader.getNextUnread().getValue() == "value1");
             test(count < 5 || reader.getNextUnread().getValue() == "value2");
             test(count < 4 || reader.getNextUnread().getEvent() == SampleEvent::Remove);
@@ -97,7 +104,7 @@ main(int argc, char* argv[])
         readers.update(false);
         ReaderConfig config;
         config.clearHistory = ClearHistoryPolicy::Never;
-        auto reader = makeSingleKeyReader(topic, "elem1", config);
+        auto reader = makeSingleKeyReader(topic, "elem1", "", config);
         test(reader.getNextUnread().getValue() == "value3");
         test(reader.getNextUnread().getValue() == "value4");
         test(reader.getNextUnread().getEvent() == SampleEvent::Remove);
@@ -116,7 +123,7 @@ main(int argc, char* argv[])
 
         // Reader wants 390ms worth of samples
         readers.update(false);
-        auto reader = makeSingleKeyReader(topic, "elem1", config);
+        auto reader = makeSingleKeyReader(topic, "elem1", "", config);
         reader.waitForUnread(3);
         auto samples = reader.getAllUnread();
         test(samples[0].getValue() == "value3");
@@ -139,7 +146,7 @@ main(int argc, char* argv[])
         {
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
             readers.update(false);
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(22);
             readers.update(true); // Reader is done
         }
@@ -147,7 +154,7 @@ main(int argc, char* argv[])
         {
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
             readers.update(false);
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(2);
             test(reader.getNextUnread().getValue() == "value3");
             test(reader.getNextUnread().getValue() == "value4");
@@ -157,7 +164,7 @@ main(int argc, char* argv[])
         {
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
             readers.update(false);
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(3);
             test(reader.getNextUnread().getEvent() == DataStorm::SampleEvent::Remove);
             test(reader.getNextUnread().getValue() == "value3");
@@ -168,7 +175,7 @@ main(int argc, char* argv[])
         {
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
             readers.update(false);
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(1);
             test(reader.getNextUnread().getValue() == "value4");
             readers.update(true); // Reader is done
@@ -177,7 +184,7 @@ main(int argc, char* argv[])
         {
             while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
             readers.update(false);
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(4);
             test(reader.getNextUnread().getValue() == "value");
             auto s = reader.getNextUnread();
@@ -198,35 +205,35 @@ main(int argc, char* argv[])
         {
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::Never;
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(9);
         }
 
         {
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::OnAdd;
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(5);
         }
 
         {
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::OnRemove;
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(6);
         }
 
         {
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::OnAll;
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(1);
         }
 
         {
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::OnAllExceptPartialUpdate;
-            auto reader = makeSingleKeyReader(topic, "elem1", config);
+            auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(4);
         }
 
@@ -240,7 +247,7 @@ main(int argc, char* argv[])
         ReaderConfig config;
         config.clearHistory = ClearHistoryPolicy::Never;
         config.discardPolicy = DiscardPolicy::Priority;
-        auto reader = makeSingleKeyReader(topic, "elemdp1", config);
+        auto reader = makeSingleKeyReader(topic, "elemdp1", "", config);
         test(reader.getNextUnread().getValue() == "value1");
         test(reader.getNextUnread().getValue() == "value2");
         test(reader.getNextUnread().getValue() == "value21");
@@ -254,7 +261,7 @@ main(int argc, char* argv[])
         ReaderConfig config;
         config.clearHistory = ClearHistoryPolicy::Never;
         config.discardPolicy = DiscardPolicy::Priority;
-        auto reader = makeSingleKeyReader(topic, "elemdp2", config);
+        auto reader = makeSingleKeyReader(topic, "elemdp2", "", config);
         test(reader.getNextUnread().getValue() == "value1");
         test(reader.getNextUnread().getValue() == "value2");
         test(reader.getNextUnread().getValue() == "value21");
@@ -275,7 +282,7 @@ main(int argc, char* argv[])
             ReaderConfig config;
             config.clearHistory = ClearHistoryPolicy::Never;
             config.discardPolicy = DiscardPolicy::SendTime;
-            auto reader = makeSingleKeyReader(topic, "elem", config);
+            auto reader = makeSingleKeyReader(topic, "elem", "", config);
             int writerCount = 10;
             int sampleCount = 0;
             while(true)

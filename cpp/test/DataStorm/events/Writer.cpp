@@ -25,7 +25,7 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "string");
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -36,14 +36,14 @@ main(int argc, char* argv[])
 
             writer.waitForNoReaders();
 
-            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", "", config);
             writer2.waitForReaders(2);
             writer2.add("value");
             writer2.waitForNoReaders();
         }
         {
             Topic<int, Test::StructValue> topic(node, "struct");
-            auto writer = makeSingleKeyWriter(topic, 10, config);
+            auto writer = makeSingleKeyWriter(topic, 10, "", config);
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -56,7 +56,7 @@ main(int argc, char* argv[])
         }
         {
             Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass");
-            auto writer = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
 
             writer.waitForReaders(1);
             test(writer.hasReaders());
@@ -70,7 +70,7 @@ main(int argc, char* argv[])
         {
             Topic<string, shared_ptr<Test::Base>> topic(node, "baseclass2");
             {
-                auto writer = makeSingleKeyWriter(topic, "elem1", config);
+                auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
                 writer.waitForReaders(1);
                 test(writer.hasReaders());
 
@@ -80,19 +80,19 @@ main(int argc, char* argv[])
                 writer.waitForNoReaders();
             }
             {
-                auto writer = makeSingleKeyWriter(topic, "elem2", config);
+                auto writer = makeSingleKeyWriter(topic, "elem2", "", config);
                 writer.waitForReaders(1);
                 writer.update(make_shared<Test::Base>("value1"));
                 writer.waitForNoReaders();
             }
             {
-                auto writer = makeSingleKeyWriter(topic, "elem3", config);
+                auto writer = makeSingleKeyWriter(topic, "elem3", "", config);
                 writer.waitForReaders(1);
                 writer.remove();
                 writer.waitForNoReaders();
             }
             {
-                auto writer = makeSingleKeyWriter(topic, "elem4", config);
+                auto writer = makeSingleKeyWriter(topic, "elem4", "", config);
                 writer.waitForReaders(1);
                 writer.add(make_shared<Test::Base>("value1"));
                 writer.waitForNoReaders();
@@ -105,8 +105,8 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey1");
-            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
-            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+            auto writer1 = makeSingleKeyWriter(topic, "elem1", "", config);
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", "", config);
 
             writer1.waitForReaders(1);
             writer2.waitForReaders(1);
@@ -129,8 +129,8 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "anykey1");
-            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
-            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+            auto writer1 = makeSingleKeyWriter(topic, "elem1", "", config);
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", "", config);
 
             writer1.waitForReaders(1);
             writer2.waitForReaders(1);
@@ -153,7 +153,7 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey2");
-            auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2"}, config);
+            auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2"}, "", config);
 
             writer.waitForReaders(2);
 
@@ -174,7 +174,7 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "anykey2");
-            auto writer = makeAnyKeyWriter(topic, config);
+            auto writer = makeAnyKeyWriter(topic, "", config);
 
             writer.waitForReaders(1);
 
@@ -195,7 +195,7 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "multikey3");
-            auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2"}, config);
+            auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2"}, "", config);
 
             writer.waitForReaders(1);
 
@@ -216,7 +216,7 @@ main(int argc, char* argv[])
     {
         {
             Topic<string, string> topic(node, "anykey3");
-            auto writer = makeAnyKeyWriter(topic, config);
+            auto writer = makeAnyKeyWriter(topic, "", config);
 
             writer.waitForReaders(1);
 
@@ -246,34 +246,34 @@ main(int argc, char* argv[])
         });
 
         {
-            auto writer5 = makeSingleKeyWriter(topic, "elem5", config);
+            auto writer5 = makeSingleKeyWriter(topic, "elem5", "", config);
             writer5.add(make_shared<Test::Base>("value1"));
             writer5.update(make_shared<Test::Base>("value2"));
             writer5.remove();
 
-            auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
+            auto writer1 = makeSingleKeyWriter(topic, "elem1", "", config);
             writer1.waitForReaders(1);
             test(writer1.hasReaders());
             writer1.add(make_shared<Test::Base>("value1"));
             writer1.update(make_shared<Test::Base>("value2"));
             writer1.remove();
 
-            auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+            auto writer2 = makeSingleKeyWriter(topic, "elem2", "", config);
             writer2.waitForReaders(1);
             writer2.update(make_shared<Test::Base>("value1"));
 
-            auto writer3 = makeSingleKeyWriter(topic, "elem3", config);
+            auto writer3 = makeSingleKeyWriter(topic, "elem3", "", config);
             writer3.waitForReaders(1);
             writer3.remove();
 
-            auto writer4 = makeSingleKeyWriter(topic, "elem4", config);
+            auto writer4 = makeSingleKeyWriter(topic, "elem4", "", config);
             writer4.waitForReaders(1);
             writer4.add(make_shared<Test::Base>("value1"));
             writer4.waitForNoReaders();
         }
         {
-            auto writer1 = makeSingleKeyWriter(topic, "nonvalue", config);
-            auto writer2 = makeSingleKeyWriter(topic, "value", config);
+            auto writer1 = makeSingleKeyWriter(topic, "nonvalue", "", config);
+            auto writer2 = makeSingleKeyWriter(topic, "value", "", config);
             test(!writer1.hasReaders());
             writer2.waitForReaders(1);
             test(!writer1.hasReaders());
@@ -286,7 +286,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered2");
 
-        auto writer = makeMultiKeyWriter(topic, { "elem1", "elem2", "elem3", "elem4", "elem5" }, config);
+        auto writer = makeMultiKeyWriter(topic, { "elem1", "elem2", "elem3", "elem4", "elem5" }, "", config);
         writer.waitForReaders(1);
 
         writer.add("elem5", make_shared<Test::Base>("value1"));
@@ -311,7 +311,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered3");
 
-        auto writer = makeAnyKeyWriter(topic, config);
+        auto writer = makeAnyKeyWriter(topic, "", config);
         writer.waitForReaders(1);
 
         writer.add("elem5", make_shared<Test::Base>("value1"));
@@ -344,14 +344,14 @@ main(int argc, char* argv[])
             };
         });
 
-        auto writer1 = makeSingleKeyWriter(topic, "elem1", config);
+        auto writer1 = makeSingleKeyWriter(topic, "elem1", "", config);
         writer1.waitForReaders(3);
         test(writer1.hasReaders());
         writer1.add("value1");
         writer1.update("value2");
         writer1.remove();
 
-        auto writer2 = makeSingleKeyWriter(topic, "elem2", config);
+        auto writer2 = makeSingleKeyWriter(topic, "elem2", "", config);
         writer2.waitForReaders(1);
         writer2.update("value1");
         writer2.update("value2");
@@ -359,7 +359,7 @@ main(int argc, char* argv[])
         writer2.update("value4");
         writer2.update("value5");
 
-        auto writer3 = makeSingleKeyWriter(topic, "elem3", config);
+        auto writer3 = makeSingleKeyWriter(topic, "elem3", "", config);
         writer3.waitForReaders(1);
         writer3.update("nonvalue");
         writer3.update("value");

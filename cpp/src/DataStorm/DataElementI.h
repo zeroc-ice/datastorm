@@ -32,8 +32,9 @@ protected:
         Subscriber(long long int id,
                    const std::shared_ptr<Filter>& filter,
                    const std::shared_ptr<Filter>& sampleFilter,
+                   const std::string& name,
                    int priority) :
-            id(id), filter(filter), sampleFilter(sampleFilter), priority(priority)
+            id(id), filter(filter), sampleFilter(sampleFilter), name(name), priority(priority)
         {
         }
 
@@ -43,6 +44,7 @@ protected:
         std::set<std::shared_ptr<Key>> keys;
         std::shared_ptr<Filter> filter;
         std::shared_ptr<Filter> sampleFilter;
+        std::string name;
         int priority;
     };
 
@@ -93,13 +95,16 @@ private:
                                              long long int id,
                                              const std::shared_ptr<Filter>& filter,
                                              const std::shared_ptr<Filter>& sampleFilter,
-                                             int priority)
+                                             const std::string& name,
+                                             int priority,
+                                             bool& added)
         {
             auto k = std::make_pair(topicId, elementId);
             auto p = subscribers.find(k);
             if(p == subscribers.end())
             {
-                p = subscribers.emplace(k, std::make_shared<Subscriber>(id, filter, sampleFilter, priority)).first;
+                added = true;
+                p = subscribers.emplace(k, std::make_shared<Subscriber>(id, filter, sampleFilter, name, priority)).first;
             }
             return p->second;
         }
@@ -121,7 +126,7 @@ private:
 
 public:
 
-    DataElementI(TopicI*, long long int, const DataStorm::Config&);
+    DataElementI(TopicI*, const std::string&, long long int, const DataStorm::Config&);
     virtual ~DataElementI();
 
     void init();
@@ -156,6 +161,7 @@ public:
                    const std::shared_ptr<DataStormContract::SessionPrx>&,
                    const std::string&,
                    long long int,
+                   const std::string&,
                    int);
 
     void detachKey(long long int,
@@ -174,6 +180,7 @@ public:
                       const std::string&,
                       long long int,
                       const std::shared_ptr<Filter>&,
+                      const std::string&,
                       int);
 
     void detachFilter(long long int,
@@ -184,7 +191,8 @@ public:
                       bool);
 
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
-    virtual void onConnectedKeys(std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)>) override;
+    virtual void onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)>) override;
+    virtual void onConnected(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)>) override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int, int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool);
@@ -224,13 +232,15 @@ protected:
     void disconnect();
     virtual void destroyImpl() = 0;
 
-    std::shared_ptr<TraceLevels> _traceLevels;
-    std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
-    mutable std::shared_ptr<Sample> _sample;
-    long long int _id;
+    const std::shared_ptr<TraceLevels> _traceLevels;
+    const std::string _name;
+    const long long int _id;
+    const std::shared_ptr<DataStormContract::ElementConfig> _config;
+    const std::shared_ptr<CallbackExecutor> _executor;
+
     size_t _listenerCount;
-    std::shared_ptr<DataStormContract::ElementConfig> _config;
-    std::shared_ptr<CallbackExecutor> _executor;
+    mutable std::shared_ptr<Sample> _sample;
+    std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
     std::map<std::shared_ptr<Key>, std::vector<std::shared_ptr<Subscriber>>> _connectedKeys;
     std::map<ListenerKey, Listener> _listeners;
 
@@ -238,18 +248,19 @@ private:
 
     virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
 
-    std::shared_ptr<TopicI> _parent;
+    const std::shared_ptr<TopicI> _parent;
     mutable size_t _waiters;
     mutable size_t _notified;
 
-    std::function<void(DataStorm::ConnectedKeyAction, std::vector<std::shared_ptr<Key>>)> _onConnectedKeys;
+    std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)> _onConnectedKeys;
+    std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)> _onConnected;
 };
 
 class DataReaderI : public DataElementI, public DataReader
 {
 public:
 
-    DataReaderI(TopicReaderI*, long long int, const std::string&, std::vector<unsigned char>,
+    DataReaderI(TopicReaderI*, const std::string&, long long int, const std::string&, std::vector<unsigned char>,
                 const DataStorm::ReaderConfig&);
 
     virtual int getInstanceCount() const override;
@@ -285,7 +296,7 @@ class DataWriterI : public DataElementI, public DataWriter
 {
 public:
 
-    DataWriterI(TopicWriterI*, long long int, const DataStorm::WriterConfig&);
+    DataWriterI(TopicWriterI*, const std::string&, long long int, const DataStorm::WriterConfig&);
     void init();
 
     virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) override;
@@ -304,8 +315,8 @@ class KeyDataReaderI : public DataReaderI
 {
 public:
 
-    KeyDataReaderI(TopicReaderI*, long long int, const std::vector<std::shared_ptr<Key>>&, const std::string&,
-                   std::vector<unsigned char>, const DataStorm::ReaderConfig&);
+    KeyDataReaderI(TopicReaderI*, const std::string&, long long int, const std::vector<std::shared_ptr<Key>>&,
+                   const std::string&, std::vector<unsigned char>, const DataStorm::ReaderConfig&);
 
     virtual void destroyImpl() override;
 
@@ -325,7 +336,7 @@ class KeyDataWriterI : public DataWriterI
 {
 public:
 
-    KeyDataWriterI(TopicWriterI*, long long int, const std::vector<std::shared_ptr<Key>>&,
+    KeyDataWriterI(TopicWriterI*, const std::string&, long long int, const std::vector<std::shared_ptr<Key>>&,
                    const DataStorm::WriterConfig&);
 
     virtual void destroyImpl() override;
@@ -355,8 +366,8 @@ class FilteredDataReaderI : public DataReaderI
 {
 public:
 
-    FilteredDataReaderI(TopicReaderI*, long long int, const std::shared_ptr<Filter>&, const std::string&,
-                        std::vector<unsigned char>, const DataStorm::ReaderConfig&);
+    FilteredDataReaderI(TopicReaderI*, const std::string&, long long int, const std::shared_ptr<Filter>&,
+                        const std::string&, std::vector<unsigned char>, const DataStorm::ReaderConfig&);
 
     virtual void destroyImpl() override;
 
