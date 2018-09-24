@@ -191,8 +191,9 @@ public:
                       bool);
 
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
+    virtual std::vector<std::string> getConnectedElements() const override;
     virtual void onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)>) override;
-    virtual void onConnected(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)>) override;
+    virtual void onConnectedElements(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)>) override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int, int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool);

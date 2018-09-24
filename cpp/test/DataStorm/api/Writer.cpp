@@ -109,6 +109,7 @@ main(int argc, char* argv[])
             writer.hasReaders();
             writer.waitForReaders(0);
             writer.waitForNoReaders();
+            writer.getConnectedReaders();
             writer.getConnectedKeys();
             try
             {
@@ -170,6 +171,7 @@ main(int argc, char* argv[])
             reader.hasWriters();
             reader.waitForWriters(0);
             reader.waitForNoWriters();
+            reader.getConnectedWriters();
             reader.getConnectedKeys();
             reader.getAllUnread();
             reader.waitForUnread(0);

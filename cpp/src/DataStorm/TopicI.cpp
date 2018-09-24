@@ -847,7 +847,6 @@ TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
 {
     _defaultConfig = { -1, 0, DataStorm::ClearHistoryPolicy::OnAll, DataStorm::DiscardPolicy::None };
     _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic"));
-    _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic." + name));
 }
 
 shared_ptr<DataReader>
@@ -970,7 +969,6 @@ TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
 {
     _defaultConfig = { -1, 0, DataStorm::ClearHistoryPolicy::OnAll };
     _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic"));
-    _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic." + name));
 }
 
 shared_ptr<DataWriter>

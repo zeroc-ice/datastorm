@@ -240,7 +240,7 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem3", "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnected([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
             {
                 if(action == ConnectedAction::Initialize)
                 {
@@ -256,8 +256,10 @@ main(int argc, char* argv[])
                 }
             });
             test(p1.get_future().get());
+            test(reader.getConnectedWriters().empty());
             readers.update(true);
             test(p2.get_future().get());
+            test(reader.getConnectedWriters() == vector<string> { "writer1" });
             while(!writers.getNextUnread().getValue());
             test(p3.get_future().get());
         }
@@ -266,7 +268,7 @@ main(int argc, char* argv[])
             auto reader = makeSingleKeyReader(topic, "elem4", "", config);
             reader.waitForWriters();
             promise<bool> p1, p2;
-            reader.onConnected([&p1, &p2](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2](ConnectedAction action, vector<string> writers)
             {
                 if(action == ConnectedAction::Initialize)
                 {
@@ -301,7 +303,7 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem3"), "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnected([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
             {
                 if(action == ConnectedAction::Initialize)
                 {
@@ -327,7 +329,7 @@ main(int argc, char* argv[])
             auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem4"), "", config);
             reader.waitForWriters();
             promise<bool> p1, p2;
-            reader.onConnected([&p1, &p2](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2](ConnectedAction action, vector<string> writers)
             {
                 if(action == ConnectedAction::Initialize)
                 {
@@ -359,7 +361,7 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeAnyKeyReader(topic, "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnected([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
             {
                 if(action == ConnectedAction::Initialize)
                 {

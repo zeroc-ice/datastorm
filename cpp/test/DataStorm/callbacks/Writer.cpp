@@ -167,7 +167,7 @@ main(int argc, char* argv[])
                 writers.update(false);
                 auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
                 promise<bool> p1, p2, p3;
-                writer.onConnected([&p1, &p2, &p3](ConnectedAction action, vector<string> readers)
+                writer.onConnectedReaders([&p1, &p2, &p3](ConnectedAction action, vector<string> readers)
                 {
                     if(action == ConnectedAction::Initialize)
                     {
@@ -183,8 +183,10 @@ main(int argc, char* argv[])
                     }
                 });
                 test(p1.get_future().get());
+                test(writer.getConnectedReaders().empty());
                 writers.update(true);
                 test(p2.get_future().get());
+                test(writer.getConnectedReaders() == vector<string> { "reader1" });
                 writer.update("value2");
                 while(!readers.getNextUnread().getValue());
                 test(p3.get_future().get());
@@ -193,7 +195,7 @@ main(int argc, char* argv[])
                 auto writer = makeSingleKeyWriter(topic, "elem2", "", config);
                 writer.waitForReaders();
                 promise<bool> p1, p2;
-                writer.onConnected([&p1, &p2](ConnectedAction action, vector<string> readers)
+                writer.onConnectedReaders([&p1, &p2](ConnectedAction action, vector<string> readers)
                 {
                     if(action == ConnectedAction::Initialize)
                     {
@@ -230,7 +232,7 @@ main(int argc, char* argv[])
             writers.update(false);
             auto writer = makeAnyKeyWriter(topic, "", config);
             promise<bool> p1, p2, p3;
-            writer.onConnected([&p1, &p2, &p3](ConnectedAction action, vector<string> readers)
+            writer.onConnectedReaders([&p1, &p2, &p3](ConnectedAction action, vector<string> readers)
             {
                 if(action == ConnectedAction::Initialize)
                 {

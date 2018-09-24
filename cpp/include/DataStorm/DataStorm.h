@@ -440,6 +440,13 @@ public:
     void waitForNoWriters() const;
 
     /**
+     * Get the connected writers.
+     *
+     * @return The names of the connected writers.
+     */
+    std::vector<std::string> getConnectedWriters() const;
+
+    /**
      * Get the keys for which writers are connected to this reader.
      *
      * @return The keys for which we have writers connected.
@@ -460,6 +467,8 @@ public:
 
     /**
      * Returns wether or not unread samples are available.
+     *
+     * @return True if there unread samples are queued, false otherwise.
      */
     bool hasUnread() const;
 
@@ -499,15 +508,15 @@ public:
      * @param callback The function to call when a new writer connects or
      *                 disconnects.
      **/
-    void onConnected(std::function<void(ConnectedAction, std::vector<std::string>)>);
+    void onConnectedWriters(std::function<void(ConnectedAction, std::vector<std::string>)>);
 
     /**
      * Calls the given function when samples are queued with this reader.
      *
      * If a function is already set, it will be replaced.
      *
-     * The callback is called this method returns only if there are unread
-     * samples queued with the reader.
+     * The callback is called immediately after this method returns if there are
+     * unread samples queued with the reader.
      *
      * @param callback The function to call when samples are received.
      **/
@@ -934,6 +943,13 @@ public:
     void waitForNoReaders() const;
 
     /**
+     * Get the connected readers.
+     *
+     * @return The names of the connected readers.
+     */
+    std::vector<std::string> getConnectedReaders() const;
+
+    /**
      * Get the keys for which readers are connected to this writer.
      *
      * @return The keys for which we have writers connected.
@@ -983,7 +999,7 @@ public:
      * @param callback The function to call when a new reader connects or
      *                 disconnects.
      **/
-    void onConnected(std::function<void(ConnectedAction, std::vector<std::string>)>);
+    void onConnectedReaders(std::function<void(ConnectedAction, std::vector<std::string>)>);
 
 protected:
 
@@ -1304,6 +1320,12 @@ Reader<Key, Value, UpdateTag>::waitForNoWriters() const
     _impl->waitForWriters(-1);
 }
 
+template<typename Key, typename Value, typename UpdateTag> std::vector<std::string>
+Reader<Key, Value, UpdateTag>::getConnectedWriters() const
+{
+    return _impl->getConnectedElements();
+}
+
 template<typename Key, typename Value, typename UpdateTag> std::vector<Key>
 Reader<Key, Value, UpdateTag>::getConnectedKeys() const
 {
@@ -1349,10 +1371,9 @@ Reader<Key, Value, UpdateTag>::getNextUnread()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)> callback)
+Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)> cb)
 {
-    _impl->onConnectedKeys([callback](ConnectedAction action,
-                                      std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys([cb](ConnectedAction action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1360,24 +1381,24 @@ Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedActio
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        callback(action, move(keys));
+        cb(action, move(keys));
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnected(std::function<void(ConnectedAction, std::vector<std::string>)> callback)
+Reader<Key, Value, UpdateTag>::onConnectedWriters(std::function<void(ConnectedAction, std::vector<std::string>)> cb)
 {
-    _impl->onConnected([callback](ConnectedAction action, std::vector<std::string> writers)
+    _impl->onConnectedElements([cb](ConnectedAction action, std::vector<std::string> writers)
     {
-        callback(action, move(writers));
+        cb(action, move(writers));
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback)
+Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> cb)
 {
     auto communicator = _impl->getCommunicator();
-    _impl->onSamples([communicator, callback](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
+    _impl->onSamples([communicator, cb](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
     {
         std::vector<Sample<Key, Value, UpdateTag>> samples;
         samples.reserve(samplesI.size());
@@ -1385,7 +1406,7 @@ Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<K
         {
             samples.emplace_back(s);
         }
-        callback(move(samples));
+        cb(move(samples));
     });
 }
 
@@ -1549,6 +1570,12 @@ Writer<Key, Value, UpdateTag>::waitForNoReaders() const
     return _impl->waitForReaders(-1);
 }
 
+template<typename Key, typename Value, typename UpdateTag> std::vector<std::string>
+Writer<Key, Value, UpdateTag>::getConnectedReaders() const
+{
+    return _impl->getConnectedElements();
+}
+
 template<typename Key, typename Value, typename UpdateTag> std::vector<Key>
 Writer<Key, Value, UpdateTag>::getConnectedKeys() const
 {
@@ -1587,10 +1614,9 @@ Writer<Key, Value, UpdateTag>::getAll()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)> callback)
+Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)> cb)
 {
-    _impl->onConnectedKeys([callback](ConnectedAction action,
-                                      std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys([cb](ConnectedAction action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1598,16 +1624,16 @@ Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedActio
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        callback(action, move(keys));
+        cb(action, move(keys));
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnected(std::function<void(ConnectedAction, std::vector<std::string>)> callback)
+Writer<Key, Value, UpdateTag>::onConnectedReaders(std::function<void(ConnectedAction, std::vector<std::string>)> cb)
 {
-    _impl->onConnected([callback](ConnectedAction action, std::vector<std::string> readers)
+    _impl->onConnectedElements([cb](ConnectedAction action, std::vector<std::string> readers)
     {
-        callback(action, move(readers));
+        cb(action, move(readers));
     });
 }
 

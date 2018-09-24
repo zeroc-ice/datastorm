@@ -412,6 +412,22 @@ DataElementI::getConnectedKeys() const
     return keys;
 }
 
+vector<string>
+DataElementI::getConnectedElements() const
+{
+    unique_lock<mutex> lock(_parent->_mutex);
+    vector<string> elements;
+    elements.reserve(_listeners.size());
+    for(const auto& listener : _listeners)
+    {
+        for(const auto& subscriber : listener.second.subscribers)
+        {
+            elements.push_back(subscriber.second->name);
+        }
+    }
+    return elements;
+}
+
 void
 DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)> cb)
 {
@@ -433,7 +449,7 @@ DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std
 }
 
 void
-DataElementI::onConnected(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)> cb)
+DataElementI::onConnectedElements(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)> cb)
 {
     unique_lock<mutex> lock(_parent->_mutex);
     _onConnected = move(cb);
