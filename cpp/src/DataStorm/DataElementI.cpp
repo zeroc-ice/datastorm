@@ -205,7 +205,7 @@ DataElementI::attachKey(long long int topicId,
     {
         _executor->queue(shared_from_this(), [=]
         {
-            _onConnected(DataStorm::ConnectedAction::Add, { name });
+            _onConnected(DataStorm::CallbackReason::Add, { name });
         });
     }
     if(addConnectedKey(key, subscriber))
@@ -261,7 +261,7 @@ DataElementI::detachKey(long long int topicId,
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnected(DataStorm::ConnectedAction::Remove, { subscriber->name });
+                    _onConnected(DataStorm::CallbackReason::Remove, { subscriber->name });
                 });
             }
             if(p->second.remove(topicId, elementId))
@@ -315,7 +315,7 @@ DataElementI::attachFilter(long long int topicId,
     {
         _executor->queue(shared_from_this(), [=]
         {
-            _onConnected(DataStorm::ConnectedAction::Add, { name });
+            _onConnected(DataStorm::CallbackReason::Add, { name });
         });
     }
     if(addConnectedKey(key, subscriber))
@@ -371,7 +371,7 @@ DataElementI::detachFilter(long long int topicId,
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnected(DataStorm::ConnectedAction::Remove, { subscriber->name });
+                    _onConnected(DataStorm::CallbackReason::Remove, { subscriber->name });
                 });
             }
             if(p->second.remove(topicId, elementId))
@@ -429,7 +429,7 @@ DataElementI::getConnectedElements() const
 }
 
 void
-DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)> cb)
+DataElementI::onConnectedKeys(std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)> cb)
 {
     unique_lock<mutex> lock(_parent->_mutex);
     _onConnectedKeys = move(cb);
@@ -443,13 +443,13 @@ DataElementI::onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std
         _executor->queue(shared_from_this(),
                          [this, keys]
                          {
-                             _onConnectedKeys(DataStorm::ConnectedAction::Initialize, keys);
+                             _onConnectedKeys(DataStorm::CallbackReason::Initialize, keys);
                          }, true);
     }
 }
 
 void
-DataElementI::onConnectedElements(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)> cb)
+DataElementI::onConnectedElements(std::function<void(DataStorm::CallbackReason, std::vector<std::string>)> cb)
 {
     unique_lock<mutex> lock(_parent->_mutex);
     _onConnected = move(cb);
@@ -466,7 +466,7 @@ DataElementI::onConnectedElements(std::function<void(DataStorm::ConnectedAction,
         _executor->queue(shared_from_this(),
                          [this, elements]
                          {
-                             _onConnected(DataStorm::ConnectedAction::Initialize, elements);
+                             _onConnected(DataStorm::CallbackReason::Initialize, elements);
                          }, true);
     }
 }
@@ -549,7 +549,7 @@ DataElementI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subsc
         {
             _executor->queue(shared_from_this(), [=]
             {
-                _onConnectedKeys(DataStorm::ConnectedAction::Add, { key });
+                _onConnectedKeys(DataStorm::CallbackReason::Add, { key });
             });
         }
         subscribers.push_back(subscriber);
@@ -572,7 +572,7 @@ DataElementI::removeConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Su
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnectedKeys(DataStorm::ConnectedAction::Remove, { key });
+                    _onConnectedKeys(DataStorm::CallbackReason::Remove, { key });
                 });
             }
             _connectedKeys.erase(key);

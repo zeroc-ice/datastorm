@@ -192,8 +192,8 @@ public:
 
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
     virtual std::vector<std::string> getConnectedElements() const override;
-    virtual void onConnectedKeys(std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)>) override;
-    virtual void onConnectedElements(std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)>) override;
+    virtual void onConnectedKeys(std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)>) override;
+    virtual void onConnectedElements(std::function<void(DataStorm::CallbackReason, std::vector<std::string>)>) override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int, int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool);
@@ -253,8 +253,8 @@ private:
     mutable size_t _waiters;
     mutable size_t _notified;
 
-    std::function<void(DataStorm::ConnectedAction, std::vector<std::shared_ptr<Key>>)> _onConnectedKeys;
-    std::function<void(DataStorm::ConnectedAction, std::vector<std::string>)> _onConnected;
+    std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)> _onConnectedKeys;
+    std::function<void(DataStorm::CallbackReason, std::vector<std::string>)> _onConnected;
 };
 
 class DataReaderI : public DataElementI, public DataReader

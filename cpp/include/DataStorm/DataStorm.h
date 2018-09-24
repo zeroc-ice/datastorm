@@ -241,19 +241,24 @@ public:
     using ReaderType = Reader<Key, Value, UpdateTag>;
 
     /**
+     * The topic's sample type.
+     */
+    using SampleType = Sample<Key, Value, UpdateTag>;
+
+    /**
      * Construct a new Topic for the topic with the given name.
      *
      * @param node The node.
      * @param name The name of the topic.
      */
-    Topic(const Node&, const std::string&);
+    Topic(const Node& node, const std::string& name);
 
     /**
      * Construct a new Topic by taking ownership of the given topic.
      *
      * @param topic The topic to transfer ownership from.
      */
-    Topic(Topic&&);
+    Topic(Topic&& topic);
 
     /**
      * Destruct the Topic. This disconnects the topic from peers.
@@ -265,7 +270,7 @@ public:
      *
      * @param topic The topic.
      **/
-    Topic& operator=(Topic&&);
+    Topic& operator=(Topic&& topic);
 
     /**
      * Indicates whether or not data writers are online.
@@ -279,7 +284,7 @@ public:
      *
      * @param count The number of date writers to wait.
      */
-    void waitForWriters(unsigned int = 1) const;
+    void waitForWriters(unsigned int count = 1) const;
 
     /**
      * Wait for data writers to be offline.
@@ -291,7 +296,7 @@ public:
      *
      * @param config The default writer configuration.
      */
-    void setWriterDefaultConfig(const WriterConfig&);
+    void setWriterDefaultConfig(const WriterConfig& config);
 
     /**
      * Indicates whether or not data readers are online.
@@ -305,7 +310,7 @@ public:
      *
      * @param count The number of data readers to wait.
      */
-    void waitForReaders(unsigned int = 1) const;
+    void waitForReaders(unsigned int count = 1) const;
 
     /**
      * Wait for data readers to be offline.
@@ -317,7 +322,7 @@ public:
      *
      * @param config The default reader configuration.
      */
-    void setReaderDefaultConfig(const ReaderConfig&);
+    void setReaderDefaultConfig(const ReaderConfig& config);
 
     /**
      * Set an updater function for the given update tag. The function is called
@@ -329,7 +334,7 @@ public:
      * @param updater The updater function.
      */
     template<typename UpdateValue>
-    void setUpdater(const UpdateTag&, std::function<void (Value&, UpdateValue)>);
+    void setUpdater(const UpdateTag& tag, std::function<void (Value&, UpdateValue)> updater);
 
     /**
      * Set a key filter factory. The given factory function must return a filter
@@ -340,7 +345,8 @@ public:
      * @param factory The filter factory function.
      */
     template<typename Criteria>
-    void setKeyFilter(const std::string&, std::function<std::function<bool (const Key&)> (const Criteria&)>);
+    void setKeyFilter(const std::string& name,
+                      std::function<std::function<bool (const Key&)> (const Criteria&)> factory);
 
     /**
      * Set a sample filter factory. The given factory function must return a filter
@@ -351,8 +357,8 @@ public:
      * @param factory The filter factory function.
      */
     template<typename Criteria>
-    void setSampleFilter(const std::string&,
-                         std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const Criteria&)>);
+    void setSampleFilter(const std::string& name,
+                         std::function<std::function<bool (const SampleType&)> (const Criteria&)> factory);
 
 private:
 
@@ -371,10 +377,8 @@ private:
     const std::shared_ptr<DataStormI::KeyFactoryT<Key>> _keyFactory;
     const std::shared_ptr<DataStormI::TagFactoryT<UpdateTag>> _tagFactory;
 
-    const std::shared_ptr<DataStormI::FilterManagerT<
-       DataStormI::KeyT<Key>>> _keyFilterFactories;
-    const std::shared_ptr<DataStormI::FilterManagerT<
-       DataStormI::SampleT<Key, Value, UpdateTag>>> _sampleFilterFactories;
+    const std::shared_ptr<DataStormI::FilterManagerT<DataStormI::KeyT<Key>>> _keyFilterFactories;
+    const std::shared_ptr<DataStormI::FilterManagerT<DataStormI::SampleT<Key, Value, UpdateTag>>> _sampleFilterFactories;
 
     mutable std::mutex _mutex;
     mutable std::shared_ptr<DataStormI::TopicReader> _reader;
@@ -405,7 +409,7 @@ public:
      *
      * @param reader The reader.
      **/
-    Reader(Reader&&);
+    Reader(Reader&& reader);
 
     /**
      * Destruct the reader. The destruction of the reader disconnects
@@ -418,7 +422,7 @@ public:
      *
      * @param reader The reader.
      **/
-    Reader& operator=(Reader&&);
+    Reader& operator=(Reader&& reader);
 
     /**
      * Indicates whether or not writers are online.
@@ -432,7 +436,7 @@ public:
      *
      * @param count The number of writers to wait.
      */
-    void waitForWriters(unsigned int = 1) const;
+    void waitForWriters(unsigned int count = 1) const;
 
     /**
      * Wait for readers to be offline.
@@ -463,7 +467,7 @@ public:
     /**
      * Wait for given number of unread samples to be available.
      */
-    void waitForUnread(unsigned int = 1) const;
+    void waitForUnread(unsigned int count = 1) const;
 
     /**
      * Returns wether or not unread samples are available.
@@ -494,7 +498,7 @@ public:
      * @param callback The function to call when a new writer connects or
      *                 disconnects for a given set of keys.
      **/
-    void onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)>);
+    void onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback);
 
     /**
      * Calls the given function when a writer connects or disconnects.
@@ -508,7 +512,7 @@ public:
      * @param callback The function to call when a new writer connects or
      *                 disconnects.
      **/
-    void onConnectedWriters(std::function<void(ConnectedAction, std::vector<std::string>)>);
+    void onConnectedWriters(std::function<void(CallbackReason, std::vector<std::string>)> callback);
 
     /**
      * Calls the given function when samples are queued with this reader.
@@ -520,7 +524,7 @@ public:
      *
      * @param callback The function to call when samples are received.
      **/
-    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)>);
+    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback);
 
 protected:
 
@@ -573,10 +577,10 @@ public:
      * @param name The optional reader name.
      * @param config The reader configuration.
      */
-    SingleKeyReader(const Topic<Key, Value, UpdateTag>&,
-                    const Key&,
-                    const std::string& = std::string(),
-                    const ReaderConfig& = ReaderConfig());
+    SingleKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                    const Key& key,
+                    const std::string& name = std::string(),
+                    const ReaderConfig& config = ReaderConfig());
 
     /**
      * Construct a new reader for the given key and sample filter criteria. The
@@ -591,25 +595,25 @@ public:
      * @param config The reader configuration.
      */
     template<typename SampleFilterCriteria>
-    SingleKeyReader(const Topic<Key, Value, UpdateTag>&,
-                    const Key&,
-                    const Filter<SampleFilterCriteria>&,
-                    const std::string& = std::string(),
-                    const ReaderConfig& = ReaderConfig());
+    SingleKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                    const Key& key,
+                    const Filter<SampleFilterCriteria>& sampleFilter,
+                    const std::string& name = std::string(),
+                    const ReaderConfig& config = ReaderConfig());
 
     /**
      * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/
-    SingleKeyReader(SingleKeyReader&&);
+    SingleKeyReader(SingleKeyReader&& reader);
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    SingleKeyReader& operator=(SingleKeyReader&&);
+    SingleKeyReader& operator=(SingleKeyReader&& reader);
 };
 
 /**
@@ -630,10 +634,10 @@ public:
      * @param name The optional reader name.
      * @param config The reader configuration.
      */
-    MultiKeyReader(const Topic<Key, Value, UpdateTag>&,
-                   const std::vector<Key>&,
-                   const std::string& = std::string(),
-                   const ReaderConfig& = ReaderConfig());
+    MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                   const std::vector<Key>& keys,
+                   const std::string& name = std::string(),
+                   const ReaderConfig& config = ReaderConfig());
 
     /**
      * Construct a new reader for the given keys and sample filter criteria. The
@@ -649,25 +653,25 @@ public:
      * @param config The reader configuration.
      */
     template<typename SampleFilterCriteria>
-    MultiKeyReader(const Topic<Key, Value, UpdateTag>&,
-                   const std::vector<Key>&,
-                   const Filter<SampleFilterCriteria>&,
-                   const std::string& = std::string(),
-                   const ReaderConfig& = ReaderConfig());
+    MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                   const std::vector<Key>& keys,
+                   const Filter<SampleFilterCriteria>& sampleFilter,
+                   const std::string& name = std::string(),
+                   const ReaderConfig& config = ReaderConfig());
 
     /**
      * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/
-    MultiKeyReader(MultiKeyReader&&);
+    MultiKeyReader(MultiKeyReader&& reader);
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    MultiKeyReader& operator=(MultiKeyReader&&);
+    MultiKeyReader& operator=(MultiKeyReader&& reader);
 };
 
 /**
@@ -803,16 +807,15 @@ public:
      * connects the reader to writers whose key matches the key filter criteria.
      *
      * @param topic The topic.
-     * @param filter The filter name.
-     * @param criteria The filter criteria.
+     * @param keyFilter The key filter.
      * @param name The optional reader name.
      * @param config The reader configuration.
      */
     template<typename KeyFilterCriteria>
-    FilteredKeyReader(const Topic<Key, Value, UpdateTag>&,
-                      const Filter<KeyFilterCriteria>&,
-                      const std::string& = std::string(),
-                      const ReaderConfig& = ReaderConfig());
+    FilteredKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                      const Filter<KeyFilterCriteria>& keyFilter,
+                      const std::string& name = std::string(),
+                      const ReaderConfig& config = ReaderConfig());
 
     /**
      * Construct a new reader for the given key filter and sample filter criterias. The
@@ -826,25 +829,25 @@ public:
      * @param config The reader configuration.
      */
     template<typename KeyFilterCriteria, typename SampleFilterCriteria>
-    FilteredKeyReader(const Topic<Key, Value, UpdateTag>&,
-                      const Filter<KeyFilterCriteria>&,
-                      const Filter<SampleFilterCriteria>&,
-                      const std::string& = std::string(),
-                      const ReaderConfig& = ReaderConfig());
+    FilteredKeyReader(const Topic<Key, Value, UpdateTag>& topic,
+                      const Filter<KeyFilterCriteria>& keyFilter,
+                      const Filter<SampleFilterCriteria>& sampleFilter,
+                      const std::string& name = std::string(),
+                      const ReaderConfig& config = ReaderConfig());
 
     /**
      * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/
-    FilteredKeyReader(FilteredKeyReader&&);
+    FilteredKeyReader(FilteredKeyReader&& reader);
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    FilteredKeyReader& operator=(FilteredKeyReader&&);
+    FilteredKeyReader& operator=(FilteredKeyReader&& reader);
 };
 
 /**
@@ -908,14 +911,14 @@ public:
      *
      * @param writer The writer.
      **/
-    Writer(Writer&&);
+    Writer(Writer&& writer);
 
     /**
      * Move assignement operator.
      *
      * @param writer The writer.
      **/
-    Writer& operator=(Writer&&);
+    Writer& operator=(Writer&& writer);
 
     /**
      * Destruct the writer. The destruction of the writer disconnects
@@ -935,7 +938,7 @@ public:
      *
      * @param count The number of readers to wait.
      */
-    void waitForReaders(unsigned int = 1) const;
+    void waitForReaders(unsigned int count = 1) const;
 
     /**
      * Wait for readers to be offline.
@@ -985,7 +988,7 @@ public:
      * @param callback The function to call when a new reader connects or
      *                 disconnects for a given set of keys.
      **/
-    void onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)>);
+    void onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback);
 
     /**
      * Calls the given function when a reader connects or disconnects.
@@ -999,7 +1002,7 @@ public:
      * @param callback The function to call when a new reader connects or
      *                 disconnects.
      **/
-    void onConnectedReaders(std::function<void(ConnectedAction, std::vector<std::string>)>);
+    void onConnectedReaders(std::function<void(CallbackReason, std::vector<std::string>)> callback);
 
 protected:
 
@@ -1029,24 +1032,24 @@ public:
      * @param name The optional writer name.
      * @param config The writer configuration.
      */
-    SingleKeyWriter(const Topic<Key, Value, UpdateTag>&,
-                    const Key&,
-                    const std::string& = std::string(),
-                    const WriterConfig& = WriterConfig());
+    SingleKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
+                    const Key& key,
+                    const std::string& name = std::string(),
+                    const WriterConfig& config = WriterConfig());
 
     /**
      * Move constructor.
      *
      * @param writer The writer.
      **/
-    SingleKeyWriter(SingleKeyWriter&&);
+    SingleKeyWriter(SingleKeyWriter&& writer);
 
     /**
      * Move assignement operator.
      *
      * @param writer The writer.
      **/
-    SingleKeyWriter& operator=(SingleKeyWriter&&);
+    SingleKeyWriter& operator=(SingleKeyWriter&& writer);
 
     /**
      * Add the data element. This generates an {@link Add} sample with the
@@ -1054,7 +1057,7 @@ public:
      *
      * @param value The data element value.
      */
-    void add(const Value&);
+    void add(const Value& value);
 
     /**
      * Update the data element. This generates an {@link Update} sample with the
@@ -1062,7 +1065,7 @@ public:
      *
      * @param value The data element value.
      */
-    void update(const Value&);
+    void update(const Value& value);
 
     /**
      * Get a partial udpate generator function for the given partial update tag. When called,
@@ -1074,7 +1077,7 @@ public:
      *
      * @param tag The partial update tag.
      */
-    template<typename UpdateValue> std::function<void(const UpdateValue&)> partialUpdate(const UpdateTag&);
+    template<typename UpdateValue> std::function<void(const UpdateValue&)> partialUpdate(const UpdateTag& tag);
 
     /**
      * Remove the data element. This generates a {@link Remove} sample.
@@ -1104,24 +1107,24 @@ public:
      * @param name The optional writer name.
      * @param config The writer configuration.
      */
-    MultiKeyWriter(const Topic<Key, Value, UpdateTag>&,
-                   const std::vector<Key>&,
-                   const std::string& = std::string(),
-                   const WriterConfig& = WriterConfig());
+    MultiKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
+                   const std::vector<Key>& keys,
+                   const std::string& name = std::string(),
+                   const WriterConfig& config = WriterConfig());
 
     /**
      * Transfers the given writer to this writer.
      *
      * @param writer The writer.
      **/
-    MultiKeyWriter(MultiKeyWriter&&);
+    MultiKeyWriter(MultiKeyWriter&& writer);
 
     /**
      * Move assignement operator.
      *
      * @param writer The writer.
      **/
-    MultiKeyWriter& operator=(MultiKeyWriter&&);
+    MultiKeyWriter& operator=(MultiKeyWriter&& writer);
 
     /**
      * Add the data element. This generates an {@link Add} sample with the
@@ -1130,7 +1133,7 @@ public:
      * @param key The key
      * @param value The data element value.
      */
-    void add(const Key&, const Value&);
+    void add(const Key& key, const Value& value);
 
     /**
      * Update the data element. This generates an {@link Update} sample with the
@@ -1139,7 +1142,7 @@ public:
      * @param key The key
      * @param value The data element value.
      */
-    void update(const Key&, const Value&);
+    void update(const Key& key, const Value& value);
 
     /**
      * Get a partial udpate generator function for the given partial update tag. When called,
@@ -1151,14 +1154,14 @@ public:
      *
      * @param tag The partial update tag.
      */
-    template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)> partialUpdate(const UpdateTag&);
+    template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)> partialUpdate(const UpdateTag& tag);
 
     /**
      * Remove the data element. This generates a {@link Remove} sample.
 
      * @param key The key
      */
-    void remove(const Key&);
+    void remove(const Key& key);
 
 private:
 
@@ -1371,9 +1374,9 @@ Reader<Key, Value, UpdateTag>::getNextUnread()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)> cb)
+Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback)
 {
-    _impl->onConnectedKeys([cb](ConnectedAction action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys([callback](CallbackReason action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1381,24 +1384,24 @@ Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedActio
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        cb(action, move(keys));
+        callback(action, move(keys));
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnectedWriters(std::function<void(ConnectedAction, std::vector<std::string>)> cb)
+Reader<Key, Value, UpdateTag>::onConnectedWriters(std::function<void(CallbackReason, std::vector<std::string>)> callback)
 {
-    _impl->onConnectedElements([cb](ConnectedAction action, std::vector<std::string> writers)
+    _impl->onConnectedElements([callback](CallbackReason action, std::vector<std::string> writers)
     {
-        cb(action, move(writers));
+        callback(action, move(writers));
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> cb)
+Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback)
 {
     auto communicator = _impl->getCommunicator();
-    _impl->onSamples([communicator, cb](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
+    _impl->onSamples([communicator, callback](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
     {
         std::vector<Sample<Key, Value, UpdateTag>> samples;
         samples.reserve(samplesI.size());
@@ -1406,7 +1409,7 @@ Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<K
         {
             samples.emplace_back(s);
         }
-        cb(move(samples));
+        callback(move(samples));
     });
 }
 
@@ -1614,9 +1617,9 @@ Writer<Key, Value, UpdateTag>::getAll()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedAction, std::vector<Key>)> cb)
+Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback)
 {
-    _impl->onConnectedKeys([cb](ConnectedAction action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys([callback](CallbackReason action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1624,16 +1627,16 @@ Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(ConnectedActio
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        cb(action, move(keys));
+        callback(action, move(keys));
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnectedReaders(std::function<void(ConnectedAction, std::vector<std::string>)> cb)
+Writer<Key, Value, UpdateTag>::onConnectedReaders(std::function<void(CallbackReason, std::vector<std::string>)> callback)
 {
-    _impl->onConnectedElements([cb](ConnectedAction action, std::vector<std::string> readers)
+    _impl->onConnectedElements([callback](CallbackReason action, std::vector<std::string> readers)
     {
-        cb(action, move(readers));
+        callback(action, move(readers));
     });
 }
 

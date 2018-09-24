@@ -49,15 +49,15 @@ main(int argc, char* argv[])
             // Get the set of stocks connected with the any reader and display their ticker.
             //
             std::promise<vector<string>> p;
-            stocks.onConnectedKeys([&p](DataStorm::ConnectedAction action, vector<string> tickers)
+            stocks.onConnectedKeys([&p](DataStorm::CallbackReason action, vector<string> tickers)
             {
-                if(action == DataStorm::ConnectedAction::Initialize)
+                if(action == DataStorm::CallbackReason::Initialize)
                 {
                     p.set_value(tickers);
                 }
                 else
                 {
-                    if(action == DataStorm::ConnectedAction::Add)
+                    if(action == DataStorm::CallbackReason::Add)
                     {
                         cout << "New stock(s) available: ";
                     }

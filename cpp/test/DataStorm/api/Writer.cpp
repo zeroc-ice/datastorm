@@ -119,7 +119,7 @@ main(int argc, char* argv[])
             {
             }
             writer.getAll();
-            writer.onConnectedKeys([](ConnectedAction, vector<string>) {});
+            writer.onConnectedKeys([](CallbackReason, vector<string>) {});
         };
 
         auto skw = makeSingleKeyWriter(topic, "key");
@@ -180,7 +180,7 @@ main(int argc, char* argv[])
             {
                 reader.getNextUnread();
             }
-            reader.onConnectedKeys([](ConnectedAction, vector<string>) {});
+            reader.onConnectedKeys([](CallbackReason, vector<string>) {});
             reader.onSamples([](vector<Sample<string, string>> samples) {});
         };
 

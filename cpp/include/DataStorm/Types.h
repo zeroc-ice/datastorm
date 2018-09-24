@@ -152,7 +152,6 @@ public:
  *
  * It extends the Config class and therefore inherits its configuration
  * options.
- *
  */
 class WriterConfig : public Config
 {
@@ -186,19 +185,18 @@ public:
 };
 
 /**
- * The connection key action enumurator specifies whether or not
- * the connected keys callback is called following initialization,
- * addition or removal of a connected key.
+ * The callback action enumurator specifies the reason why a callback which monitors
+ * a set of items is called.
  */
-enum struct ConnectedAction
+enum struct CallbackReason
 {
-    /** The initial set of connected keys. */
+    /** The callback is called to initialize its set of items. */
     Initialize,
 
-    /** The set of new connected keys. */
+    /** The callback is called when a new item is added. */
     Add,
 
-    /** The set of removed connected keys. */
+    /** The callback is called when an item is removed. */
     Remove
 };
 
@@ -223,7 +221,7 @@ struct Encoder
      * @param value The value to encode
      * @return The resulting byte sequence
      */
-    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&, const T&);
+    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value);
 };
 
 /**
@@ -247,7 +245,7 @@ struct Decoder
      * @param value The byte sequence to decode
      * @return The resulting value
      */
-    static T decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&);
+    static T decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value);
 };
 
 /**

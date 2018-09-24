@@ -81,17 +81,17 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem3", "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnectedKeys([&p1, &p2, &p3](ConnectedAction action, vector<string> keys)
+            reader.onConnectedKeys([&p1, &p2, &p3](CallbackReason action, vector<string> keys)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(keys.empty());
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     p2.set_value(!keys.empty() && keys[0] == "elem3");
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p3.set_value(!keys.empty() && keys[0] == "elem3");
                 }
@@ -107,17 +107,17 @@ main(int argc, char* argv[])
             auto reader = makeSingleKeyReader(topic, "elem4", "", config);
             reader.waitForWriters();
             promise<bool> p1, p2;
-            reader.onConnectedKeys([&p1, &p2](ConnectedAction action, vector<string> keys)
+            reader.onConnectedKeys([&p1, &p2](CallbackReason action, vector<string> keys)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(!keys.empty() && keys[0] == "elem4");
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     test(false);
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p2.set_value(!keys.empty() && keys[0] == "elem4");
                 }
@@ -142,17 +142,17 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex","elem3"), "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnectedKeys([&p1, &p2, &p3](ConnectedAction action, vector<string> keys)
+            reader.onConnectedKeys([&p1, &p2, &p3](CallbackReason action, vector<string> keys)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(keys.empty());
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     p2.set_value(!keys.empty() && keys[0] == "elem3");
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p3.set_value(!keys.empty() && keys[0] == "elem3");
                 }
@@ -168,17 +168,17 @@ main(int argc, char* argv[])
             auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem4"), "", config);
             reader.waitForWriters();
             promise<bool> p1, p2;
-            reader.onConnectedKeys([&p1, &p2](ConnectedAction action, vector<string> keys)
+            reader.onConnectedKeys([&p1, &p2](CallbackReason action, vector<string> keys)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(!keys.empty() && keys[0] == "elem4");
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     test(false);
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p2.set_value(!keys.empty() && keys[0] == "elem4");
                 }
@@ -200,17 +200,17 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeAnyKeyReader(topic, "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnectedKeys([&p1, &p2, &p3](ConnectedAction action, vector<string> keys)
+            reader.onConnectedKeys([&p1, &p2, &p3](CallbackReason action, vector<string> keys)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(keys.empty());
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     p2.set_value(!keys.empty() && keys[0] == "anyelem3");
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p3.set_value(!keys.empty() && keys[0] == "anyelem3");
                 }
@@ -240,17 +240,17 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem3", "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnectedWriters([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2, &p3](CallbackReason action, vector<string> writers)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(writers.empty());
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     p2.set_value(!writers.empty() && writers[0] == "writer1");
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p3.set_value(!writers.empty() && writers[0] == "writer1");
                 }
@@ -268,17 +268,17 @@ main(int argc, char* argv[])
             auto reader = makeSingleKeyReader(topic, "elem4", "", config);
             reader.waitForWriters();
             promise<bool> p1, p2;
-            reader.onConnectedWriters([&p1, &p2](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2](CallbackReason action, vector<string> writers)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(!writers.empty() && writers[0] == "writer2");
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     test(false);
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p2.set_value(!writers.empty() && writers[0] == "writer2");
                 }
@@ -303,17 +303,17 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem3"), "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnectedWriters([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2, &p3](CallbackReason action, vector<string> writers)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(writers.empty());
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     p2.set_value(!writers.empty() && writers[0] == "writer1");
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p3.set_value(!writers.empty() && writers[0] == "writer1");
                 }
@@ -329,17 +329,17 @@ main(int argc, char* argv[])
             auto reader = makeFilteredKeyReader(topic, Filter<string>("_regex", "elem4"), "", config);
             reader.waitForWriters();
             promise<bool> p1, p2;
-            reader.onConnectedWriters([&p1, &p2](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2](CallbackReason action, vector<string> writers)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(!writers.empty() && writers[0] == "writer2");
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     test(false);
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p2.set_value(!writers.empty() && writers[0] == "writer2");
                 }
@@ -361,17 +361,17 @@ main(int argc, char* argv[])
             readers.update(false);
             auto reader = makeAnyKeyReader(topic, "", config);
             promise<bool> p1, p2, p3;
-            reader.onConnectedWriters([&p1, &p2, &p3](ConnectedAction action, vector<string> writers)
+            reader.onConnectedWriters([&p1, &p2, &p3](CallbackReason action, vector<string> writers)
             {
-                if(action == ConnectedAction::Initialize)
+                if(action == CallbackReason::Initialize)
                 {
                     p1.set_value(writers.empty());
                 }
-                else if(action == ConnectedAction::Add)
+                else if(action == CallbackReason::Add)
                 {
                     p2.set_value(!writers.empty() && writers[0] == "writer1");
                 }
-                else if(action == ConnectedAction::Remove)
+                else if(action == CallbackReason::Remove)
                 {
                     p3.set_value(!writers.empty() && writers[0] == "writer1");
                 }
