@@ -120,7 +120,7 @@ public:
      *                function in addition to the argc and argv arguments.
      */
     template<class... T>
-    Node(int& argc, const wchar_t* argv[], T&&... iceArgs) : _ownsCommunicator(true)
+    Node(int& argc, wchar_t* argv[], T&&... iceArgs) : _ownsCommunicator(true)
     {
         init(argc, argv, std::forward<T>(iceArgs)...);
     }
