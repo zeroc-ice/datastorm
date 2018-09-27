@@ -1385,7 +1385,7 @@ template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Key>)> init,
                                                std::function<void(CallbackReason, Key)> update)
 {
-    _impl->onConnectedKeys([init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys(init ? [init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1394,11 +1394,11 @@ Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Ke
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
         init(move(keys));
-    },
-    [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
+    } : std::function<void(std::vector<std::shared_ptr<DataStormI::Key>>)>(),
+    update ? [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
     {
         update(action, std::static_pointer_cast<DataStormI::KeyT<Key>>(key)->get());
-    });
+    } : std::function<void(CallbackReason, std::shared_ptr<DataStormI::Key>)>());
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1413,7 +1413,7 @@ Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<K
                                          std::function<void(Sample<Key, Value, UpdateTag>)> update)
 {
     auto communicator = _impl->getCommunicator();
-    _impl->onSamples([communicator, init](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
+    _impl->onSamples(init ? [communicator, init](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
     {
         std::vector<Sample<Key, Value, UpdateTag>> samples;
         samples.reserve(samplesI.size());
@@ -1422,11 +1422,11 @@ Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<K
             samples.emplace_back(s);
         }
         init(move(samples));
-    },
-    [communicator, update](const std::shared_ptr<DataStormI::Sample>& sampleI)
+    } : std::function<void(const std::vector<std::shared_ptr<DataStormI::Sample>>&)>(),
+    update ? [communicator, update](const std::shared_ptr<DataStormI::Sample>& sampleI)
     {
         update(sampleI);
-    });
+    } : std::function<void(const std::shared_ptr<DataStormI::Sample>&)>());
 }
 
 template<typename Key, typename Value, typename UpdateTag>
@@ -1636,7 +1636,7 @@ template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Key>)> init,
                                                std::function<void(CallbackReason, Key)> update)
 {
-    _impl->onConnectedKeys([init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys(init ? [init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1645,11 +1645,11 @@ Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Ke
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
         init(move(keys));
-    },
-    [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
+    } : std::function<void(std::vector<std::shared_ptr<DataStormI::Key>>)>(),
+    update ? [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
     {
         update(action, std::static_pointer_cast<DataStormI::KeyT<Key>>(key)->get());
-    });
+    } : std::function<void(CallbackReason, std::shared_ptr<DataStormI::Key>)>());
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
@@ -1989,9 +1989,9 @@ Topic<Key, Value, UpdateTag>::setUpdater(const UpdateTag& tag, std::function<voi
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto tagI = _tagFactory->create(std::move(tag));
-    auto updaterImpl = [updater](const std::shared_ptr<DataStormI::Sample>& previous,
-                                 const std::shared_ptr<DataStormI::Sample>& next,
-                                 const std::shared_ptr<Ice::Communicator>& communicator)
+    auto updaterImpl = updater ? [updater](const std::shared_ptr<DataStormI::Sample>& previous,
+                                           const std::shared_ptr<DataStormI::Sample>& next,
+                                           const std::shared_ptr<Ice::Communicator>& communicator)
     {
         Value value;
         if(previous)
@@ -2001,7 +2001,9 @@ Topic<Key, Value, UpdateTag>::setUpdater(const UpdateTag& tag, std::function<voi
         }
         updater(value, Decoder<UpdateValue>::decode(communicator, next->getEncodedValue()));
         std::static_pointer_cast<DataStormI::SampleT<Key, Value, UpdateTag>>(next)->setValue(std::move(value));
-    };
+    } : std::function<void(const std::shared_ptr<DataStormI::Sample>&,
+                           const std::shared_ptr<DataStormI::Sample>&,
+                           const std::shared_ptr<Ice::Communicator>&)>();
 
     if(_reader && !_writer)
     {
