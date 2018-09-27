@@ -185,19 +185,15 @@ public:
 };
 
 /**
- * The callback action enumurator specifies the reason why a callback which monitors
- * a set of items is called.
+ * The callback action enumurator specifies the reason why a callback is called.
  */
 enum struct CallbackReason
 {
-    /** The callback is called to initialize its set of items. */
-    Initialize,
+    /** The callback is called because of connection. */
+    Connect,
 
-    /** The callback is called when a new item is added. */
-    Add,
-
-    /** The callback is called when an item is removed. */
-    Remove
+    /** The callback is called because of a disconnection. */
+    Disconnect
 };
 
 /**

@@ -67,18 +67,15 @@ main(int argc, char* argv[])
         //
         // Prints out the received samples.
         //
-        reader.onSamples([](const vector<DataStorm::Sample<string, chrono::system_clock::time_point>>& samples)
+        reader.onSamples(nullptr, [](const DataStorm::Sample<string, chrono::system_clock::time_point>& sample)
         {
-            for(auto& sample : samples)
+            auto time = chrono::system_clock::to_time_t(sample.getValue());
+            char timeString[100];
+            if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
             {
-                auto time = chrono::system_clock::to_time_t(sample.getValue());
-                char timeString[100];
-                if(strftime(timeString, sizeof(timeString), "%x %X", localtime(&time)) == 0)
-                {
-                    timeString[0] = '\0';
-                }
-                cout << "received time for `" << sample.getKey() << "': " << timeString << endl;
+                timeString[0] = '\0';
             }
+            cout << "received time for `" << sample.getKey() << "': " << timeString << endl;
         });
 
         //

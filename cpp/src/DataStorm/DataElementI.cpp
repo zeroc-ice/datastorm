@@ -201,11 +201,11 @@ DataElementI::attachKey(long long int topicId,
 
     bool added = false;
     auto subscriber = p->second.addOrGet(topicId, elementId, keyId, nullptr, sampleFilter, name, priority, added);
-    if(_onConnected && added)
+    if(_onConnectedElements && added)
     {
         _executor->queue(shared_from_this(), [=]
         {
-            _onConnected(DataStorm::CallbackReason::Add, { name });
+            _onConnectedElements(DataStorm::CallbackReason::Connect, name);
         });
     }
     if(addConnectedKey(key, subscriber))
@@ -257,11 +257,11 @@ DataElementI::detachKey(long long int topicId,
         }
         if(subscriber->keys.empty())
         {
-            if(_onConnected)
+            if(_onConnectedElements)
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnected(DataStorm::CallbackReason::Remove, { subscriber->name });
+                    _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name);
                 });
             }
             if(p->second.remove(topicId, elementId))
@@ -311,11 +311,11 @@ DataElementI::attachFilter(long long int topicId,
 
     bool added = false;
     auto subscriber = p->second.addOrGet(topicId, -elementId, filterId, filter, sampleFilter, name, priority, added);
-    if(_onConnected && added)
+    if(_onConnectedElements && added)
     {
         _executor->queue(shared_from_this(), [=]
         {
-            _onConnected(DataStorm::CallbackReason::Add, { name });
+            _onConnectedElements(DataStorm::CallbackReason::Connect, name);
         });
     }
     if(addConnectedKey(key, subscriber))
@@ -367,11 +367,11 @@ DataElementI::detachFilter(long long int topicId,
         }
         if(subscriber->keys.empty())
         {
-            if(_onConnected)
+            if(_onConnectedElements)
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnected(DataStorm::CallbackReason::Remove, { subscriber->name });
+                    _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name);
                 });
             }
             if(p->second.remove(topicId, elementId))
@@ -429,31 +429,29 @@ DataElementI::getConnectedElements() const
 }
 
 void
-DataElementI::onConnectedKeys(std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)> cb)
+DataElementI::onConnectedKeys(function<void(vector<shared_ptr<Key>>)> init,
+                              function<void(DataStorm::CallbackReason, shared_ptr<Key>)> update)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onConnectedKeys = move(cb);
-    if(_onConnectedKeys)
+    _onConnectedKeys = move(update);
+    if(init)
     {
         vector<shared_ptr<Key>> keys;
         for(const auto& key : _connectedKeys)
         {
             keys.push_back(key.first);
         }
-        _executor->queue(shared_from_this(),
-                         [this, keys]
-                         {
-                             _onConnectedKeys(DataStorm::CallbackReason::Initialize, keys);
-                         }, true);
+        _executor->queue(shared_from_this(), [init, keys] { init(keys); }, true);
     }
 }
 
 void
-DataElementI::onConnectedElements(std::function<void(DataStorm::CallbackReason, std::vector<std::string>)> cb)
+DataElementI::onConnectedElements(function<void(vector<string>)> init,
+                                  function<void(DataStorm::CallbackReason, string)> update)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onConnected = move(cb);
-    if(_onConnected)
+    _onConnectedElements = move(update);
+    if(init)
     {
         vector<string> elements;
         for(const auto& listener : _listeners)
@@ -463,11 +461,7 @@ DataElementI::onConnectedElements(std::function<void(DataStorm::CallbackReason, 
                 elements.push_back(subscriber.second->name);
             }
         }
-        _executor->queue(shared_from_this(),
-                         [this, elements]
-                         {
-                             _onConnected(DataStorm::CallbackReason::Initialize, elements);
-                         }, true);
+        _executor->queue(shared_from_this(), [init, elements] { init(elements); }, true);
     }
 }
 
@@ -549,7 +543,7 @@ DataElementI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subsc
         {
             _executor->queue(shared_from_this(), [=]
             {
-                _onConnectedKeys(DataStorm::CallbackReason::Add, { key });
+                _onConnectedKeys(DataStorm::CallbackReason::Connect, key);
             });
         }
         subscribers.push_back(subscriber);
@@ -572,7 +566,7 @@ DataElementI::removeConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Su
             {
                 _executor->queue(shared_from_this(), [=]
                 {
-                    _onConnectedKeys(DataStorm::CallbackReason::Remove, { key });
+                    _onConnectedKeys(DataStorm::CallbackReason::Disconnect, key);
                 });
             }
             _connectedKeys.erase(key);
@@ -750,7 +744,13 @@ DataReaderI::initSamples(const vector<shared_ptr<Sample>>& samples,
 
     if(_onSamples)
     {
-        _executor->queue(shared_from_this(), [this, valid] { _onSamples(valid); });
+        _executor->queue(shared_from_this(), [this, valid]
+        {
+            for(const auto& s : valid)
+            {
+                _onSamples(s);
+            }
+        });
     }
 
     if(valid.empty())
@@ -870,7 +870,7 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
 
     if(_onSamples)
     {
-        _executor->queue(shared_from_this(), [this, sample] { _onSamples({ sample }); });
+        _executor->queue(shared_from_this(), [this, sample] { _onSamples(sample); });
     }
 
     if(_config->sampleLifetime && *_config->sampleLifetime > 0)
@@ -914,14 +914,15 @@ DataReaderI::queue(const shared_ptr<Sample>& sample,
 }
 
 void
-DataReaderI::onSamples(function<void(const vector<shared_ptr<Sample>>&)> callback)
+DataReaderI::onSamples(function<void(const vector<shared_ptr<Sample>>&)> init,
+                       function<void(const shared_ptr<Sample>&)> update)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onSamples = move(callback);
-    if(_onSamples && !_samples.empty())
+    _onSamples = move(update);
+    if(init && !_samples.empty())
     {
         vector<shared_ptr<Sample>> samples(_samples.begin(), _samples.end());
-        _executor->queue(shared_from_this(), [this, samples] { _onSamples(samples); }, true);
+        _executor->queue(shared_from_this(), [init, samples] { init(samples); }, true);
     }
 }
 

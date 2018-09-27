@@ -318,7 +318,8 @@ SessionI::attachElementsAck(long long int id, ElementSpecAckSeq elements, const 
             out << _id << ": attaching elements ack `[" << elements << "]@" << id << "' on topic `" << topic << "'";
         }
 
-        auto samples = topic->attachElementsAck(id, elements, shared_from_this(), _session, now);
+        LongSeq removedIds;
+        auto samples = topic->attachElementsAck(id, elements, shared_from_this(), _session, now, removedIds);
         if(!samples.empty())
         {
             if(_traceLevels->session > 2)
@@ -327,6 +328,10 @@ SessionI::attachElementsAck(long long int id, ElementSpecAckSeq elements, const 
                 out << _id << ": initializing elements `[" << samples << "]@" << id << "' on topic `" << topic << "'";
             }
             _session->initSamplesAsync(topic->getId(), samples);
+        }
+        if(!removedIds.empty())
+        {
+            _session->detachElementsAsync(topic->getId(), removedIds);
         }
     });
 }

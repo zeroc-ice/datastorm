@@ -20,36 +20,32 @@ main(int argc, char* argv[])
     config.sampleCount = -1; // Unlimited sample count
     config.clearHistory = ClearHistoryPolicy::Never;
 
-    Topic<string, bool> controller(node, "controller");
+    Topic<string, int> controller(node, "controller");
     auto writers = makeSingleKeyWriter(controller, "writers");
     auto readers = makeSingleKeyReader(controller, "readers");
+    writers.waitForReaders();
 
     Topic<string, string> topic(node, "string");
 
     cout << "testing onSamples... " << flush;
     {
         {
-            writers.update(false);
             auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
-            writers.update(true);
-            while(!readers.getNextUnread().getValue());
+            test(readers.getNextUnread().getValue() == 1);
         }
         {
             auto writer = makeSingleKeyWriter(topic, "elem2", "", config);
-            writer.waitForReaders();
+            test(readers.getNextUnread().getValue() == 2);
             writer.add("value1");
-            writer.waitForNoReaders();
+            test(readers.getNextUnread().getValue() == 3);
         }
         {
-            writers.update(false);
             auto writer = makeSingleKeyWriter(topic, "elem3", "", config);
             writer.add("value1");
             writer.update("value2");
             writer.remove();
-            writers.update(true);
-            writer.waitForReaders();
-            writer.waitForNoReaders();
+            test(readers.getNextUnread().getValue() == 4);
         }
     }
     cout << "ok" << endl;
@@ -59,102 +55,99 @@ main(int argc, char* argv[])
         for(int i = 0; i < 2; ++i)
         {
             {
-                while(readers.getNextUnread().getValue());
-                writers.update(false);
                 auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
                 promise<bool> p1, p2, p3;
-                writer.onConnectedKeys([&p1, &p2, &p3](CallbackReason action, vector<string> keys)
+                writer.onConnectedKeys([&p1](vector<string> keys)
                 {
-                    if(action == CallbackReason::Initialize)
+                    p1.set_value(keys.empty());
+                },
+                [&p2, &p3](CallbackReason action, string key)
+                {
+                    if(action == CallbackReason::Connect)
                     {
-                        p1.set_value(keys.empty());
+                        p2.set_value(key == "elem1");
                     }
-                    else if(action == CallbackReason::Add)
+                    else if(action == CallbackReason::Disconnect)
                     {
-                        p2.set_value(!keys.empty() && keys[0] == "elem1");
-                    }
-                    else if(action == CallbackReason::Remove)
-                    {
-                        p3.set_value(!keys.empty() && keys[0] == "elem1");
+                        p3.set_value(key == "elem1");
                     }
                 });
                 test(p1.get_future().get());
-                writers.update(true);
+                writers.update(1);
                 test(p2.get_future().get());
-                writer.update("value2");
-                while(!readers.getNextUnread().getValue());
+                writers.update(2);
                 test(p3.get_future().get());
             }
             {
                 auto writer = makeSingleKeyWriter(topic, "elem2", "", config);
                 writer.waitForReaders();
                 promise<bool> p1, p2;
-                writer.onConnectedKeys([&p1, &p2](CallbackReason action, vector<string> keys)
+                writer.onConnectedKeys([&p1](vector<string> keys)
                 {
-                    if(action == CallbackReason::Initialize)
-                    {
-                        p1.set_value(!keys.empty() && keys[0] == "elem2");
-                    }
-                    else if(action == CallbackReason::Add)
+                    p1.set_value(!keys.empty() && keys[0] == "elem2");
+                },
+                [&p2](CallbackReason action, string key)
+                {
+                    if(action == CallbackReason::Connect)
                     {
                         test(false);
                     }
-                    else if(action == CallbackReason::Remove)
+                    else if(action == CallbackReason::Disconnect)
                     {
-                        p2.set_value(!keys.empty() && keys[0] == "elem2");
+                        p2.set_value(key == "elem2");
                     }
                 });
                 test(p1.get_future().get());
-                writer.update("value2");
+                writers.update(3);
                 test(p2.get_future().get());
             }
             {
-                writers.update(false);
+                test(readers.getNextUnread().getValue() == 1);
                 auto writer = makeSingleKeyWriter(topic, "elem3", "", config);
-                writer.waitForReaders();
-                while(!readers.getNextUnread().getValue());
-                writers.update(true);
+                test(readers.getNextUnread().getValue() == 2);
             }
             {
                 auto writer = makeSingleKeyWriter(topic, "elem4", "", config);
-                while(!readers.getNextUnread().getValue());
+                test(readers.getNextUnread().getValue() == 3);
             }
+
+            test(readers.getNextUnread().getValue() == 4);
         }
 
         {
-            while(readers.getNextUnread().getValue());
-            writers.update(false);
             auto writer = makeAnyKeyWriter(topic, "", config);
             promise<bool> p1, p2, p3;
-            writer.onConnectedKeys([&p1, &p2, &p3](CallbackReason action, vector<string> keys)
+            writer.onConnectedKeys([&p1](vector<string> keys)
             {
-                if(action == CallbackReason::Initialize)
+                p1.set_value(keys.empty());
+            },
+            [&p2, &p3](CallbackReason action, string key)
+            {
+                if(action == CallbackReason::Connect)
                 {
-                    p1.set_value(keys.empty());
+                    p2.set_value(key == "anyelem1");
                 }
-                else if(action == CallbackReason::Add)
+                else if(action == CallbackReason::Disconnect)
                 {
-                    p2.set_value(!keys.empty() && keys[0] == "anyelem1");
-                }
-                else if(action == CallbackReason::Remove)
-                {
-                    p3.set_value(!keys.empty() && keys[0] == "anyelem1");
+                    p3.set_value(key == "anyelem1");
                 }
             });
             test(p1.get_future().get());
-            writers.update(true);
+            writers.update(1);
             test(p2.get_future().get());
-            writer.update("anyelem1", "value2");
-            while(!readers.getNextUnread().getValue());
+            writers.update(2);
             test(p3.get_future().get());
         }
+
+        writers.update(3);
+
         {
-            writers.update(false);
+            test(readers.getNextUnread().getValue() == 1);
             auto writer = makeSingleKeyWriter(topic, "anyelem3", "", config);
-            writer.waitForReaders();
-            while(!readers.getNextUnread().getValue());
-            writers.update(true);
+            test(readers.getNextUnread().getValue() == 2);
         }
+
+        test(readers.getNextUnread().getValue() == 3);
     }
     cout << "ok" << endl;
 
@@ -163,104 +156,99 @@ main(int argc, char* argv[])
         for(int i = 0; i < 2; ++i)
         {
             {
-                while(readers.getNextUnread().getValue());
-                writers.update(false);
                 auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
                 promise<bool> p1, p2, p3;
-                writer.onConnectedReaders([&p1, &p2, &p3](CallbackReason action, vector<string> readers)
+                writer.onConnectedReaders([&p1](vector<string> readers)
                 {
-                    if(action == CallbackReason::Initialize)
+                    p1.set_value(readers.empty());
+                }, [&p2, &p3](CallbackReason action, string reader)
+                {
+                    if(action == CallbackReason::Connect)
                     {
-                        p1.set_value(readers.empty());
+                        p2.set_value(reader == "reader1");
                     }
-                    else if(action == CallbackReason::Add)
+                    else if(action == CallbackReason::Disconnect)
                     {
-                        p2.set_value(!readers.empty() && readers[0] == "reader1");
-                    }
-                    else if(action == CallbackReason::Remove)
-                    {
-                        p3.set_value(!readers.empty() && readers[0] == "reader1");
+                        p3.set_value(reader == "reader1");
                     }
                 });
                 test(p1.get_future().get());
                 test(writer.getConnectedReaders().empty());
-                writers.update(true);
+                writers.update(1);
                 test(p2.get_future().get());
                 test(writer.getConnectedReaders() == vector<string> { "reader1" });
-                writer.update("value2");
-                while(!readers.getNextUnread().getValue());
+                writers.update(2);
                 test(p3.get_future().get());
             }
             {
                 auto writer = makeSingleKeyWriter(topic, "elem2", "", config);
                 writer.waitForReaders();
                 promise<bool> p1, p2;
-                writer.onConnectedReaders([&p1, &p2](CallbackReason action, vector<string> readers)
+                writer.onConnectedReaders([&p1](vector<string> readers)
                 {
-                    if(action == CallbackReason::Initialize)
-                    {
-                        p1.set_value(!readers.empty() && readers[0] == "reader2");
-                    }
-                    else if(action == CallbackReason::Add)
+                    p1.set_value(!readers.empty() && readers[0] == "reader2");
+                }, [&p2](CallbackReason action, string reader)
+                {
+                    if(action == CallbackReason::Connect)
                     {
                         test(false);
                     }
-                    else if(action == CallbackReason::Remove)
+                    else if(action == CallbackReason::Disconnect)
                     {
-                        p2.set_value(!readers.empty() && readers[0] == "reader2");
+                        p2.set_value(reader == "reader2");
                     }
                 });
                 test(p1.get_future().get());
-                writer.update("value2");
+                writers.update(3);
                 test(p2.get_future().get());
             }
             {
-                writers.update(false);
+                test(readers.getNextUnread().getValue() == 1);
                 auto writer = makeSingleKeyWriter(topic, "elem3", "writer1", config);
-                writer.waitForReaders();
-                while(!readers.getNextUnread().getValue());
-                writers.update(true);
+                test(readers.getNextUnread().getValue() == 2);
             }
             {
                 auto writer = makeSingleKeyWriter(topic, "elem4", "writer2", config);
-                while(!readers.getNextUnread().getValue());
+                test(readers.getNextUnread().getValue() == 3);
             }
+
+            test(readers.getNextUnread().getValue() == 4);
         }
 
         {
-            while(readers.getNextUnread().getValue());
-            writers.update(false);
             auto writer = makeAnyKeyWriter(topic, "", config);
             promise<bool> p1, p2, p3;
-            writer.onConnectedReaders([&p1, &p2, &p3](CallbackReason action, vector<string> readers)
+            writer.onConnectedReaders([&p1](vector<string> readers)
             {
-                if(action == CallbackReason::Initialize)
+                p1.set_value(readers.empty());
+            }, [&p2, &p3](CallbackReason action, string reader)
+            {
+                if(action == CallbackReason::Connect)
                 {
-                    p1.set_value(readers.empty());
+                    p2.set_value(reader == "reader1");
                 }
-                else if(action == CallbackReason::Add)
+                else if(action == CallbackReason::Disconnect)
                 {
-                    p2.set_value(!readers.empty() && readers[0] == "reader1");
-                }
-                else if(action == CallbackReason::Remove)
-                {
-                    p3.set_value(!readers.empty() && readers[0] == "reader1");
+                    p3.set_value(reader == "reader1");
                 }
             });
             test(p1.get_future().get());
-            writers.update(true);
+            writers.update(1);
             test(p2.get_future().get());
-            writer.update("anyelem1", "value2");
-            while(!readers.getNextUnread().getValue());
+            test(writer.getConnectedReaders() == vector<string> { "reader1" });
+            writers.update(2);
             test(p3.get_future().get());
         }
+
+        writers.update(3);
+
         {
-            writers.update(false);
+            test(readers.getNextUnread().getValue() == 1);
             auto writer = makeSingleKeyWriter(topic, "anyelem3", "writer1", config);
-            writer.waitForReaders();
-            while(!readers.getNextUnread().getValue());
-            writers.update(true);
+            test(readers.getNextUnread().getValue() == 2);
         }
+
+        test(readers.getNextUnread().getValue() == 3);
     }
     cout << "ok" << endl;
 

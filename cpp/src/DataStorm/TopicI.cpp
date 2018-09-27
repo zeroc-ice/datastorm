@@ -424,7 +424,8 @@ TopicI::attachElementsAck(long long int topicId,
                           const ElementSpecAckSeq& elements,
                           const shared_ptr<SessionI>& session,
                           const shared_ptr<SessionPrx>& prx,
-                          const chrono::time_point<chrono::system_clock>& now)
+                          const chrono::time_point<chrono::system_clock>& now,
+                          LongSeq& removedIds)
 {
     DataSamplesSeq samples;
     vector<function<void()>> initCallbacks;
@@ -450,9 +451,10 @@ TopicI::attachElementsAck(long long int topicId,
                 }
 
                 vector<shared_ptr<Sample>> samplesI;
-                for(auto e : p->second)
+                for(const auto& data : spec.elements)
                 {
-                    for(const auto& data : spec.elements)
+                    bool found = false;
+                    for(auto e : p->second)
                     {
                         if(data.peerId == e->getId())
                         {
@@ -469,9 +471,21 @@ TopicI::attachElementsAck(long long int topicId,
                             {
                                 initCallbacks.push_back(initCb);
                             }
+                            found = true;
                             break;
                         }
                     }
+                    if(!found)
+                    {
+                        removedIds.push_back(data.peerId);
+                    }
+                }
+            }
+            else
+            {
+                for(const auto& data : spec.elements)
+                {
+                    removedIds.push_back(data.peerId);
                 }
             }
         }
@@ -496,9 +510,10 @@ TopicI::attachElementsAck(long long int topicId,
                     key = _keyFactory->decode(_instance->getCommunicator(), spec.value);
                 }
 
-                for(auto e : p->second)
+                for(const auto& data : spec.elements)
                 {
-                    for(const auto& data : spec.elements)
+                    bool found = false;
+                    for(auto e : p->second)
                     {
                         if(data.peerId == e->getId())
                         {
@@ -515,9 +530,21 @@ TopicI::attachElementsAck(long long int topicId,
                             {
                                 initCallbacks.push_back(initCb);
                             }
+                            found = true;
                             break;
                         }
                     }
+                    if(!found)
+                    {
+                        removedIds.push_back(-data.peerId);
+                    }
+                }
+            }
+            else
+            {
+                for(const auto& data : spec.elements)
+                {
+                    removedIds.push_back(-data.peerId);
                 }
             }
         }

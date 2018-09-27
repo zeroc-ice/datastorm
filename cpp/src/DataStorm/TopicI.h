@@ -81,7 +81,8 @@ public:
                                                         const DataStormContract::ElementSpecAckSeq&,
                                                         const std::shared_ptr<SessionI>&,
                                                         const std::shared_ptr<DataStormContract::SessionPrx>&,
-                                                        const std::chrono::time_point<std::chrono::system_clock>&);
+                                                        const std::chrono::time_point<std::chrono::system_clock>&,
+                                                        DataStormContract::LongSeq&);
 
     virtual void setUpdater(const std::shared_ptr<Tag>&, Updater) override;
     const Updater& getUpdater(const std::shared_ptr<Tag>&) const;

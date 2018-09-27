@@ -48,44 +48,27 @@ main(int argc, char* argv[])
             //
             // Get the set of stocks connected with the any reader and display their ticker.
             //
-            std::promise<vector<string>> p;
-            stocks.onConnectedKeys([&p](DataStorm::CallbackReason action, vector<string> tickers)
-            {
-                if(action == DataStorm::CallbackReason::Initialize)
-                {
-                    p.set_value(tickers);
-                }
-                else
-                {
-                    if(action == DataStorm::CallbackReason::Add)
-                    {
-                        cout << "New stock(s) available: ";
-                    }
-                    else
-                    {
-                        cout << "Stock(s) no longer available: ";
-                    }
-                    for(auto ticker : tickers)
-                    {
-                        cout << ticker << " ";
-                    }
-                    cout << endl;
-                }
-            });
-
-            auto tickers = p.get_future().get();
-            if(tickers.empty())
-            {
-                cout << "Waiting for stocks to be available..." << endl;
-            }
-            else
+            std::promise<void> p;
+            stocks.onConnectedKeys([&p](vector<string> tickers)
             {
                 cout << "Available stock(s): " << endl;
                 for(auto ticker : tickers)
                 {
                     cout << ticker << endl;
                 }
-            }
+                p.set_value();
+            }, [](DataStorm::CallbackReason action, string ticker)
+            {
+                if(action == DataStorm::CallbackReason::Connect)
+                {
+                    cout << "New stock available: " << ticker << endl;
+                }
+                else
+                {
+                    cout << "Stock no longer available: " << ticker << endl;
+                }
+            });
+            p.get_future().get();
 
             string stock;
             cout << "Please enter the stock to follow (default = all):\n";
@@ -115,37 +98,42 @@ main(int argc, char* argv[])
         //
         reader->waitForWriters();
 
+        auto displaySample = [](DataStorm::Sample<string, Stock> s)
+        {
+            if(s.getEvent() == DataStorm::SampleEvent::Add || s.getEvent() == DataStorm::SampleEvent::Update)
+            {
+                auto value = s.getValue();
+                cout << "Stock: " <<  value.name << " (" << s.getKey() << ")" << endl;
+                cout << "Price: " << value.price << endl;
+                cout << "Best bid/ask: " << value.bestBid << '/' << value.bestAsk << endl;
+                cout << "Market Cap: " << value.marketCap << endl;
+                cout << "Previous close: " << value.previousClose << endl;
+                cout << "Volume: " << value.volume << endl;
+                cout << endl;
+            }
+            else if(s.getEvent() == DataStorm::SampleEvent::PartialUpdate)
+            {
+                if(s.getUpdateTag() == "price")
+                {
+                    cout << "received price update for " << s.getKey() << ": " << s.getValue().price << endl;
+                }
+                else if(s.getUpdateTag() == "volume")
+                {
+                    cout << "received volume update for " << s.getKey() << ": " << s.getValue().volume << endl;
+                }
+            }
+        };
+
         //
         // Print out the sample values queued with this reader.
         //
-        reader->onSamples([](const vector<DataStorm::Sample<string, Stock>>& samples)
+        reader->onSamples([displaySample](const vector<DataStorm::Sample<string, Stock>>& samples)
         {
             for(auto& s : samples)
             {
-                if(s.getEvent() == DataStorm::SampleEvent::Add || s.getEvent() == DataStorm::SampleEvent::Update)
-                {
-                    auto value = s.getValue();
-                    cout << "Stock: " <<  value.name << " (" << s.getKey() << ")" << endl;
-                    cout << "Price: " << value.price << endl;
-                    cout << "Best bid/ask: " << value.bestBid << '/' << value.bestAsk << endl;
-                    cout << "Market Cap: " << value.marketCap << endl;
-                    cout << "Previous close: " << value.previousClose << endl;
-                    cout << "Volume: " << value.volume << endl;
-                    cout << endl;
-                }
-                else if(s.getEvent() == DataStorm::SampleEvent::PartialUpdate)
-                {
-                    if(s.getUpdateTag() == "price")
-                    {
-                        cout << "received price update for " << s.getKey() << ": " << s.getValue().price << endl;
-                    }
-                    else if(s.getUpdateTag() == "volume")
-                    {
-                        cout << "received volume update for " << s.getKey() << ": " << s.getValue().volume << endl;
-                    }
-                }
+                displaySample(s);
             }
-        });
+        }, displaySample);
 
         //
         // Exit once no more writers are online.

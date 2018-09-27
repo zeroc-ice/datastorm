@@ -166,8 +166,10 @@ public:
 
     virtual std::vector<std::string> getConnectedElements() const = 0;
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const = 0;
-    virtual void onConnectedKeys(std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)>) = 0;
-    virtual void onConnectedElements(std::function<void(DataStorm::CallbackReason, std::vector<std::string>)>) = 0;
+    virtual void onConnectedKeys(std::function<void(std::vector<std::shared_ptr<Key>>)>,
+                                 std::function<void(DataStorm::CallbackReason, std::shared_ptr<Key>)>) = 0;
+    virtual void onConnectedElements(std::function<void(std::vector<std::string>)>,
+                                     std::function<void(DataStorm::CallbackReason, std::string)>) = 0;
 
     virtual void destroy() = 0;
     virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
@@ -186,7 +188,8 @@ public:
     virtual bool hasUnread() const = 0;
     virtual std::shared_ptr<Sample> getNextUnread() = 0;
 
-    virtual void onSamples(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) = 0;
+    virtual void onSamples(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>,
+                           std::function<void(const std::shared_ptr<Sample>&)>) = 0;
 };
 
 class DataWriter : virtual public DataElement

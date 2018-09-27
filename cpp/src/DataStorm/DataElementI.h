@@ -192,8 +192,10 @@ public:
 
     virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const override;
     virtual std::vector<std::string> getConnectedElements() const override;
-    virtual void onConnectedKeys(std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)>) override;
-    virtual void onConnectedElements(std::function<void(DataStorm::CallbackReason, std::vector<std::string>)>) override;
+    virtual void onConnectedKeys(std::function<void(std::vector<std::shared_ptr<Key>>)>,
+                                 std::function<void(DataStorm::CallbackReason, std::shared_ptr<Key>)>) override;
+    virtual void onConnectedElements(std::function<void(std::vector<std::string>)>,
+                                     std::function<void(DataStorm::CallbackReason, std::string)>) override;
 
     virtual void initSamples(const std::vector<std::shared_ptr<Sample>>&, long long int, long long int, int,
                              const std::chrono::time_point<std::chrono::system_clock>&, bool);
@@ -253,8 +255,8 @@ private:
     mutable size_t _waiters;
     mutable size_t _notified;
 
-    std::function<void(DataStorm::CallbackReason, std::vector<std::shared_ptr<Key>>)> _onConnectedKeys;
-    std::function<void(DataStorm::CallbackReason, std::vector<std::string>)> _onConnected;
+    std::function<void(DataStorm::CallbackReason, std::shared_ptr<Key>)> _onConnectedKeys;
+    std::function<void(DataStorm::CallbackReason, std::string)> _onConnectedElements;
 };
 
 class DataReaderI : public DataElementI, public DataReader
@@ -276,7 +278,8 @@ public:
     virtual void queue(const std::shared_ptr<Sample>&, int, const std::shared_ptr<SessionI>&, const std::string&,
                        const std::chrono::time_point<std::chrono::system_clock>&, bool) override;
 
-    virtual void onSamples(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>) override;
+    virtual void onSamples(std::function<void(const std::vector<std::shared_ptr<Sample>>&)>,
+                           std::function<void(const std::shared_ptr<Sample>&)>) override;
 
 protected:
 
@@ -290,7 +293,7 @@ protected:
     int _instanceCount;
     DataStorm::DiscardPolicy _discardPolicy;
     std::chrono::time_point<std::chrono::system_clock> _lastSendTime;
-    std::function<void(const std::vector<std::shared_ptr<Sample>>&)> _onSamples;
+    std::function<void(const std::shared_ptr<Sample>&)> _onSamples;
 };
 
 class DataWriterI : public DataElementI, public DataWriter

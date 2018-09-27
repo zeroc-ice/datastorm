@@ -484,47 +484,53 @@ public:
     Sample<Key, Value, UpdateTag> getNextUnread();
 
     /**
-     * Calls the given function when the set of connected keys is updated.
+     * Calls the given functions to provide the initial set of connected keys and
+     * when a key is added or removed from the set of connected keys. If callback
+     * functions are already set, they will be replaced.
      *
-     * If a function is already set, it will be replaced.
+     * The connected keys represent the set of keys for which writers are connected
+     * to this reader.
      *
-     * The connected keys represent the set of keys for which writers are
-     * connected to this reader.
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected keys. The update callback is called when new keys
+     * are added or removed from the set of connected keys.
      *
-     * The callback is always called after this method returns to provide the
-     * initial set of connected keys. It's then called when keys are added or
-     * removed from the set of connected keys.
-     *
-     * @param callback The function to call when a new writer connects or
-     *                 disconnects for a given set of keys.
+     * @param init The function to call with the initial set of connected keys.
+     * @param update The function to call when a key is added or removed from the set.
      **/
-    void onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback);
+    void onConnectedKeys(std::function<void(std::vector<Key>)> init,
+                         std::function<void(CallbackReason, Key)> update);
 
     /**
-     * Calls the given function when a writer connects or disconnects.
+     * Calls the given functions to provide the initial set of connected writers
+     * and when a new writer connects or disconnects. If callback functions are
+     * already set, they will be replaced.
      *
-     * If a function is already set, it will be replaced.
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected writers. The update callback is called when new writers
+     * connect or disconnect.
      *
-     * The callback is always called after this method returns to provide the
-     * initial set of connected writers. It's then called when a new writer
-     * connects or disconnects.
-     *
-     * @param callback The function to call when a new writer connects or
-     *                 disconnects.
+     * @param init The function to call with the initial set of connected writers.
+     * @param update The function to call when a new writer connects or disconnects.
      **/
-    void onConnectedWriters(std::function<void(CallbackReason, std::vector<std::string>)> callback);
+    void onConnectedWriters(std::function<void(std::vector<std::string>)> init,
+                            std::function<void(CallbackReason, std::string)> update);
 
     /**
-     * Calls the given function when samples are queued with this reader.
+     * Calls the given function to provide the initial set of unread samples and
+     * when new samples are queued.
      *
      * If a function is already set, it will be replaced.
      *
-     * The callback is called immediately after this method returns if there are
-     * unread samples queued with the reader.
+     * The init callback is always called after this method returns to provide the
+     * initial set of unread samples. The queue callback is called when a new sample
+     * is received.
      *
-     * @param callback The function to call when samples are received.
+     * @param init The function to call with the initial set of unread samples.
+     * @param queue The function to call when a new sample is received.
      **/
-    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback);
+    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> init,
+                   std::function<void(Sample<Key, Value, UpdateTag>)> queue);
 
 protected:
 
@@ -974,35 +980,37 @@ public:
     std::vector<Sample<Key, Value, UpdateTag>> getAll();
 
     /**
-     * Calls the given function when the set of connected keys is updated.
+     * Calls the given functions to provide the initial set of connected keys and
+     * when a key is added or removed from the set of connected keys. If callback
+     * functions are already set, they will be replaced.
      *
-     * If a function is already set, it will be replaced.
+     * The connected keys represent the set of keys for which writers are connected
+     * to this reader.
      *
-     * The connected keys represent the set of keys for which writers are
-     * connected to this reader.
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected keys. The update callback is called when new keys
+     * are added or removed from the set of connected keys.
      *
-     * The callback is always called after this method returns to provide the
-     * initial set of connected keys. It's then called when keys are added or
-     * removed from the set of connected keys.
-     *
-     * @param callback The function to call when a new reader connects or
-     *                 disconnects for a given set of keys.
+     * @param init The function to call with the initial set of connected keys.
+     * @param update The function to call when a key is added or removed from the set.
      **/
-    void onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback);
+    void onConnectedKeys(std::function<void(std::vector<Key>)> init,
+                         std::function<void(CallbackReason, Key)> update);
 
     /**
-     * Calls the given function when a reader connects or disconnects.
+     * Calls the given functions to provide the initial set of connected readers
+     * and when a new reader connects or disconnects. If callback functions are
+     * already set, they will be replaced.
      *
-     * If a function is already set, it will be replaced.
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected readers. The update callback is called when new readers
+     * connect or disconnect.
      *
-     * The callback is always called after this method returns to provide the
-     * initial set of connected readers. It's then called when a new reader
-     * connects or disconnects.
-     *
-     * @param callback The function to call when a new reader connects or
-     *                 disconnects.
+     * @param init The function to call with the initial set of connected readers.
+     * @param update The function to call when a new reader connects or disconnects.
      **/
-    void onConnectedReaders(std::function<void(CallbackReason, std::vector<std::string>)> callback);
+    void onConnectedReaders(std::function<void(std::vector<std::string>)> init,
+                            std::function<void(CallbackReason, std::string)> update);
 
 protected:
 
@@ -1374,9 +1382,10 @@ Reader<Key, Value, UpdateTag>::getNextUnread()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback)
+Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Key>)> init,
+                                               std::function<void(CallbackReason, Key)> update)
 {
-    _impl->onConnectedKeys([callback](CallbackReason action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys([init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1384,24 +1393,27 @@ Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(CallbackReason
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        callback(action, move(keys));
-    });
-}
-
-template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onConnectedWriters(std::function<void(CallbackReason, std::vector<std::string>)> callback)
-{
-    _impl->onConnectedElements([callback](CallbackReason action, std::vector<std::string> writers)
+        init(move(keys));
+    },
+    [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
     {
-        callback(action, move(writers));
+        update(action, std::static_pointer_cast<DataStormI::KeyT<Key>>(key)->get());
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> callback)
+Reader<Key, Value, UpdateTag>::onConnectedWriters(std::function<void(std::vector<std::string>)> init,
+                                                  std::function<void(CallbackReason, std::string)> update)
+{
+    _impl->onConnectedElements(init, update);
+}
+
+template<typename Key, typename Value, typename UpdateTag> void
+Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> init,
+                                         std::function<void(Sample<Key, Value, UpdateTag>)> update)
 {
     auto communicator = _impl->getCommunicator();
-    _impl->onSamples([communicator, callback](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
+    _impl->onSamples([communicator, init](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
     {
         std::vector<Sample<Key, Value, UpdateTag>> samples;
         samples.reserve(samplesI.size());
@@ -1409,7 +1421,11 @@ Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<K
         {
             samples.emplace_back(s);
         }
-        callback(move(samples));
+        init(move(samples));
+    },
+    [communicator, update](const std::shared_ptr<DataStormI::Sample>& sampleI)
+    {
+        update(sampleI);
     });
 }
 
@@ -1617,9 +1633,10 @@ Writer<Key, Value, UpdateTag>::getAll()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(CallbackReason, std::vector<Key>)> callback)
+Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Key>)> init,
+                                               std::function<void(CallbackReason, Key)> update)
 {
-    _impl->onConnectedKeys([callback](CallbackReason action, std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
+    _impl->onConnectedKeys([init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
         std::vector<Key> keys;
         keys.reserve(connectedKeys.size());
@@ -1627,17 +1644,19 @@ Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(CallbackReason
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        callback(action, move(keys));
+        init(move(keys));
+    },
+    [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
+    {
+        update(action, std::static_pointer_cast<DataStormI::KeyT<Key>>(key)->get());
     });
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::onConnectedReaders(std::function<void(CallbackReason, std::vector<std::string>)> callback)
+Writer<Key, Value, UpdateTag>::onConnectedReaders(std::function<void(std::vector<std::string>)> init,
+                                                  std::function<void(CallbackReason, std::string)> update)
 {
-    _impl->onConnectedElements([callback](CallbackReason action, std::vector<std::string> readers)
-    {
-        callback(action, move(readers));
-    });
+    _impl->onConnectedElements(init, update);
 }
 
 template<typename Key, typename Value, typename UpdateTag>
