@@ -176,7 +176,7 @@ main(int argc, char* argv[])
             Topic<string, string> topic(node, "anykey2");
             auto writer = makeAnyKeyWriter(topic, "", config);
 
-            writer.waitForReaders(1);
+            writer.waitForReaders(2);
 
             writer.add("elem1", "value1");
             writer.update("elem1", "value2");
