@@ -9,17 +9,18 @@
 #include <DataStorm/InternalI.h>
 #include <DataStorm/SessionI.h>
 #include <DataStorm/DataElementI.h>
+#include <DataStorm/TopicI.h>
 
 #include <Ice/CommunicatorF.h>
 #include <Ice/LoggerF.h>
 #include <Ice/LoggerUtil.h>
 
-namespace Ice
+namespace std
 {
 
 template<typename T>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const std::vector<T>& p)
+inline std::ostream&
+operator<<(std::ostream& os, const std::vector<T>& p)
 {
     if(!p.empty())
     {
@@ -36,8 +37,8 @@ operator<<(LoggerOutputBase& os, const std::vector<T>& p)
 }
 
 template<typename K, typename V>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const std::map<K, V>& p)
+inline std::ostream&
+operator<<(std::ostream& os, const std::map<K, V>& p)
 {
     if(!p.empty())
     {
@@ -53,66 +54,21 @@ operator<<(LoggerOutputBase& os, const std::map<K, V>& p)
     return os;
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Element, T>::value>::type* = nullptr>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const std::shared_ptr<T>& p)
-{
-    return os << (p ? p->toString() : "");
 }
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Topic, T>::value>::type* = nullptr>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, T* topic)
+namespace Ice
 {
-    if(topic)
-    {
-        return os << topic->getName() << ":" << topic->getId();
-    }
-    else
-    {
-        return os << "<null>";
-    }
-}
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, T* element)
-{
-    return os << (element ? element->toString() : "<null>");
-}
-
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const std::shared_ptr<T>& element)
-{
-    return os << (element ? element->toString() : "<null>");
-}
-
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::SessionI, T>::value>::type* = nullptr>
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, T* session)
-{
-    if(session)
-    {
-        Ice::Identity id = session->getNode()->ice_getIdentity();
-        os << id.name;
-        if(!id.category.empty())
-        {
-            os << '/' << id.category;
-        }
-        return os;
-    }
-    else
-    {
-        return os << "<null>";
-    }
-}
-
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const Ice::Identity& id)
+inline std::ostream&
+operator<<(std::ostream& os, const Ice::Identity& id)
 {
     return os << (id.category.empty() ? "" : id.category + "/") << id.name;
 }
+
+}
+
+namespace DataStormContract
+{
 
 inline std::string
 valueIdToString(long long int valueId)
@@ -129,14 +85,15 @@ valueIdToString(long long int valueId)
     return os.str();
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::ElementInfo& info)
+inline std::ostream&
+operator<<(std::ostream& os, const ElementInfo& info)
 {
-    return os << valueIdToString(info.id);
+    os << valueIdToString(info.id);
+    return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::ElementData& data)
+inline std::ostream&
+operator<<(std::ostream& os, const ElementData& data)
 {
     os << 'e' << data.id;
     if(data.config && data.config->facet)
@@ -146,8 +103,8 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementData& data)
     return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpec& spec)
+inline std::ostream&
+operator<<(std::ostream& os, const ElementSpec& spec)
 {
     for(auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
     {
@@ -160,8 +117,8 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpec& spec)
     return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::ElementDataAck& data)
+inline std::ostream&
+operator<<(std::ostream& os, const ElementDataAck& data)
 {
     os << 'e' << data.id << ":pe" << data.peerId;
     if(data.config && data.config->facet)
@@ -172,8 +129,8 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementDataAck& data)
     return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpecAck& spec)
+inline std::ostream&
+operator<<(std::ostream& os, const ElementSpecAck& spec)
 {
     for(auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
     {
@@ -186,30 +143,99 @@ operator<<(LoggerOutputBase& os, const DataStormContract::ElementSpecAck& spec)
     return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::TopicInfo& info)
+inline std::ostream&
+operator<<(std::ostream& os, const TopicInfo& info)
 {
     os << "[" << info.ids << "]:" << info.name;
     return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::TopicSpec& info)
+inline std::ostream&
+operator<<(std::ostream& os, const TopicSpec& info)
 {
-    os << '[' << info.elements << "]@" << info.id << ':' << info.name;
+    os << info.id << ':' << info.name << ":[" << info.elements << "]";
     return os;
 }
 
-inline LoggerOutputBase&
-operator<<(LoggerOutputBase& os, const DataStormContract::DataSamples& samples)
+inline std::ostream&
+operator<<(std::ostream& os, const DataSamples& samples)
 {
-    return os << 'e' << samples.id << ":sz" << samples.samples.size();
+    os << 'e' << samples.id << ":sz" << samples.samples.size();
+    return os;
 }
 
 }
 
 namespace DataStormI
 {
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Element, T>::value>::type* = nullptr>
+inline std::ostream&
+operator<<(std::ostream& os, const std::shared_ptr<T>& p)
+{
+    os << (p ? p->toString() : "");
+    return os;
+}
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
+inline std::ostream&
+operator<<(std::ostream& os, T* element)
+{
+    os << (element ? element->toString() : "<null>");
+    return os;
+}
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
+inline std::ostream&
+operator<<(std::ostream& os, const std::shared_ptr<T>& element)
+{
+    os << element.get();
+    return os;
+}
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::SessionI, T>::value>::type* = nullptr>
+inline std::ostream&
+operator<<(std::ostream& os, T* session)
+{
+    if(session)
+    {
+        Ice::Identity id = session->getNode()->ice_getIdentity();
+        os << id.name;
+        if(!id.category.empty())
+        {
+            os << '/' << id.category;
+        }
+    }
+    else
+    {
+        os << "<null>";
+    }
+    return os;
+}
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::TopicI,
+                                               typename std::remove_pointer<T>::type>::value>::type* = nullptr>
+inline std::ostream&
+operator<<(std::ostream& os, T topic)
+{
+    if(topic)
+    {
+        os << topic->getId() << ":" << topic->getName();
+    }
+    else
+    {
+        os << "<null>";
+    }
+    return os;
+}
+
+template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::TopicI, T>::value>::type* = nullptr>
+inline std::ostream&
+operator<<(std::ostream& os, const std::shared_ptr<T>& topic)
+{
+    os << topic.get();
+    return os;
+}
 
 class TraceLevels
 {

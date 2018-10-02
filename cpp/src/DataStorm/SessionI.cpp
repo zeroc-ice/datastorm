@@ -118,7 +118,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": attaching topic `" << spec << "' to `" << topic.get() << "'";
+                out << _id << ": attaching topic `" << spec << "' to `" << topic << "'";
             }
 
             topic->attach(spec.id, shared_from_this(), _session);
@@ -144,7 +144,7 @@ SessionI::attachTopic(TopicSpec spec, const Ice::Current& current)
                 if(_traceLevels->session > 2)
                 {
                     Trace out(_traceLevels, _traceLevels->sessionCat);
-                    out << _id << ": matched elements `" << spec << "' on `" << topic.get() << "'";
+                    out << _id << ": matched elements `" << spec << "' on `" << topic << "'";
                 }
                 _session->attachElementsAsync(topic->getId(), specs, true);
             }
@@ -719,7 +719,7 @@ SessionI::subscribeToKey(long long topicId, long long int elementId, const std::
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": subscribed element `e" << elementId << '[' << keyId << "]@" << topicId << "' to `" << element << "'";
+        out << _id << ": subscribed `e" << elementId << ":[k" << keyId << "]@" << topicId << "' to `" << element << "'";
         if(!facet.empty())
         {
             out << " (facet=" << facet << ')';
@@ -748,7 +748,7 @@ SessionI::unsubscribeFromKey(long long topicId, long long int elementId, const s
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": unsubscribed element `e" << elementId << '[' << keyId << "]@" << topicId << "' from `" << element << "'";
+            out << _id << ": unsubscribed `e" << elementId << "[k" << keyId << "]@" << topicId << "' from `" << element << "'";
         }
         k->removeSubscriber(element);
         if(k->getSubscribers().empty())
@@ -791,7 +791,7 @@ SessionI::subscribeToFilter(long long topicId, long long int elementId, const st
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": subscribed element `e" << elementId << '@' << topicId << "' to `" << element << "'";
+        out << _id << ": subscribed `e" << elementId << '@' << topicId << "' to `" << element << "'";
         if(!facet.empty())
         {
             out << " (facet=" << facet << ')';
@@ -812,7 +812,7 @@ SessionI::unsubscribeFromFilter(long long topicId, long long int elementId, cons
         if(_traceLevels->session > 1)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": unsubscribed element `e" << elementId << '@' << topicId << "' from `" << element << "'";
+            out << _id << ": unsubscribed `e" << elementId << '@' << topicId << "' from `" << element << "'";
         }
         f->removeSubscriber(element);
         if(f->getSubscribers().empty())
@@ -1019,7 +1019,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
             if(_traceLevels->session > 2)
             {
                 Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": queuing sample `" << s.id << '[' << s.keyId << "]' from `e" << elementId << '@' << topicId << "'";
+                out << _id << ": queuing sample `" << s.id << "[k" << s.keyId << "]' from `e" << elementId << '@' << topicId << "'";
                 if(!current.facet.empty())
                 {
                     out << " facet=" << current.facet;

@@ -217,11 +217,12 @@ DataElementI::attachKey(long long int topicId,
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": attachKey element " << elementId << "@" << topicId << " " << key;
+            out << this << ": attach e" << elementId << ":" << name;
             if(!facet.empty())
             {
-                out << " (facet = " << facet << ")";
+                out << ":" << facet;
             }
+            out << ":[" << key << "]@" << topicId;
         }
 
         ++_listenerCount;
@@ -273,11 +274,12 @@ DataElementI::detachKey(long long int topicId,
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": detachKey element " << elementId << "@" << topicId << " " << key;
+            out << this << ": detach e" << elementId << ":" << subscriber->name;
             if(!facet.empty())
             {
-                out << " (facet = " << facet << ")";
+                out << ":" << facet;
             }
+            out << ":[" << key << "]@" << topicId;
         }
         --_listenerCount;
         _parent->decListenerCount(session);
@@ -327,11 +329,12 @@ DataElementI::attachFilter(long long int topicId,
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": attachFilter element " << elementId << "@" << topicId << " " << filter;
+            out << this << ": attach e" << elementId << ":" << name;
             if(!facet.empty())
             {
-                out << " (facet = " << facet << ")";
+                out << ":" << facet;
             }
+            out << ":[" << filter << "]@" << topicId;
         }
 
         ++_listenerCount;
@@ -383,11 +386,12 @@ DataElementI::detachFilter(long long int topicId,
         if(_traceLevels->data > 1)
         {
             Trace out(_traceLevels, _traceLevels->dataCat);
-            out << this << ": detachFilter element " << elementId << "@" << topicId << " " << subscriber->filter;
+            out << this << ": detach e" << elementId << ":" << subscriber->name;
             if(!facet.empty())
             {
-                out << " (facet = " << facet << ")";
+                out << ":" << facet;
             }
+            out << ":[" << subscriber->filter << "]@" << topicId;
         }
 
         --_listenerCount;
@@ -1082,7 +1086,12 @@ string
 KeyDataReaderI::toString() const
 {
     ostringstream os;
-    os << 'e' << _id << ":[";
+    os << 'e' << _id << ":";
+    if(_config->name)
+    {
+        os << *_config->name << ":";
+    }
+    os << "[";
     for(auto q = _keys.begin(); q != _keys.end(); ++q)
     {
         if(q != _keys.begin())
@@ -1091,7 +1100,7 @@ KeyDataReaderI::toString() const
         }
         os << (*q)->toString();
     }
-    os << "]@" << _parent->getId();
+    os << "]@" << _parent;
     return os.str();
 }
 
@@ -1166,7 +1175,12 @@ string
 KeyDataWriterI::toString() const
 {
     ostringstream os;
-    os << 'e' << _id << ":[";
+    os << 'e' << _id << ":";
+    if(_config->name)
+    {
+        os << *_config->name << ":";
+    }
+    os << "[";
     for(auto q = _keys.begin(); q != _keys.end(); ++q)
     {
         if(q != _keys.begin())
@@ -1175,7 +1189,7 @@ KeyDataWriterI::toString() const
         }
         os << (*q)->toString();
     }
-    os << "]@" << _parent->getId();
+    os << "]@" << _parent;
     return os.str();
 }
 
@@ -1342,7 +1356,12 @@ string
 FilteredDataReaderI::toString() const
 {
     ostringstream os;
-    os << 'e' << _id << ":" << _filter->toString() << "@" << _parent->getId();
+    os << 'e' << _id << ':';
+    if(_config->name)
+    {
+        os << *_config->name << ":";
+    }
+    os << "[" << _filter->toString() << "]@" << _parent;
     return os.str();
 }
 
