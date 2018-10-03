@@ -5,6 +5,7 @@
 // **********************************************************************
 
 #include <DataStorm/DataStorm.h>
+#include <string>
 
 using namespace std;
 
@@ -56,7 +57,7 @@ main(int argc, char* argv[])
         //
         string city;
         cout << "Please enter city name: ";
-        cin >> city;
+        getline(cin, city);
 
         //
         // Instantiates the "time" topic.
