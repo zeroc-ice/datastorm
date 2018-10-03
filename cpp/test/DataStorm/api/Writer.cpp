@@ -59,7 +59,7 @@ main(int argc, char* argv[])
 
         Node n5(argc, argv, Ice::InitializationData {});
     }
-    cout << endl;
+    cout << "ok" << endl;
 
     cout << "testing topic... " << flush;
     {
