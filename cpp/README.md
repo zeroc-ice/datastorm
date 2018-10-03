@@ -13,7 +13,7 @@ source is usually unnecessary.
     * [Linux](#linux)
     * [macOS](#macos)
     * [Windows](#windows)
-* [Building DataStorm for Linux or macOS](#building-datatstorm-for-linux-or-macos)
+* [Building DataStorm for Linux or macOS](#building-datastorm-for-linux-or-macos)
   * [Build configurations and platforms](#build-configurations-and-platforms)
 * [Building DataStorm for Windows](#building-datastorm-for-windows)
 * [Installing a C++ Source Build on Linux or macOS](#installing-a-c-source-build-on-linux-or-macos)
