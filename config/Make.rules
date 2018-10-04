@@ -29,7 +29,7 @@ embedded_runpath        ?= yes
 # Define OPTIMIZE as yes if you want to build with optimization.
 # Otherwise Ice is build with debug information.
 #
-#OPTIMIZE               = yes
+OPTIMIZE                ?= yes
 
 #
 # Define PLATFORMS to the list of platforms to build. This defaults
