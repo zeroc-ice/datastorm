@@ -58,6 +58,8 @@ public:
     virtual std::string getName() const override;
     virtual void destroy() override;
 
+    void shutdown();
+
     const std::shared_ptr<Instance>& getInstance() const
     {
         return _instance;

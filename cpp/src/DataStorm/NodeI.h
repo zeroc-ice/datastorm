@@ -32,7 +32,7 @@ public:
     virtual ~NodeI();
 
     void init();
-    void destroy();
+    void destroy(bool);
 
     bool createSubscriberSession(const std::shared_ptr<DataStormContract::NodePrx>&);
 

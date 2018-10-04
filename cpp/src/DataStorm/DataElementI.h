@@ -254,6 +254,7 @@ private:
     const std::shared_ptr<TopicI> _parent;
     mutable size_t _waiters;
     mutable size_t _notified;
+    bool _destroyed;
 
     std::function<void(DataStorm::CallbackReason, std::shared_ptr<Key>)> _onConnectedKeys;
     std::function<void(DataStorm::CallbackReason, std::string)> _onConnectedElements;

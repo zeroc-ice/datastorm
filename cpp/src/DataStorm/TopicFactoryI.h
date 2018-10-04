@@ -58,6 +58,8 @@ public:
     DataStormContract::TopicInfoSeq getTopicReaders() const;
     DataStormContract::TopicInfoSeq getTopicWriters() const;
 
+    void shutdown() const;
+
 private:
 
     mutable std::mutex _mutex;

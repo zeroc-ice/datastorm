@@ -148,6 +148,13 @@ TopicI::destroy()
     disconnect();
 }
 
+void
+TopicI::shutdown()
+{
+    lock_guard<mutex> lock(_mutex);
+    _cond.notify_all();
+}
+
 TopicSpec
 TopicI::getTopicSpec() const
 {
@@ -680,7 +687,7 @@ TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
     ++_waiters;
-    while(true)
+    while(!_instance->isShutdown())
     {
         if(count < 0 && _listenerCount == 0)
         {

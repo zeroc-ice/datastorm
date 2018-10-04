@@ -66,6 +66,21 @@ Instance::init()
 }
 
 void
+Instance::shutdown()
+{
+    unique_lock<mutex> lock(_mutex);
+    _shutdown = true;
+    _topicFactory->shutdown();
+}
+
+bool
+Instance::isShutdown() const
+{
+    unique_lock<mutex> lock(_mutex);
+    return _shutdown;
+}
+
+void
 Instance::destroy(bool ownsCommunicator)
 {
     if(ownsCommunicator)
@@ -78,5 +93,5 @@ Instance::destroy(bool ownsCommunicator)
         _collocatedAdapter->destroy();
         _multicastAdapter->destroy();
     }
-    _node->destroy();
+    _node->destroy(ownsCommunicator);
 }

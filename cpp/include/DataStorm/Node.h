@@ -149,11 +149,31 @@ public:
     Node(Node&& node);
 
     /**
-     * Destruct the node. The node destruction releases associated resources.
+     * Node destructor. The node destruction releases associated resources.
      * If the node created the Ice communicator, the communicator is destroyed.
-     *
      */
     ~Node();
+
+    /**
+     * Shutdown the node. The shutdown interrupts calls which are waiting for
+     * events, writers or readers.
+     **/
+    void shutdown();
+
+    /**
+     * Return whether or not the node shutdown has been initiated.
+     *
+     * @return True if the node is shutdown, false otherwise.
+     */
+    bool isShutdown();
+
+    /**
+     * Shutdown the node when Ctrl-C is handled.
+     *
+     * @param handler The Ctrl-C handler to use for setting up the shutdown
+     * callback.
+     */
+    void shutdownOnCtrlC(Ice::CtrlCHandler& handler) const;
 
     /**
      * Move assignement operator.
@@ -173,6 +193,7 @@ public:
      * data member as the first tuple element.
      *
      * @param ident The session identifier.
+     * @return The connection associated with the given session
      * @see DataStorm::Sample::ElementId DataStorm::Sample::getSession
      */
     std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const;

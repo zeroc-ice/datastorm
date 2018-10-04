@@ -44,6 +44,25 @@ Node::~Node()
     }
 }
 
+void
+Node::shutdown()
+{
+    _instance->shutdown();
+}
+
+bool
+Node::isShutdown()
+{
+    return _instance->isShutdown();
+}
+
+void
+Node::shutdownOnCtrlC(Ice::CtrlCHandler& handler) const
+{
+    auto instance = _instance;
+    handler.setCallback([instance](int) { instance->shutdown(); });
+}
+
 Node&
 Node::operator=(Node&& node)
 {
@@ -56,11 +75,11 @@ Node::operator=(Node&& node)
 shared_ptr<Ice::Communicator>
 Node::getCommunicator() const
 {
-    return _instance->getCommunicator();
+    return _instance ? _instance->getCommunicator() : nullptr;
 }
 
 shared_ptr<Ice::Connection>
 Node::getSessionConnection(const string& ident) const
 {
-    return _instance->getNode()->getSessionConnection(ident);
+    return _instance ? _instance->getNode()->getSessionConnection(ident) : nullptr;
 }

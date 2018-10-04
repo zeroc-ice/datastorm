@@ -201,6 +201,26 @@ TopicFactoryI::getTopicWriters() const
     return writers;
 }
 
+void
+TopicFactoryI::shutdown() const
+{
+    lock_guard<mutex> lock(_mutex);
+    for(const auto& p : _writers)
+    {
+        for(const auto& w : p.second)
+        {
+            w->shutdown();
+        }
+    }
+    for(const auto& p : _readers)
+    {
+        for(const auto& r : p.second)
+        {
+            r->shutdown();
+        }
+    }
+}
+
 shared_ptr<Ice::Communicator>
 TopicFactoryI::getCommunicator() const
 {

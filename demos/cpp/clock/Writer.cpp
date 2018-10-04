@@ -48,9 +48,19 @@ main(int argc, char* argv[])
     try
     {
         //
+        // CtrlCHandler must be created before the node or any other threads are started.
+        //
+        Ice::CtrlCHandler ctrlCHandler;
+
+        //
         // Instantiates node.
         //
         DataStorm::Node node(argc, argv, "config.writer");
+
+        //
+        // Shutdown the node on Ctrl-C.
+        //
+        node.shutdownOnCtrlC(ctrlCHandler);
 
         //
         // Asks for city name to publish updates
@@ -69,7 +79,7 @@ main(int argc, char* argv[])
         //
         auto writer = DataStorm::makeSingleKeyWriter(topic, city);
 
-        while(true)
+        while(!node.isShutdown())
         {
             writer.update(chrono::system_clock::now());
             this_thread::sleep_for(chrono::seconds(1));

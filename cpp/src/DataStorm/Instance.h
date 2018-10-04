@@ -11,6 +11,8 @@
 
 #include <Ice/Ice.h>
 
+#include <mutex>
+
 namespace DataStorm
 {
 
@@ -96,6 +98,9 @@ public:
         return _executor;
     }
 
+    void shutdown();
+    bool isShutdown() const;
+
     void destroy(bool);
 
 private:
@@ -111,6 +116,9 @@ private:
     std::shared_ptr<DataStormContract::TopicLookupPrx> _lookup;
     std::shared_ptr<TraceLevels> _traceLevels;
     std::shared_ptr<CallbackExecutor> _executor;
+
+    mutable std::mutex _mutex;
+    bool _shutdown;
 };
 
 }

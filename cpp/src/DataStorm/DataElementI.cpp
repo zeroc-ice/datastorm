@@ -55,7 +55,8 @@ DataElementI::DataElementI(TopicI* parent, const string& name, long long int id,
     _listenerCount(0),
     _parent(parent->shared_from_this()),
     _waiters(0),
-    _notified(0)
+    _notified(0),
+    _destroyed(false)
 {
     _config->sampleCount = config.sampleCount;
     _config->sampleLifetime = config.sampleLifetime;
@@ -77,6 +78,7 @@ DataElementI::init()
 
 DataElementI::~DataElementI()
 {
+    assert(_destroyed);
     assert(_listeners.empty());
     assert(_listenerCount == 0);
 }
@@ -86,6 +88,8 @@ DataElementI::destroy()
 {
     {
         unique_lock<mutex> lock(_parent->_mutex);
+        assert(!_destroyed);
+        _destroyed = true;
         destroyImpl(); // Must be called first.
     }
     disconnect();
@@ -507,7 +511,7 @@ DataElementI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_parent->_mutex);
     ++_waiters;
-    while(true)
+    while(!_parent->getInstance()->isShutdown())
     {
         if(count < 0 && _listenerCount == 0)
         {
@@ -668,7 +672,7 @@ void
 DataReaderI::waitForUnread(unsigned int count) const
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    while(_samples.size() < count)
+    while(!_parent->getInstance()->isShutdown() && _samples.size() < count)
     {
         _parent->_cond.wait(lock);
     }

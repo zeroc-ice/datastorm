@@ -45,9 +45,19 @@ main(int argc, char* argv[])
     try
     {
         //
+        // CtrlCHandler must be created before the node or any other threads are started.
+        //
+        Ice::CtrlCHandler ctrlCHandler;
+
+        //
         // Instantiates node.
         //
         DataStorm::Node node(argc, argv, "config.reader");
+
+        //
+        // Shutdown the node on Ctrl-C.
+        //
+        node.shutdownOnCtrlC(ctrlCHandler);
 
         //
         // Instantiates the "time" topic.
@@ -60,7 +70,7 @@ main(int argc, char* argv[])
         auto reader = DataStorm::makeAnyKeyReader(topic);
 
         //
-        // Wait for at least on writer to be online.
+        // Wait for at least on writer to connect.
         //
         reader.waitForWriters();
 
@@ -79,7 +89,7 @@ main(int argc, char* argv[])
         });
 
         //
-        // Exit once no more writers are online
+        // Exit once no more writers are connected.
         //
         reader.waitForNoWriters();
     }

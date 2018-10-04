@@ -82,13 +82,23 @@ NodeI::init()
 }
 
 void
-NodeI::destroy()
+NodeI::destroy(bool ownsCommunicator)
 {
     unique_lock<mutex> lock(_mutex);
-    //
-    // TODO: destroy explicitly the sessions? The communicator might not be destroyed
-    // at this point if it's not owned by the node.
-    //
+    if(!ownsCommunicator)
+    {
+        //
+        // Close the connections associated with the session if we don't own the communicator.
+        //
+        for(const auto& p : _subscribers)
+        {
+            p.second->getConnection()->close(Ice::ConnectionClose::Gracefully);
+        }
+        for(const auto& p : _publishers)
+        {
+            p.second->getConnection()->close(Ice::ConnectionClose::Gracefully);
+        }
+    }
     _subscribers.clear();
     _publishers.clear();
     _subscriberSessions.clear();
