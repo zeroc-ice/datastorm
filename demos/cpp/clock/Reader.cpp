@@ -45,9 +45,9 @@ main(int argc, char* argv[])
     try
     {
         //
-        // CtrlCHandler must be created before the node or any other threads are started.
+        // CtrlCHandler::init() must be called before the node is created or any other threads are started.
         //
-        Ice::CtrlCHandler ctrlCHandler;
+        DataStorm::CtrlCHandler::init();
 
         //
         // Instantiates node.
@@ -57,7 +57,7 @@ main(int argc, char* argv[])
         //
         // Shutdown the node on Ctrl-C.
         //
-        node.shutdownOnCtrlC(ctrlCHandler);
+        DataStorm::CtrlCHandler ctrlCHandler([&node](int) { node.shutdown(); });
 
         //
         // Instantiates the "time" topic.

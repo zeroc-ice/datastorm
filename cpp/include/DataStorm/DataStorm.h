@@ -15,6 +15,7 @@
 #include <DataStorm/Node.h>
 #include <DataStorm/InternalI.h>
 #include <DataStorm/InternalT.h>
+#include <DataStorm/CtrlCHandler.h>
 
 #include <regex>
 

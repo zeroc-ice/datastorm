@@ -56,13 +56,6 @@ Node::isShutdown()
     return _instance->isShutdown();
 }
 
-void
-Node::shutdownOnCtrlC(Ice::CtrlCHandler& handler) const
-{
-    auto instance = _instance;
-    handler.setCallback([instance](int) { instance->shutdown(); });
-}
-
 Node&
 Node::operator=(Node&& node)
 {

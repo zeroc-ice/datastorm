@@ -28,6 +28,16 @@
 #   define DATASTORM_DECLSPEC_IMPORT /**/
 #endif
 
+#ifndef DATASTORM_API
+#   ifdef DATASTORM_API_EXPORTS
+#       define DATASTORM_API DATASTORM_DECLSPEC_EXPORT
+#   elif defined(DATASTORM_STATIC_LIBS)
+#       define DATASTORM_API /**/
+#   else
+#       define DATASTORM_API DATASTORM_DECLSPEC_IMPORT
+#   endif
+#endif
+
 #if !defined(DATASTORM_BUILDING_DATASTORM) && defined(DATASTORM_API_EXPORTS)
 #   define DATASTORM_BUILDING_DATASTORM
 #endif

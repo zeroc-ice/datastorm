@@ -17,9 +17,19 @@ main(int argc, char* argv[])
     try
     {
         //
+        // CtrlCHandler::init() must be called before the node is created or any other threads are started.
+        //
+        DataStorm::CtrlCHandler::init();
+
+        //
         // Instantiates node.
         //
         DataStorm::Node node(argc, argv, "config.reader");
+
+        //
+        // Shutdown the node on Ctrl-C.
+        //
+        DataStorm::CtrlCHandler ctrlCHandler([&node](int) { node.shutdown(); });
 
         //
         // Instantiates the "stocks" topic.

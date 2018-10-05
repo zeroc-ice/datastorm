@@ -92,11 +92,19 @@ NodeI::destroy(bool ownsCommunicator)
         //
         for(const auto& p : _subscribers)
         {
-            p.second->getConnection()->close(Ice::ConnectionClose::Gracefully);
+            auto c = p.second->getConnection();
+            if(c)
+            {
+                c->close(Ice::ConnectionClose::Gracefully);
+            }
         }
         for(const auto& p : _publishers)
         {
-            p.second->getConnection()->close(Ice::ConnectionClose::Gracefully);
+            auto c = p.second->getConnection();
+            if(c)
+            {
+                c->close(Ice::ConnectionClose::Gracefully);
+            }
         }
     }
     _subscribers.clear();

@@ -9,16 +9,6 @@
 #include <DataStorm/Config.h>
 #include <DataStorm/InternalI.h>
 
-#ifndef DATASTORM_API
-#   ifdef DATASTORM_API_EXPORTS
-#       define DATASTORM_API DATASTORM_DECLSPEC_EXPORT
-#   elif defined(DATASTORM_STATIC_LIBS)
-#       define DATASTORM_API /**/
-#   else
-#       define DATASTORM_API DATASTORM_DECLSPEC_IMPORT
-#   endif
-#endif
-
 namespace DataStorm
 {
 
@@ -166,14 +156,6 @@ public:
      * @return True if the node is shutdown, false otherwise.
      */
     bool isShutdown();
-
-    /**
-     * Shutdown the node when Ctrl-C is handled.
-     *
-     * @param handler The Ctrl-C handler to use for setting up the shutdown
-     * callback.
-     */
-    void shutdownOnCtrlC(Ice::CtrlCHandler& handler) const;
 
     /**
      * Move assignement operator.
