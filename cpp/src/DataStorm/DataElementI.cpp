@@ -381,7 +381,7 @@ DataElementI::detachFilter(long long int topicId,
                     _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name);
                 });
             }
-            if(p->second.remove(topicId, elementId))
+            if(p->second.remove(topicId, -elementId))
             {
                 _listeners.erase(p);
             }
