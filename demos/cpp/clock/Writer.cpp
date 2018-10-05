@@ -48,9 +48,9 @@ main(int argc, char* argv[])
     try
     {
         //
-        // CtrlCHandler::init() must be called before the node or any other threads are started.
+        // CtrlCHandler::maskSignals() must be called before the node or any other threads are started.
         //
-        DataStorm::CtrlCHandler::init();
+        DataStorm::CtrlCHandler::maskSignals();
 
         //
         // Instantiates node.
