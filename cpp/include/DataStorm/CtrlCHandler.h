@@ -63,7 +63,10 @@ class DATASTORM_API CtrlCHandler
 {
 public:
 
-    static void init();
+    /**
+     * On Unix/POSIX, mask SIGHUP, SIGINT and SIGTERM signals.
+     */
+    static void maskSignals() ICE_NOEXCEPT;
 
     /**
      * Initializes the relevant signals.

@@ -125,7 +125,7 @@ static BOOL WINAPI handlerRoutine(DWORD dwCtrlType)
 }
 
 void
-CtrlCHandler::init()
+CtrlCHandler::maskSignals() ICE_NOEXCEPT
 {
     // Nothinkg to do
 }
@@ -224,36 +224,41 @@ namespace
 {
 
 pthread_t _tid;
+bool maskedSignals = false;
 
 }
 
 void
-CtrlCHandler::init()
+CtrlCHandler::maskSignals() ICE_NOEXCEPT
 {
-    // We block these CTRL+C like signals in the main thread,
-    // and by default all other threads will inherit this signal
-    // mask.
-
-    sigset_t ctrlCLikeSignals;
-    sigemptyset(&ctrlCLikeSignals);
-    sigaddset(&ctrlCLikeSignals, SIGHUP);
-    sigaddset(&ctrlCLikeSignals, SIGINT);
-    sigaddset(&ctrlCLikeSignals, SIGTERM);
+    if(!maskedSignals)
+    {
+        //
+        // We block these CTRL+C like signals in the main thread, and by default all other
+        // threads will inherit this signal mask.
+        //
+        sigset_t ctrlCLikeSignals;
+        sigemptyset(&ctrlCLikeSignals);
+        sigaddset(&ctrlCLikeSignals, SIGHUP);
+        sigaddset(&ctrlCLikeSignals, SIGINT);
+        sigaddset(&ctrlCLikeSignals, SIGTERM);
 
 #ifndef NDEBUG
-    int rc = pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
-    assert(rc == 0);
+        int rc = pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
+        assert(rc == 0);
 #else
-    pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
+        pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
 #endif
+        maskedSignals = true;
+    }
 }
 
 CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
 {
-    IceUtil::Mutex::Lock lock(*globalMutex);
-    bool handler = _handler != 0;
+    maskSignals(); // Mask signals
 
-    if(handler)
+    IceUtil::Mutex::Lock lock(*globalMutex);
+    if(_handler != 0)
     {
         throw CtrlCHandlerException(__FILE__, __LINE__);
     }
