@@ -127,7 +127,7 @@ main(int argc, char* argv[])
         //
         // Update the stock value or volume attributes.
         //
-        while(true)
+        while(!node.isShutdown())
         {
             this_thread::sleep_for(chrono::seconds(1));
             for(auto& w : writers)

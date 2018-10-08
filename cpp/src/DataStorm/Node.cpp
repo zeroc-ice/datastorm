@@ -14,14 +14,14 @@
 using namespace std;
 using namespace DataStorm;
 
-Node::Node(std::shared_ptr<Ice::Communicator> communicator) :
+Node::Node(std::shared_ptr<Ice::Communicator> communicator) noexcept :
     _ownsCommunicator(false)
 {
     init(communicator);
 }
 
 void
-Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
+Node::init(const std::shared_ptr<Ice::Communicator>& communicator) noexcept
 {
     _instance = make_shared<DataStormI::Instance>(communicator);
     _instance->init();
@@ -29,7 +29,7 @@ Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
     _factory = _instance->getTopicFactory();
 }
 
-Node::Node(Node&& node)
+Node::Node(Node&& node) noexcept
 {
     _instance = move(node._instance);
     _factory = move(node._factory);
@@ -45,19 +45,25 @@ Node::~Node()
 }
 
 void
-Node::shutdown()
+Node::shutdown() noexcept
 {
     _instance->shutdown();
 }
 
 bool
-Node::isShutdown()
+Node::isShutdown() const noexcept
 {
     return _instance->isShutdown();
 }
 
+void
+Node::waitForShutdown() const noexcept
+{
+    _instance->waitForShutdown();
+}
+
 Node&
-Node::operator=(Node&& node)
+Node::operator=(Node&& node) noexcept
 {
     _instance = move(node._instance);
     _factory = move(node._factory);
@@ -66,13 +72,13 @@ Node::operator=(Node&& node)
 }
 
 shared_ptr<Ice::Communicator>
-Node::getCommunicator() const
+Node::getCommunicator() const noexcept
 {
     return _instance ? _instance->getCommunicator() : nullptr;
 }
 
 shared_ptr<Ice::Connection>
-Node::getSessionConnection(const string& ident) const
+Node::getSessionConnection(const string& ident) const noexcept
 {
     return _instance ? _instance->getNode()->getSessionConnection(ident) : nullptr;
 }

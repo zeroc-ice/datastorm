@@ -65,14 +65,14 @@ public:
      *
      * @return The sample event.
      */
-    SampleEvent getEvent() const;
+    SampleEvent getEvent() const noexcept;
 
     /**
      * The key of the sample.
      *
      * @return The sample key.
      */
-    const Key& getKey() const;
+    const Key& getKey() const noexcept;
 
     /**
      * The value of the sample.
@@ -83,7 +83,7 @@ public:
      *
      * @return The sample value.
      */
-    const Value& getValue() const;
+    const Value& getValue() const noexcept;
 
     /**
      * The update tag for the partial update.
@@ -92,7 +92,7 @@ public:
      *
      * @return The update tag.
      */
-    UpdateTag getUpdateTag() const;
+    UpdateTag getUpdateTag() const noexcept;
 
     /**
      * The timestamp of the sample.
@@ -102,7 +102,7 @@ public:
      *
      * @return The timestamp.
      */
-    std::chrono::time_point<std::chrono::system_clock> getTimeStamp() const;
+    std::chrono::time_point<std::chrono::system_clock> getTimeStamp() const noexcept;
 
     /**
      * The origin of the sample.
@@ -114,7 +114,7 @@ public:
      *
      * @return The origin of the sample.
      */
-    std::string getOrigin() const;
+    std::string getOrigin() const noexcept;
 
     /**
      * Get the session identifier of the session that received this sample.
@@ -124,10 +124,10 @@ public:
      *
      * @return The session identifier.
      */
-    std::string getSession() const;
+    std::string getSession() const noexcept;
 
     /** @private */
-    Sample(const std::shared_ptr<DataStormI::Sample>&);
+    Sample(const std::shared_ptr<DataStormI::Sample>&) noexcept;
 
 private:
 
@@ -252,14 +252,14 @@ public:
      * @param node The node.
      * @param name The name of the topic.
      */
-    Topic(const Node& node, const std::string& name);
+    Topic(const Node& node, const std::string& name) noexcept;
 
     /**
      * Construct a new Topic by taking ownership of the given topic.
      *
      * @param topic The topic to transfer ownership from.
      */
-    Topic(Topic&& topic);
+    Topic(Topic&& topic) noexcept;
 
     /**
      * Destruct the Topic. This disconnects the topic from peers.
@@ -271,59 +271,59 @@ public:
      *
      * @param topic The topic.
      **/
-    Topic& operator=(Topic&& topic);
+    Topic& operator=(Topic&& topic) noexcept;
 
     /**
      * Indicates whether or not data writers are online.
      *
      * @return True if data writers are connected, false otherwise.
      */
-    bool hasWriters() const;
+    bool hasWriters() const noexcept;
 
     /**
      * Wait for given number of data writers to be online.
      *
      * @param count The number of date writers to wait.
      */
-    void waitForWriters(unsigned int count = 1) const;
+    void waitForWriters(unsigned int count = 1) const noexcept;
 
     /**
      * Wait for data writers to be offline.
      */
-    void waitForNoWriters() const;
+    void waitForNoWriters() const noexcept;
 
     /**
      * Set the default configuration used to construct readers.
      *
      * @param config The default writer configuration.
      */
-    void setWriterDefaultConfig(const WriterConfig& config);
+    void setWriterDefaultConfig(const WriterConfig& config) noexcept;
 
     /**
      * Indicates whether or not data readers are online.
      *
      * @return True if data readers are connected, false otherwise.
      */
-    bool hasReaders() const;
+    bool hasReaders() const noexcept;
 
     /**
      * Wait for given number of data readers to be online.
      *
      * @param count The number of data readers to wait.
      */
-    void waitForReaders(unsigned int count = 1) const;
+    void waitForReaders(unsigned int count = 1) const noexcept;
 
     /**
      * Wait for data readers to be offline.
      */
-    void waitForNoReaders() const;
+    void waitForNoReaders() const noexcept;
 
     /**
      * Set the default configuration used to construct readers.
      *
      * @param config The default reader configuration.
      */
-    void setReaderDefaultConfig(const ReaderConfig& config);
+    void setReaderDefaultConfig(const ReaderConfig& config) noexcept;
 
     /**
      * Set an updater function for the given update tag. The function is called
@@ -335,7 +335,7 @@ public:
      * @param updater The updater function.
      */
     template<typename UpdateValue>
-    void setUpdater(const UpdateTag& tag, std::function<void (Value&, UpdateValue)> updater);
+    void setUpdater(const UpdateTag& tag, std::function<void (Value&, UpdateValue)> updater) noexcept;
 
     /**
      * Set a key filter factory. The given factory function must return a filter
@@ -347,7 +347,7 @@ public:
      */
     template<typename Criteria>
     void setKeyFilter(const std::string& name,
-                      std::function<std::function<bool (const Key&)> (const Criteria&)> factory);
+                      std::function<std::function<bool (const Key&)> (const Criteria&)> factory) noexcept;
 
     /**
      * Set a sample filter factory. The given factory function must return a filter
@@ -359,13 +359,13 @@ public:
      */
     template<typename Criteria>
     void setSampleFilter(const std::string& name,
-                         std::function<std::function<bool (const SampleType&)> (const Criteria&)> factory);
+                         std::function<std::function<bool (const SampleType&)> (const Criteria&)> factory) noexcept;
 
 private:
 
-    std::shared_ptr<DataStormI::TopicReader> getReader() const;
-    std::shared_ptr<DataStormI::TopicWriter> getWriter() const;
-    std::shared_ptr<Ice::Communicator> getCommunicator() const;
+    std::shared_ptr<DataStormI::TopicReader> getReader() const noexcept;
+    std::shared_ptr<DataStormI::TopicWriter> getWriter() const noexcept;
+    std::shared_ptr<Ice::Communicator> getCommunicator() const noexcept;
 
     template<typename, typename, typename> friend class SingleKeyWriter;
     template<typename, typename, typename> friend class MultiKeyWriter;
@@ -410,7 +410,7 @@ public:
      *
      * @param reader The reader.
      **/
-    Reader(Reader&& reader);
+    Reader(Reader&& reader) noexcept;
 
     /**
      * Destruct the reader. The destruction of the reader disconnects
@@ -423,66 +423,66 @@ public:
      *
      * @param reader The reader.
      **/
-    Reader& operator=(Reader&& reader);
+    Reader& operator=(Reader&& reader) noexcept;
 
     /**
      * Indicates whether or not writers are online.
      *
      * @return True if writers are connected, false otherwise.
      */
-    bool hasWriters() const;
+    bool hasWriters() const noexcept;
 
     /**
      * Wait for given number of writers to be online.
      *
      * @param count The number of writers to wait.
      */
-    void waitForWriters(unsigned int count = 1) const;
+    void waitForWriters(unsigned int count = 1) const noexcept;
 
     /**
      * Wait for readers to be offline.
      */
-    void waitForNoWriters() const;
+    void waitForNoWriters() const noexcept;
 
     /**
      * Get the connected writers.
      *
      * @return The names of the connected writers.
      */
-    std::vector<std::string> getConnectedWriters() const;
+    std::vector<std::string> getConnectedWriters() const noexcept;
 
     /**
      * Get the keys for which writers are connected to this reader.
      *
      * @return The keys for which we have writers connected.
      **/
-    std::vector<Key> getConnectedKeys() const;
+    std::vector<Key> getConnectedKeys() const noexcept;
 
     /**
      * Returns all the unread samples.
      *
      * @return The unread samples.
      */
-    std::vector<Sample<Key, Value, UpdateTag>> getAllUnread();
+    std::vector<Sample<Key, Value, UpdateTag>> getAllUnread() noexcept;
 
     /**
      * Wait for given number of unread samples to be available.
      */
-    void waitForUnread(unsigned int count = 1) const;
+    void waitForUnread(unsigned int count = 1) const noexcept;
 
     /**
      * Returns wether or not unread samples are available.
      *
      * @return True if there unread samples are queued, false otherwise.
      */
-    bool hasUnread() const;
+    bool hasUnread() const noexcept;
 
     /**
      * Returns the next unread sample.
      *
      * @return The unread sample.
      */
-    Sample<Key, Value, UpdateTag> getNextUnread();
+    Sample<Key, Value, UpdateTag> getNextUnread() noexcept;
 
     /**
      * Calls the given functions to provide the initial set of connected keys and
@@ -500,7 +500,7 @@ public:
      * @param update The function to call when a key is added or removed from the set.
      **/
     void onConnectedKeys(std::function<void(std::vector<Key>)> init,
-                         std::function<void(CallbackReason, Key)> update);
+                         std::function<void(CallbackReason, Key)> update) noexcept;
 
     /**
      * Calls the given functions to provide the initial set of connected writers
@@ -515,7 +515,7 @@ public:
      * @param update The function to call when a new writer connects or disconnects.
      **/
     void onConnectedWriters(std::function<void(std::vector<std::string>)> init,
-                            std::function<void(CallbackReason, std::string)> update);
+                            std::function<void(CallbackReason, std::string)> update) noexcept;
 
     /**
      * Calls the given function to provide the initial set of unread samples and
@@ -531,12 +531,12 @@ public:
      * @param queue The function to call when a new sample is received.
      **/
     void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> init,
-                   std::function<void(Sample<Key, Value, UpdateTag>)> queue);
+                   std::function<void(Sample<Key, Value, UpdateTag>)> queue) noexcept;
 
 protected:
 
     /** @private */
-    Reader(const std::shared_ptr<DataStormI::DataReader>& impl) : _impl(impl)
+    Reader(const std::shared_ptr<DataStormI::DataReader>& impl) noexcept : _impl(impl)
     {
     }
 
@@ -556,7 +556,7 @@ template<typename T> struct Filter
      * @param criteria The criteria
      */
     template<typename TT>
-    Filter(const std::string& name, TT&& criteria) : name(name), criteria(std::forward<TT>(criteria))
+    Filter(const std::string& name, TT&& criteria) noexcept : name(name), criteria(std::forward<TT>(criteria))
     {
     }
 
@@ -587,7 +587,7 @@ public:
     SingleKeyReader(const Topic<Key, Value, UpdateTag>& topic,
                     const Key& key,
                     const std::string& name = std::string(),
-                    const ReaderConfig& config = ReaderConfig());
+                    const ReaderConfig& config = ReaderConfig()) noexcept;
 
     /**
      * Construct a new reader for the given key and sample filter criteria. The
@@ -606,21 +606,21 @@ public:
                     const Key& key,
                     const Filter<SampleFilterCriteria>& sampleFilter,
                     const std::string& name = std::string(),
-                    const ReaderConfig& config = ReaderConfig());
+                    const ReaderConfig& config = ReaderConfig()) noexcept;
 
     /**
      * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/
-    SingleKeyReader(SingleKeyReader&& reader);
+    SingleKeyReader(SingleKeyReader&& reader) noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    SingleKeyReader& operator=(SingleKeyReader&& reader);
+    SingleKeyReader& operator=(SingleKeyReader&& reader) noexcept;
 };
 
 /**
@@ -644,7 +644,7 @@ public:
     MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
                    const std::vector<Key>& keys,
                    const std::string& name = std::string(),
-                   const ReaderConfig& config = ReaderConfig());
+                   const ReaderConfig& config = ReaderConfig()) noexcept;
 
     /**
      * Construct a new reader for the given keys and sample filter criteria. The
@@ -664,21 +664,21 @@ public:
                    const std::vector<Key>& keys,
                    const Filter<SampleFilterCriteria>& sampleFilter,
                    const std::string& name = std::string(),
-                   const ReaderConfig& config = ReaderConfig());
+                   const ReaderConfig& config = ReaderConfig()) noexcept;
 
     /**
      * Transfers the given reader to this reader.
      *
      * @param reader The reader.
      **/
-    MultiKeyReader(MultiKeyReader&& reader);
+    MultiKeyReader(MultiKeyReader&& reader) noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    MultiKeyReader& operator=(MultiKeyReader&& reader);
+    MultiKeyReader& operator=(MultiKeyReader&& reader) noexcept;
 };
 
 /**
@@ -695,7 +695,7 @@ SingleKeyReader<K, V, UT>
 makeSingleKeyReader(const Topic<K, V, UT>& topic,
                     const typename Topic<K, V, UT>::KeyType& key,
                     const std::string& name = std::string(),
-                    const ReaderConfig& config = ReaderConfig())
+                    const ReaderConfig& config = ReaderConfig()) noexcept
 {
     return SingleKeyReader<K, V, UT>(topic, key, name, config);
 }
@@ -716,7 +716,7 @@ makeSingleKeyReader(const Topic<K, V, UT>& topic,
                     const typename Topic<K, V, UT>::KeyType& key,
                     const Filter<SFC>& sampleFilter,
                     const std::string& name = std::string(),
-                    const ReaderConfig& config = ReaderConfig())
+                    const ReaderConfig& config = ReaderConfig()) noexcept
 {
     return SingleKeyReader<K, V, UT>(topic, key, sampleFilter, name, config);
 }
@@ -736,7 +736,7 @@ template<typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
 makeMultiKeyReader(const Topic<K, V, UT>& topic,
                    const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                    const std::string& name = std::string(),
-                   const ReaderConfig& config = ReaderConfig())
+                   const ReaderConfig& config = ReaderConfig()) noexcept
 {
     return MultiKeyReader<K, V, UT>(topic, keys, name, config);
 }
@@ -758,7 +758,7 @@ makeMultiKeyReader(const Topic<K, V, UT>& topic,
                    const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                    const Filter<SFC>& sampleFilter,
                    const std::string& name = std::string(),
-                   const ReaderConfig& config = ReaderConfig())
+                   const ReaderConfig& config = ReaderConfig()) noexcept
 {
     return MultiKeyReader<K, V, UT>(topic, keys, sampleFilter, name, config);
 }
@@ -776,7 +776,7 @@ makeMultiKeyReader(const Topic<K, V, UT>& topic,
 template<typename K, typename V, typename UT> MultiKeyReader<K, V, UT>
 makeAnyKeyReader(const Topic<K, V, UT>& topic,
                  const std::string& name = std::string(),
-                 const ReaderConfig& config = ReaderConfig())
+                 const ReaderConfig& config = ReaderConfig()) noexcept
 {
     return MultiKeyReader<K, V, UT>(topic, {}, name, config);
 }
@@ -796,7 +796,7 @@ template<typename SFC, typename K, typename V, typename UT> MultiKeyReader<K, V,
 makeAnyKeyReader(const Topic<K, V, UT>& topic,
                  const Filter<SFC>& sampleFilter,
                  const std::string& name = std::string(),
-                 const ReaderConfig& config = ReaderConfig())
+                 const ReaderConfig& config = ReaderConfig()) noexcept
 {
     return MultiKeyReader<K, V, UT>(topic, {}, sampleFilter, name, config);
 }
@@ -813,6 +813,9 @@ public:
      * Construct a new reader for the given key filter. The construction of the reader
      * connects the reader to writers whose key matches the key filter criteria.
      *
+     * If the key filter is not registered with the topic or the filter invalid,
+     * std::invalid_argument is raised.
+     *
      * @param topic The topic.
      * @param keyFilter The key filter.
      * @param name The optional reader name.
@@ -828,6 +831,9 @@ public:
      * Construct a new reader for the given key filter and sample filter criterias. The
      * construction of the reader connects the reader to writers whose key matches the
      * key filter criteria.
+     *
+     * If the key filter is not registered with the topic or the filter invalid,
+     * std::invalid_argument is raised.
      *
      * @param topic The topic.
      * @param keyFilter The key filter.
@@ -847,14 +853,14 @@ public:
      *
      * @param reader The reader.
      **/
-    FilteredKeyReader(FilteredKeyReader&& reader);
+    FilteredKeyReader(FilteredKeyReader&& reader) noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param reader The reader.
      **/
-    FilteredKeyReader& operator=(FilteredKeyReader&& reader);
+    FilteredKeyReader& operator=(FilteredKeyReader&& reader) noexcept;
 };
 
 /**
@@ -918,14 +924,14 @@ public:
      *
      * @param writer The writer.
      **/
-    Writer(Writer&& writer);
+    Writer(Writer&& writer) noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param writer The writer.
      **/
-    Writer& operator=(Writer&& writer);
+    Writer& operator=(Writer&& writer) noexcept;
 
     /**
      * Destruct the writer. The destruction of the writer disconnects
@@ -938,36 +944,37 @@ public:
      *
      * @return True if readers are connected, false otherwise.
      */
-    bool hasReaders() const;
+    bool hasReaders() const noexcept;
 
     /**
      * Wait for given number of readers to be online.
      *
      * @param count The number of readers to wait.
      */
-    void waitForReaders(unsigned int count = 1) const;
+    void waitForReaders(unsigned int count = 1) const noexcept;
 
     /**
      * Wait for readers to be offline.
      */
-    void waitForNoReaders() const;
+    void waitForNoReaders() const noexcept;
 
     /**
      * Get the connected readers.
      *
      * @return The names of the connected readers.
      */
-    std::vector<std::string> getConnectedReaders() const;
+    std::vector<std::string> getConnectedReaders() const noexcept;
 
     /**
      * Get the keys for which readers are connected to this writer.
      *
      * @return The keys for which we have writers connected.
      **/
-    std::vector<Key> getConnectedKeys() const;
+    std::vector<Key> getConnectedKeys() const noexcept;
 
     /**
-     * Get the last written sample.
+     * Get the last written sample. If there's no sample, the std::invalid_argument
+     * exception is raised.
      *
      * @return The last written sample.
      **/
@@ -978,7 +985,7 @@ public:
      *
      * @return The sample history.
      **/
-    std::vector<Sample<Key, Value, UpdateTag>> getAll();
+    std::vector<Sample<Key, Value, UpdateTag>> getAll() noexcept;
 
     /**
      * Calls the given functions to provide the initial set of connected keys and
@@ -996,7 +1003,7 @@ public:
      * @param update The function to call when a key is added or removed from the set.
      **/
     void onConnectedKeys(std::function<void(std::vector<Key>)> init,
-                         std::function<void(CallbackReason, Key)> update);
+                         std::function<void(CallbackReason, Key)> update) noexcept;
 
     /**
      * Calls the given functions to provide the initial set of connected readers
@@ -1011,12 +1018,12 @@ public:
      * @param update The function to call when a new reader connects or disconnects.
      **/
     void onConnectedReaders(std::function<void(std::vector<std::string>)> init,
-                            std::function<void(CallbackReason, std::string)> update);
+                            std::function<void(CallbackReason, std::string)> update) noexcept;
 
 protected:
 
     /** @private */
-    Writer(const std::shared_ptr<DataStormI::DataWriter>& impl) : _impl(impl)
+    Writer(const std::shared_ptr<DataStormI::DataWriter>& impl) noexcept : _impl(impl)
     {
     }
 
@@ -1044,21 +1051,21 @@ public:
     SingleKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
                     const Key& key,
                     const std::string& name = std::string(),
-                    const WriterConfig& config = WriterConfig());
+                    const WriterConfig& config = WriterConfig()) noexcept;
 
     /**
      * Move constructor.
      *
      * @param writer The writer.
      **/
-    SingleKeyWriter(SingleKeyWriter&& writer);
+    SingleKeyWriter(SingleKeyWriter&& writer) noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param writer The writer.
      **/
-    SingleKeyWriter& operator=(SingleKeyWriter&& writer);
+    SingleKeyWriter& operator=(SingleKeyWriter&& writer) noexcept;
 
     /**
      * Add the data element. This generates an {@link Add} sample with the
@@ -1066,7 +1073,7 @@ public:
      *
      * @param value The data element value.
      */
-    void add(const Value& value);
+    void add(const Value& value) noexcept;
 
     /**
      * Update the data element. This generates an {@link Update} sample with the
@@ -1074,7 +1081,7 @@ public:
      *
      * @param value The data element value.
      */
-    void update(const Value& value);
+    void update(const Value& value) noexcept;
 
     /**
      * Get a partial udpate generator function for the given partial update tag. When called,
@@ -1086,12 +1093,12 @@ public:
      *
      * @param tag The partial update tag.
      */
-    template<typename UpdateValue> std::function<void(const UpdateValue&)> partialUpdate(const UpdateTag& tag);
+    template<typename UpdateValue> std::function<void(const UpdateValue&)> partialUpdate(const UpdateTag& tag) noexcept;
 
     /**
      * Remove the data element. This generates a {@link Remove} sample.
      */
-    void remove();
+    void remove() noexcept;
 
 private:
 
@@ -1119,21 +1126,21 @@ public:
     MultiKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
                    const std::vector<Key>& keys,
                    const std::string& name = std::string(),
-                   const WriterConfig& config = WriterConfig());
+                   const WriterConfig& config = WriterConfig()) noexcept;
 
     /**
      * Transfers the given writer to this writer.
      *
      * @param writer The writer.
      **/
-    MultiKeyWriter(MultiKeyWriter&& writer);
+    MultiKeyWriter(MultiKeyWriter&& writer) noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param writer The writer.
      **/
-    MultiKeyWriter& operator=(MultiKeyWriter&& writer);
+    MultiKeyWriter& operator=(MultiKeyWriter&& writer) noexcept;
 
     /**
      * Add the data element. This generates an {@link Add} sample with the
@@ -1142,7 +1149,7 @@ public:
      * @param key The key
      * @param value The data element value.
      */
-    void add(const Key& key, const Value& value);
+    void add(const Key& key, const Value& value) noexcept;
 
     /**
      * Update the data element. This generates an {@link Update} sample with the
@@ -1151,7 +1158,7 @@ public:
      * @param key The key
      * @param value The data element value.
      */
-    void update(const Key& key, const Value& value);
+    void update(const Key& key, const Value& value) noexcept;
 
     /**
      * Get a partial udpate generator function for the given partial update tag. When called,
@@ -1163,14 +1170,15 @@ public:
      *
      * @param tag The partial update tag.
      */
-    template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)> partialUpdate(const UpdateTag& tag);
+    template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)>
+    partialUpdate(const UpdateTag& tag) noexcept;
 
     /**
      * Remove the data element. This generates a {@link Remove} sample.
 
      * @param key The key
      */
-    void remove(const Key& key);
+    void remove(const Key& key) noexcept;
 
 private:
 
@@ -1191,7 +1199,7 @@ template<typename K, typename V, typename UT> SingleKeyWriter<K, V, UT>
 makeSingleKeyWriter(const Topic<K, V, UT>& topic,
                     const typename Topic<K, V, UT>::KeyType& key,
                     const std::string& name = std::string(),
-                    const WriterConfig& config = WriterConfig())
+                    const WriterConfig& config = WriterConfig()) noexcept
 {
     return SingleKeyWriter<K, V, UT>(topic, key, name, config);
 }
@@ -1209,7 +1217,7 @@ template<typename K, typename V, typename UT> MultiKeyWriter<K, V, UT>
 makeMultiKeyWriter(const Topic<K, V, UT>& topic,
                    const std::vector<typename Topic<K, V, UT>::KeyType>& keys,
                    const std::string& name = std::string(),
-                   const WriterConfig& config = WriterConfig())
+                   const WriterConfig& config = WriterConfig()) noexcept
 {
     return MultiKeyWriter<K, V, UT>(topic, keys, name, config);
 }
@@ -1225,7 +1233,7 @@ makeMultiKeyWriter(const Topic<K, V, UT>& topic,
 template<typename K, typename V, typename UT> MultiKeyWriter<K, V, UT>
 makeAnyKeyWriter(const Topic<K, V, UT>& topic,
                  const std::string& name = std::string(),
-                 const WriterConfig& config = WriterConfig())
+                 const WriterConfig& config = WriterConfig()) noexcept
 {
     return MultiKeyWriter<K, V, UT>(topic, {}, name, config);
 }
@@ -1243,49 +1251,49 @@ namespace DataStorm
 // Sample template implementation
 //
 template<typename Key, typename Value, typename UpdateTag> SampleEvent
-Sample<Key, Value, UpdateTag>::getEvent() const
+Sample<Key, Value, UpdateTag>::getEvent() const noexcept
 {
     return _impl->event;
 }
 
 template<typename Key, typename Value, typename UpdateTag> const Key&
-Sample<Key, Value, UpdateTag>::getKey() const
+Sample<Key, Value, UpdateTag>::getKey() const noexcept
 {
     return _impl->getKey();
 }
 
 template<typename Key, typename Value, typename UpdateTag> const Value&
-Sample<Key, Value, UpdateTag>::getValue() const
+Sample<Key, Value, UpdateTag>::getValue() const noexcept
 {
     return _impl->getValue();
 }
 
 template<typename Key, typename Value, typename UpdateTag> UpdateTag
-Sample<Key, Value, UpdateTag>::getUpdateTag() const
+Sample<Key, Value, UpdateTag>::getUpdateTag() const noexcept
 {
     return _impl->getTag();
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::chrono::time_point<std::chrono::system_clock>
-Sample<Key, Value, UpdateTag>::getTimeStamp() const
+Sample<Key, Value, UpdateTag>::getTimeStamp() const noexcept
 {
     return _impl->timestamp;
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::string
-Sample<Key, Value, UpdateTag>::getOrigin() const
+Sample<Key, Value, UpdateTag>::getOrigin() const noexcept
 {
     return _impl->origin;
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::string
-Sample<Key, Value, UpdateTag>::getSession() const
+Sample<Key, Value, UpdateTag>::getSession() const noexcept
 {
     return _impl->session;
 }
 
 template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>::Sample(
-    const std::shared_ptr<DataStormI::Sample>& impl) :
+    const std::shared_ptr<DataStormI::Sample>& impl) noexcept :
     _impl(std::static_pointer_cast<DataStormI::SampleT<Key, Value, UpdateTag>>(impl))
 {
 }
@@ -1294,7 +1302,7 @@ template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, Up
 // Reader template implementation
 //
 template<typename Key, typename Value, typename UpdateTag>
-Reader<Key, Value, UpdateTag>::Reader(Reader<Key, Value, UpdateTag>&& reader) : _impl(std::move(reader._impl))
+Reader<Key, Value, UpdateTag>::Reader(Reader<Key, Value, UpdateTag>&& reader) noexcept : _impl(std::move(reader._impl))
 {
 }
 
@@ -1308,38 +1316,38 @@ Reader<Key, Value, UpdateTag>::~Reader()
 }
 
 template<typename Key, typename Value, typename UpdateTag> Reader<Key, Value, UpdateTag>&
-Reader<Key, Value, UpdateTag>::operator=(Reader&& reader)
+Reader<Key, Value, UpdateTag>::operator=(Reader&& reader) noexcept
 {
     _impl = std::move(reader._impl);
     return *this;
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
-Reader<Key, Value, UpdateTag>::hasWriters() const
+Reader<Key, Value, UpdateTag>::hasWriters() const noexcept
 {
     return _impl->hasWriters();
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const
+Reader<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const noexcept
 {
     _impl->waitForWriters(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::waitForNoWriters() const
+Reader<Key, Value, UpdateTag>::waitForNoWriters() const noexcept
 {
     _impl->waitForWriters(-1);
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<std::string>
-Reader<Key, Value, UpdateTag>::getConnectedWriters() const
+Reader<Key, Value, UpdateTag>::getConnectedWriters() const noexcept
 {
     return _impl->getConnectedElements();
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<Key>
-Reader<Key, Value, UpdateTag>::getConnectedKeys() const
+Reader<Key, Value, UpdateTag>::getConnectedKeys() const noexcept
 {
     std::vector<Key> keys;
     auto connectedKeys = _impl->getConnectedKeys();
@@ -1352,7 +1360,7 @@ Reader<Key, Value, UpdateTag>::getConnectedKeys() const
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
-Reader<Key, Value, UpdateTag>::getAllUnread()
+Reader<Key, Value, UpdateTag>::getAllUnread() noexcept
 {
     auto unread = _impl->getAllUnread();
     std::vector<Sample<Key, Value, UpdateTag>> samples;
@@ -1365,26 +1373,26 @@ Reader<Key, Value, UpdateTag>::getAllUnread()
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::waitForUnread(unsigned int count) const
+Reader<Key, Value, UpdateTag>::waitForUnread(unsigned int count) const noexcept
 {
     _impl->waitForUnread(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
-Reader<Key, Value, UpdateTag>::hasUnread() const
+Reader<Key, Value, UpdateTag>::hasUnread() const noexcept
 {
     return _impl->hasUnread();
 }
 
 template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>
-Reader<Key, Value, UpdateTag>::getNextUnread()
+Reader<Key, Value, UpdateTag>::getNextUnread() noexcept
 {
     return Sample<Key, Value, UpdateTag>(_impl->getNextUnread());
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Key>)> init,
-                                               std::function<void(CallbackReason, Key)> update)
+                                               std::function<void(CallbackReason, Key)> update) noexcept
 {
     _impl->onConnectedKeys(init ? [init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
@@ -1404,14 +1412,14 @@ Reader<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Ke
 
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onConnectedWriters(std::function<void(std::vector<std::string>)> init,
-                                                  std::function<void(CallbackReason, std::string)> update)
+                                                  std::function<void(CallbackReason, std::string)> update) noexcept
 {
     _impl->onConnectedElements(init, update);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
 Reader<Key, Value, UpdateTag>::onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> init,
-                                         std::function<void(Sample<Key, Value, UpdateTag>)> update)
+                                         std::function<void(Sample<Key, Value, UpdateTag>)> update) noexcept
 {
     auto communicator = _impl->getCommunicator();
     _impl->onSamples(init ? [communicator, init](const std::vector<std::shared_ptr<DataStormI::Sample>>& samplesI)
@@ -1434,7 +1442,7 @@ template<typename Key, typename Value, typename UpdateTag>
 SingleKeyReader<Key, Value, UpdateTag>::SingleKeyReader(const Topic<Key, Value, UpdateTag>& topic,
                                                         const Key& key,
                                                         const std::string& name,
-                                                        const ReaderConfig& config) :
+                                                        const ReaderConfig& config) noexcept :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(key) }, name, config))
 {
 }
@@ -1444,7 +1452,7 @@ SingleKeyReader<Key, Value, UpdateTag>::SingleKeyReader(const Topic<Key, Value, 
                                                         const Key& key,
                                                         const Filter<SFC>& sampleFilter,
                                                         const std::string& name,
-                                                        const ReaderConfig& config) :
+                                                        const ReaderConfig& config) noexcept :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create({ topic._keyFactory->create(key) },
                                                             name,
                                                             config,
@@ -1455,13 +1463,13 @@ SingleKeyReader<Key, Value, UpdateTag>::SingleKeyReader(const Topic<Key, Value, 
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-SingleKeyReader<Key, Value, UpdateTag>::SingleKeyReader(SingleKeyReader<Key, Value, UpdateTag>&& reader) :
+SingleKeyReader<Key, Value, UpdateTag>::SingleKeyReader(SingleKeyReader<Key, Value, UpdateTag>&& reader) noexcept :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag> SingleKeyReader<Key, Value, UpdateTag>&
-SingleKeyReader<Key, Value, UpdateTag>::operator=(SingleKeyReader&& reader)
+SingleKeyReader<Key, Value, UpdateTag>::operator=(SingleKeyReader&& reader) noexcept
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
@@ -1471,7 +1479,7 @@ template<typename Key, typename Value, typename UpdateTag>
 MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, UpdateTag>& topic,
                                                       const std::vector<Key>& keys,
                                                       const std::string& name,
-                                                      const ReaderConfig& config) :
+                                                      const ReaderConfig& config) noexcept :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create(topic._keyFactory->create(keys),
                                                             name,
                                                             config))
@@ -1483,7 +1491,7 @@ MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, Up
                                                       const std::vector<Key>& keys,
                                                       const Filter<SFC>& sampleFilter,
                                                       const std::string& name,
-                                                      const ReaderConfig& config) :
+                                                      const ReaderConfig& config) noexcept :
     Reader<Key, Value, UpdateTag>(topic.getReader()->create(topic._keyFactory->create(keys),
                                                             name,
                                                             config,
@@ -1494,14 +1502,14 @@ MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(const Topic<Key, Value, Up
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(MultiKeyReader<Key, Value, UpdateTag>&& reader) :
+MultiKeyReader<Key, Value, UpdateTag>::MultiKeyReader(MultiKeyReader<Key, Value, UpdateTag>&& reader) noexcept :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag>
 MultiKeyReader<Key, Value, UpdateTag>&
-MultiKeyReader<Key, Value, UpdateTag>::operator=(MultiKeyReader&& reader)
+MultiKeyReader<Key, Value, UpdateTag>::operator=(MultiKeyReader&& reader) noexcept
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
@@ -1536,13 +1544,13 @@ FilteredKeyReader<Key, Value, UpdateTag>::FilteredKeyReader(const Topic<Key, Val
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-FilteredKeyReader<Key, Value, UpdateTag>::FilteredKeyReader(FilteredKeyReader<Key, Value, UpdateTag>&& reader) :
+FilteredKeyReader<Key, Value, UpdateTag>::FilteredKeyReader(FilteredKeyReader<Key, Value, UpdateTag>&& reader) noexcept :
     Reader<Key, Value, UpdateTag>(std::move(reader))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag> FilteredKeyReader<Key, Value, UpdateTag>&
-FilteredKeyReader<Key, Value, UpdateTag>::operator=(FilteredKeyReader&& reader)
+FilteredKeyReader<Key, Value, UpdateTag>::operator=(FilteredKeyReader&& reader) noexcept
 {
     Reader<Key, Value, UpdateTag>::operator=(std::move(reader));
     return *this;
@@ -1552,12 +1560,12 @@ FilteredKeyReader<Key, Value, UpdateTag>::operator=(FilteredKeyReader&& reader)
 // Writer template implementation
 //
 template<typename Key, typename Value, typename UpdateTag>
-Writer<Key, Value, UpdateTag>::Writer(Writer&& writer) : _impl(std::move(writer._impl))
+Writer<Key, Value, UpdateTag>::Writer(Writer&& writer) noexcept : _impl(std::move(writer._impl))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag> Writer<Key, Value, UpdateTag>&
-Writer<Key, Value, UpdateTag>::operator=(Writer&& writer)
+Writer<Key, Value, UpdateTag>::operator=(Writer&& writer) noexcept
 {
     _impl = std::move(writer._impl);
     return *this;
@@ -1573,31 +1581,31 @@ Writer<Key, Value, UpdateTag>::~Writer()
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
-Writer<Key, Value, UpdateTag>::hasReaders() const
+Writer<Key, Value, UpdateTag>::hasReaders() const noexcept
 {
     return _impl->hasReaders();
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const
+Writer<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const noexcept
 {
     return _impl->waitForReaders(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::waitForNoReaders() const
+Writer<Key, Value, UpdateTag>::waitForNoReaders() const noexcept
 {
     return _impl->waitForReaders(-1);
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<std::string>
-Writer<Key, Value, UpdateTag>::getConnectedReaders() const
+Writer<Key, Value, UpdateTag>::getConnectedReaders() const noexcept
 {
     return _impl->getConnectedElements();
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<Key>
-Writer<Key, Value, UpdateTag>::getConnectedKeys() const
+Writer<Key, Value, UpdateTag>::getConnectedKeys() const noexcept
 {
     std::vector<Key> keys;
     auto connectedKeys = _impl->getConnectedKeys();
@@ -1621,7 +1629,7 @@ Writer<Key, Value, UpdateTag>::getLast()
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::vector<Sample<Key, Value, UpdateTag>>
-Writer<Key, Value, UpdateTag>::getAll()
+Writer<Key, Value, UpdateTag>::getAll() noexcept
 {
     auto all = _impl->getAll();
     std::vector<Sample<Key, Value, UpdateTag>> samples;
@@ -1635,7 +1643,7 @@ Writer<Key, Value, UpdateTag>::getAll()
 
 template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Key>)> init,
-                                               std::function<void(CallbackReason, Key)> update)
+                                               std::function<void(CallbackReason, Key)> update) noexcept
 {
     _impl->onConnectedKeys(init ? [init](std::vector<std::shared_ptr<DataStormI::Key>> connectedKeys)
     {
@@ -1655,7 +1663,7 @@ Writer<Key, Value, UpdateTag>::onConnectedKeys(std::function<void(std::vector<Ke
 
 template<typename Key, typename Value, typename UpdateTag> void
 Writer<Key, Value, UpdateTag>::onConnectedReaders(std::function<void(std::vector<std::string>)> init,
-                                                  std::function<void(CallbackReason, std::string)> update)
+                                                  std::function<void(CallbackReason, std::string)> update) noexcept
 {
     _impl->onConnectedElements(init, update);
 }
@@ -1664,7 +1672,7 @@ template<typename Key, typename Value, typename UpdateTag>
 SingleKeyWriter<Key, Value, UpdateTag>::SingleKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
                                                         const Key& key,
                                                         const std::string& name,
-                                                        const WriterConfig& config) :
+                                                        const WriterConfig& config) noexcept :
     Writer<Key, Value, UpdateTag>(topic.getWriter()->create({ topic._keyFactory->create(key) },
                                                             name,
                                                             config)),
@@ -1673,28 +1681,28 @@ SingleKeyWriter<Key, Value, UpdateTag>::SingleKeyWriter(const Topic<Key, Value, 
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-SingleKeyWriter<Key, Value, UpdateTag>::SingleKeyWriter(SingleKeyWriter<Key, Value, UpdateTag>&& writer) :
+SingleKeyWriter<Key, Value, UpdateTag>::SingleKeyWriter(SingleKeyWriter<Key, Value, UpdateTag>&& writer) noexcept :
     Writer<Key, Value, UpdateTag>(std::move(writer)),
     _tagFactory(std::move(writer._tagFactory))
 {
 }
 
 template<typename Key, typename Value, typename UpdateTag> SingleKeyWriter<Key, Value, UpdateTag>&
-SingleKeyWriter<Key, Value, UpdateTag>::operator=(SingleKeyWriter&& writer)
+SingleKeyWriter<Key, Value, UpdateTag>::operator=(SingleKeyWriter&& writer) noexcept
 {
     Writer<Key, Value, UpdateTag>::operator=(std::move(writer));
     return *this;
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-SingleKeyWriter<Key, Value, UpdateTag>::add(const Value& value)
+SingleKeyWriter<Key, Value, UpdateTag>::add(const Value& value) noexcept
 {
    Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(SampleEvent::Add, value));
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-SingleKeyWriter<Key, Value, UpdateTag>::update(const Value& value)
+SingleKeyWriter<Key, Value, UpdateTag>::update(const Value& value) noexcept
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(SampleEvent::Update, value));
@@ -1702,7 +1710,7 @@ SingleKeyWriter<Key, Value, UpdateTag>::update(const Value& value)
 
 template<typename Key, typename Value, typename UpdateTag>
 template<typename UpdateValue> std::function<void(const UpdateValue&)>
-SingleKeyWriter<Key, Value, UpdateTag>::partialUpdate(const UpdateTag& tag)
+SingleKeyWriter<Key, Value, UpdateTag>::partialUpdate(const UpdateTag& tag) noexcept
 {
     auto impl = Writer<Key, Value, UpdateTag>::_impl;
     auto updateTag = _tagFactory->create(tag);
@@ -1713,7 +1721,7 @@ SingleKeyWriter<Key, Value, UpdateTag>::partialUpdate(const UpdateTag& tag)
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-SingleKeyWriter<Key, Value, UpdateTag>::remove()
+SingleKeyWriter<Key, Value, UpdateTag>::remove() noexcept
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(nullptr,
         std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
@@ -1723,7 +1731,7 @@ template<typename Key, typename Value, typename UpdateTag>
 MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(const Topic<Key, Value, UpdateTag>& topic,
                                                       const std::vector<Key>& keys,
                                                       const std::string& name,
-                                                      const WriterConfig& config) :
+                                                      const WriterConfig& config) noexcept :
     Writer<Key, Value, UpdateTag>(topic.getWriter()->create(topic._keyFactory->create(keys),
                                                             name,
                                                             config)),
@@ -1733,7 +1741,7 @@ MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(const Topic<Key, Value, Up
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(MultiKeyWriter<Key, Value, UpdateTag>&& writer) :
+MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(MultiKeyWriter<Key, Value, UpdateTag>&& writer) noexcept :
     Writer<Key, Value, UpdateTag>(std::move(writer)),
     _keyFactory(std::move(writer._keyFactory)),
     _tagFactory(std::move(writer._tagFactory))
@@ -1741,21 +1749,21 @@ MultiKeyWriter<Key, Value, UpdateTag>::MultiKeyWriter(MultiKeyWriter<Key, Value,
 }
 
 template<typename Key, typename Value, typename UpdateTag> MultiKeyWriter<Key, Value, UpdateTag>&
-MultiKeyWriter<Key, Value, UpdateTag>::operator=(MultiKeyWriter&& writer)
+MultiKeyWriter<Key, Value, UpdateTag>::operator=(MultiKeyWriter&& writer) noexcept
 {
     Writer<Key, Value, UpdateTag>::operator=(std::move(writer));
     return *this;
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-MultiKeyWriter<Key, Value, UpdateTag>::add(const Key& key, const Value& value)
+MultiKeyWriter<Key, Value, UpdateTag>::add(const Key& key, const Value& value) noexcept
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(SampleEvent::Add, value));
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const Value& value)
+MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const Value& value) noexcept
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(SampleEvent::Update, value));
@@ -1763,7 +1771,7 @@ MultiKeyWriter<Key, Value, UpdateTag>::update(const Key& key, const Value& value
 
 template<typename Key, typename Value, typename UpdateTag>
 template<typename UpdateValue> std::function<void(const Key&, const UpdateValue&)>
-MultiKeyWriter<Key, Value, UpdateTag>::partialUpdate(const UpdateTag& tag)
+MultiKeyWriter<Key, Value, UpdateTag>::partialUpdate(const UpdateTag& tag) noexcept
 {
     auto impl = Writer<Key, Value, UpdateTag>::_impl;
     auto updateTag = _tagFactory->create(tag);
@@ -1776,7 +1784,7 @@ MultiKeyWriter<Key, Value, UpdateTag>::partialUpdate(const UpdateTag& tag)
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-MultiKeyWriter<Key, Value, UpdateTag>::remove(const Key& key)
+MultiKeyWriter<Key, Value, UpdateTag>::remove(const Key& key) noexcept
 {
     Writer<Key, Value, UpdateTag>::_impl->publish(_keyFactory->create(key),
         std::make_shared<DataStormI::SampleT<Key, Value, UpdateTag>>(SampleEvent::Remove));
@@ -1818,7 +1826,7 @@ private:
 
 /** @private */
 template<typename Value> std::function<std::function<bool (const Value&)> (const std::string&)>
-makeRegexFilter()
+makeRegexFilter() noexcept
 {
     return [](const std::string& criteria)
     {
@@ -1845,7 +1853,7 @@ makeRegexFilter()
 /** @private */
 template<typename Key, typename Value, typename UpdateTag>
 std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)> (const std::vector<SampleEvent>&)>
-makeSampleEventFilter(const Topic<Key, Value, UpdateTag>& topic)
+makeSampleEventFilter(const Topic<Key, Value, UpdateTag>& topic) noexcept
 {
     return [](const std::vector<SampleEvent>& criteria)
     {
@@ -1881,7 +1889,7 @@ struct RegexFilter<T, V, typename std::enable_if<DataStormI::is_streamable<V>::v
 // Topic template implementation
 //
 template<typename Key, typename Value, typename UpdateTag>
-Topic<Key, Value, UpdateTag>::Topic(const Node& node, const std::string& name) :
+Topic<Key, Value, UpdateTag>::Topic(const Node& node, const std::string& name) noexcept :
     _name(name),
     _topicFactory(node._factory),
     _keyFactory(DataStormI::KeyFactoryT<Key>::createFactory()),
@@ -1895,7 +1903,7 @@ Topic<Key, Value, UpdateTag>::Topic(const Node& node, const std::string& name) :
 }
 
 template<typename Key, typename Value, typename UpdateTag>
-Topic<Key, Value, UpdateTag>::Topic(Topic<Key, Value, UpdateTag>&& topic) :
+Topic<Key, Value, UpdateTag>::Topic(Topic<Key, Value, UpdateTag>&& topic) noexcept :
     _name(std::move(topic._name)),
     _topicFactory(std::move(topic._topicFactory)),
     _keyFactory(std::move(topic._keyFactory)),
@@ -1923,7 +1931,7 @@ Topic<Key, Value, UpdateTag>::~Topic()
 }
 
 template<typename Key, typename Value, typename UpdateTag> Topic<Key, Value, UpdateTag>&
-Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic)
+Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic) noexcept
 {
     _name = std::move(topic._name);
     _topicFactory = std::move(topic._topicFactory);
@@ -1938,55 +1946,55 @@ Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic)
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
-Topic<Key, Value, UpdateTag>::hasWriters() const
+Topic<Key, Value, UpdateTag>::hasWriters() const noexcept
 {
     return getReader()->hasWriters();
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const
+Topic<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const noexcept
 {
     getReader()->waitForWriters(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForNoWriters() const
+Topic<Key, Value, UpdateTag>::waitForNoWriters() const noexcept
 {
     getReader()->waitForWriters(-1);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::setReaderDefaultConfig(const ReaderConfig& config)
+Topic<Key, Value, UpdateTag>::setReaderDefaultConfig(const ReaderConfig& config) noexcept
 {
     getReader()->setDefaultConfig(config);
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
-Topic<Key, Value, UpdateTag>::hasReaders() const
+Topic<Key, Value, UpdateTag>::hasReaders() const noexcept
 {
     return getWriter()->hasReaders();
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const
+Topic<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const noexcept
 {
     getWriter()->waitForReaders(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForNoReaders() const
+Topic<Key, Value, UpdateTag>::waitForNoReaders() const noexcept
 {
     getWriter()->waitForReaders(-1);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::setWriterDefaultConfig(const WriterConfig& config)
+Topic<Key, Value, UpdateTag>::setWriterDefaultConfig(const WriterConfig& config) noexcept
 {
     getWriter()->setDefaultConfig(config);
 }
 
 template<typename Key, typename Value, typename UpdateTag> template<typename UpdateValue> void
-Topic<Key, Value, UpdateTag>::setUpdater(const UpdateTag& tag, std::function<void (Value&, UpdateValue)> updater)
+Topic<Key, Value, UpdateTag>::setUpdater(const UpdateTag& tag, std::function<void (Value&, UpdateValue)> updater) noexcept
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto tagI = _tagFactory->create(std::move(tag));
@@ -2027,7 +2035,7 @@ Topic<Key, Value, UpdateTag>::setUpdater(const UpdateTag& tag, std::function<voi
 
 template<typename Key, typename Value, typename UpdateTag> template<typename Criteria> void
 Topic<Key, Value, UpdateTag>::setKeyFilter(const std::string& name,
-    std::function<std::function<bool (const Key&)>(const Criteria&)> factory)
+    std::function<std::function<bool (const Key&)>(const Criteria&)> factory) noexcept
 {
     std::lock_guard<std::mutex> lock(_mutex);
     _keyFilterFactories->set(name, factory);
@@ -2035,14 +2043,14 @@ Topic<Key, Value, UpdateTag>::setKeyFilter(const std::string& name,
 
 template<typename Key, typename Value, typename UpdateTag> template<typename Criteria> void
 Topic<Key, Value, UpdateTag>::setSampleFilter(const std::string& name,
-    std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)>(const Criteria&)> factory)
+    std::function<std::function<bool (const Sample<Key, Value, UpdateTag>&)>(const Criteria&)> factory) noexcept
 {
     std::lock_guard<std::mutex> lock(_mutex);
     _sampleFilterFactories->set(name, factory);
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::shared_ptr<DataStormI::TopicReader>
-Topic<Key, Value, UpdateTag>::getReader() const
+Topic<Key, Value, UpdateTag>::getReader() const noexcept
 {
     std::lock_guard<std::mutex> lock(_mutex);
     if(!_reader)
@@ -2057,7 +2065,7 @@ Topic<Key, Value, UpdateTag>::getReader() const
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::shared_ptr<DataStormI::TopicWriter>
-Topic<Key, Value, UpdateTag>::getWriter() const
+Topic<Key, Value, UpdateTag>::getWriter() const noexcept
 {
     std::lock_guard<std::mutex> lock(_mutex);
     if(!_writer)
@@ -2071,7 +2079,7 @@ Topic<Key, Value, UpdateTag>::getWriter() const
 }
 
 template<typename Key, typename Value, typename UpdateTag> std::shared_ptr<Ice::Communicator>
-Topic<Key, Value, UpdateTag>::getCommunicator() const
+Topic<Key, Value, UpdateTag>::getCommunicator() const noexcept
 {
     return _topicFactory->getCommunicator();
 }

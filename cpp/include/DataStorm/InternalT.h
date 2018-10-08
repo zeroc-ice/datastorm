@@ -611,7 +611,7 @@ public:
         auto factory = dynamic_cast<FactoryT<Criteria>*>(p->second.get());
         if(!factory)
         {
-            throw std::invalid_argument("filter `" + name + "'");
+            throw std::invalid_argument("filter `" + name + "' type doesn't match");
         }
 
         return factory->create(criteria);

@@ -18,6 +18,7 @@
 #   include <signal.h>
 #else
 #   include <IceUtil/Cond.h>
+#   include <IceUtil/MutexPtrLock.h>
 #endif
 
 using namespace std;
@@ -92,7 +93,7 @@ CtrlCHandler::getCallback() const
 namespace
 {
 
-IceUtil::Cond* globalCond = 0;
+IceUtil::Cond globalCond;
 int inProgress = 0;
 
 }
@@ -101,25 +102,28 @@ static BOOL WINAPI handlerRoutine(DWORD dwCtrlType)
 {
     CtrlCHandlerCallback callback;
     {
-        IceUtil::Mutex::Lock lock(*globalMutex);
+        //
+        // Although unlikely, to be on the safe side we use a PtrLock in case this is somehow
+        // called after static destruction.
+        //
+        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
         if(!_handler) // The handler is destroyed.
         {
             return FALSE;
         }
+        if(!_callback) // No callback set.
+        {
+            return TRUE;
+        }
         callback = _callback;
         ++inProgress;
     }
-    if(callback)
-    {
-        callback(dwCtrlType);
-    }
+    assert(callback);
+    callback(dwCtrlType);
     {
         IceUtil::Mutex::Lock lock(*globalMutex);
         --inProgress;
-        if(globalCond)
-        {
-            globalCond->signal();
-        }
+        globalCond.signal();
     }
     return TRUE;
 }
@@ -158,13 +162,10 @@ CtrlCHandler::~CtrlCHandler()
         _callback = ICE_NULLPTR;
         if(inProgress > 0)
         {
-            globalCond = new IceUtil::Cond();
             while(inProgress > 0)
             {
-                globalCond->wait(lock);
+                globalCond.wait(lock);
             }
-            delete globalCond;
-            globalCond = 0;
         }
     }
 }

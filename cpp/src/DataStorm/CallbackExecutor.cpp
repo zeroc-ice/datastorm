@@ -31,7 +31,14 @@ CallbackExecutor::CallbackExecutor() : _flush(false), _destroyed(false)
             lock.unlock();
             for(const auto& p : queue)
             {
-                p.second();
+                try
+                {
+                    p.second();
+                }
+                catch(...)
+                {
+                    std::terminate();
+                }
             }
             queue.clear();
         }

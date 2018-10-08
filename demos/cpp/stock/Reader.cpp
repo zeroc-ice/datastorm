@@ -146,9 +146,9 @@ main(int argc, char* argv[])
         }, displaySample);
 
         //
-        // Exit once no more writers are online.
+        // Exit once the user hits Ctrl-C to shutdown the node.
         //
-        reader->waitForNoWriters();
+        node.waitForShutdown();
     }
     catch(const std::exception& ex)
     {

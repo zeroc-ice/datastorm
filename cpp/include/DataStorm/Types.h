@@ -79,7 +79,7 @@ public:
      */
     Config(Ice::optional<int> sampleCount = Ice::nullopt,
            Ice::optional<int> sampleLifetime = Ice::nullopt,
-           Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt) :
+           Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt) noexcept :
         sampleCount(std::move(sampleCount)),
         sampleLifetime(std::move(sampleLifetime)),
         clearHistory(std::move(clearHistory))
@@ -134,7 +134,7 @@ public:
     ReaderConfig(Ice::optional<int> sampleCount = Ice::nullopt,
                  Ice::optional<int> sampleLifetime = Ice::nullopt,
                  Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt,
-                 Ice::optional<DiscardPolicy> discardPolicy = Ice::nullopt) :
+                 Ice::optional<DiscardPolicy> discardPolicy = Ice::nullopt) noexcept :
         Config(std::move(sampleCount), std::move(sampleLifetime), std::move(clearHistory)),
         discardPolicy(std::move(discardPolicy))
     {
@@ -171,7 +171,7 @@ public:
     WriterConfig(Ice::optional<int> sampleCount = Ice::nullopt,
                  Ice::optional<int> sampleLifetime  = Ice::nullopt,
                  Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt,
-                 Ice::optional<int> priority = Ice::nullopt) :
+                 Ice::optional<int> priority = Ice::nullopt) noexcept :
         Config(std::move(sampleCount), std::move(sampleLifetime), std::move(clearHistory)),
         priority(std::move(priority))
     {
@@ -217,7 +217,8 @@ struct Encoder
      * @param value The value to encode
      * @return The resulting byte sequence
      */
-    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value);
+    static std::vector<unsigned char>
+    encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value) noexcept;
 };
 
 /**
@@ -241,7 +242,8 @@ struct Decoder
      * @param value The byte sequence to decode
      * @return The resulting value
      */
-    static T decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value);
+    static T
+    decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value) noexcept;
 };
 
 /**
@@ -261,7 +263,7 @@ struct Cloner
      * @param value The value to encode
      * @return The cloned value
      */
-    static T clone(const T& value)
+    static T clone(const T& value) noexcept
     {
         return value;
     }
@@ -273,7 +275,8 @@ struct Cloner
 template<typename T>
 struct Encoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
 {
-    static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
+    static std::vector<unsigned char>
+    encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value) noexcept
     {
         return Encoder<std::shared_ptr<T>>::encode(communicator, std::make_shared<T>(value));
     }
@@ -285,7 +288,8 @@ struct Encoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::valu
 template<typename T>
 struct Decoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
 {
-    static T decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data)
+    static T
+    decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) noexcept
     {
         return *Decoder<std::shared_ptr<T>>::decode(communicator, data);
     }
@@ -297,7 +301,8 @@ struct Decoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::valu
 template<typename T>
 struct Cloner<std::shared_ptr<T>, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
 {
-    static std::shared_ptr<T> clone(const std::shared_ptr<T>& value)
+    static
+    std::shared_ptr<T> clone(const std::shared_ptr<T>& value) noexcept
     {
         return value->ice_clone();
     }
@@ -307,7 +312,7 @@ struct Cloner<std::shared_ptr<T>, typename std::enable_if<std::is_base_of<::Ice:
  * Encoder template implementation
  */
 template<typename T, typename E> std::vector<unsigned char>
-Encoder<T, E>::encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
+Encoder<T, E>::encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value) noexcept
 {
     std::vector<unsigned char> v;
     Ice::OutputStream stream(communicator);
@@ -320,7 +325,8 @@ Encoder<T, E>::encode(const std::shared_ptr<Ice::Communicator>& communicator, co
  * Decoder template implementation
  */
 template<typename T, typename E> T
-Decoder<T, E>::decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& value)
+Decoder<T, E>::decode(const std::shared_ptr<Ice::Communicator>& communicator,
+                      const std::vector<unsigned char>& value) noexcept
 {
     T v;
     if(value.empty())

@@ -100,6 +100,7 @@ public:
 
     void shutdown();
     bool isShutdown() const;
+    void waitForShutdown() const;
 
     void destroy(bool);
 
@@ -118,6 +119,7 @@ private:
     std::shared_ptr<CallbackExecutor> _executor;
 
     mutable std::mutex _mutex;
+    mutable std::condition_variable _cond;
     bool _shutdown;
 };
 

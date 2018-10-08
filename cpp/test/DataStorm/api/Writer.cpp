@@ -187,18 +187,26 @@ main(int argc, char* argv[])
         auto skr = makeSingleKeyReader(topic, "key");
         skr = makeSingleKeyReader(topic, "key", "", ReaderConfig());
         testReader(skr);
+        auto skrsf = makeSingleKeyReader(topic, "key", Filter<string>("_regex", ".*"));
+        skrsf = makeSingleKeyReader(topic, "key", Filter<string>("_regex", ".*"), "", ReaderConfig());
 
         auto mkr = makeMultiKeyReader(topic, { "key" });
         mkr = makeMultiKeyReader(topic, { "key" }, "", ReaderConfig());
         testReader(mkr);
+        auto mkrsf = makeMultiKeyReader(topic, { "key" }, Filter<string>("_regex", ".*"));
+        mkrsf = makeMultiKeyReader(topic, { "key" }, Filter<string>("_regex", ".*"), "", ReaderConfig());
 
         auto akr = makeAnyKeyReader(topic);
         akr = makeAnyKeyReader(topic, "", ReaderConfig());
         testReader(akr);
+        auto akrsf = makeAnyKeyReader(topic, Filter<string>("_regex", ".*"));
+        akrsf = makeAnyKeyReader(topic, Filter<string>("_regex", ".*"), "", ReaderConfig());
 
         auto fr = makeFilteredKeyReader(topic, Filter<string>(string("_regex"), string(".*")));
         fr = makeFilteredKeyReader(topic, Filter<string>("_regex", ".*"), "", ReaderConfig());
         testReader(fr);
+        auto frsf = makeFilteredKeyReader(topic, Filter<string>("_regex", ".*"), Filter<string>("_regex", ".*"));
+        frsf = makeFilteredKeyReader(topic, Filter<string>("_regex", ".*"), Filter<string>("_regex", ".*"), "", ReaderConfig());
 
         auto skrs = make_shared<SingleKeyReader<string, string>>(topic, "key");
         skrs = make_shared<SingleKeyReader<string, string>>(topic, "key", "", ReaderConfig());
@@ -211,6 +219,27 @@ main(int argc, char* argv[])
 
         auto frs = make_shared<FilteredKeyReader<string, string>>(topic, Filter<string>("_regex", ".*"));
         frs = make_shared<FilteredKeyReader<string, string>>(topic, Filter<string>("_regex", ".*"), "", ReaderConfig());
+
+        try
+        {
+            makeFilteredKeyReader(topic, Filter<string>("unknown", ""));
+            test(false);
+        }
+        catch(const std::invalid_argument&)
+        {
+        }
+
+        try
+        {
+            makeFilteredKeyReader(topic, Filter<string>("_regex", "("));
+            test(false);
+        }
+        catch(const std::invalid_argument&)
+        {
+        }
+        catch(const std::regex_error&)
+        {
+        }
     }
     cout << "ok" << endl;
 

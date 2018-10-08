@@ -70,6 +70,7 @@ Instance::shutdown()
 {
     unique_lock<mutex> lock(_mutex);
     _shutdown = true;
+    _cond.notify_all();
     _topicFactory->shutdown();
 }
 
@@ -78,6 +79,13 @@ Instance::isShutdown() const
 {
     unique_lock<mutex> lock(_mutex);
     return _shutdown;
+}
+
+void
+Instance::waitForShutdown() const
+{
+    unique_lock<mutex> lock(_mutex);
+    _cond.wait(lock, [&]() { return _shutdown; }); // Wait until shutdown is called
 }
 
 void

@@ -32,7 +32,7 @@ public:
      * @param communicator The Ice communicator used by the topic factory for
      *                     its configuration and communications.
      */
-    Node(std::shared_ptr<Ice::Communicator> communicator);
+    Node(std::shared_ptr<Ice::Communicator> communicator) noexcept;
 
     /**
      * Construct a DataStorm node.
@@ -136,7 +136,7 @@ public:
      *
      * @param node The node to transfer ownership from.
      */
-    Node(Node&& node);
+    Node(Node&& node) noexcept;
 
     /**
      * Node destructor. The node destruction releases associated resources.
@@ -148,26 +148,31 @@ public:
      * Shutdown the node. The shutdown interrupts calls which are waiting for
      * events, writers or readers.
      **/
-    void shutdown();
+    void shutdown() noexcept;
 
     /**
      * Return whether or not the node shutdown has been initiated.
      *
      * @return True if the node is shutdown, false otherwise.
      */
-    bool isShutdown();
+    bool isShutdown() const noexcept;
+
+    /**
+     * Wait for shutdown to be called.
+     */
+    void waitForShutdown() const noexcept;
 
     /**
      * Move assignement operator.
      *
      * @param node The node.
      **/
-    Node& operator=(Node&& node);
+    Node& operator=(Node&& node) noexcept;
 
     /**
      * Returns the Ice communicator associated with the node.
      */
-    std::shared_ptr<Ice::Communicator> getCommunicator() const;
+    std::shared_ptr<Ice::Communicator> getCommunicator() const noexcept;
 
     /**
      * Returns the Ice connection associated with a session given a session
@@ -178,7 +183,7 @@ public:
      * @return The connection associated with the given session
      * @see DataStorm::Sample::ElementId DataStorm::Sample::getSession
      */
-    std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const;
+    std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const noexcept;
 
 private:
 
@@ -191,7 +196,7 @@ private:
         init(communicator);
     }
 
-    void init(const std::shared_ptr<Ice::Communicator>&);
+    void init(const std::shared_ptr<Ice::Communicator>&) noexcept;
 
     std::shared_ptr<DataStormI::Instance> _instance;
     std::shared_ptr<DataStormI::TopicFactory> _factory;

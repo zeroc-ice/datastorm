@@ -53,7 +53,7 @@ typedef void (*CtrlCHandlerCallback)(int sig);
  * on Unix/POSIX it does not restore the old signal mask in any
  * thread, so SIGHUP, SIGINT and SIGTERM remain blocked.
  *
- * \headerfile IceUtil/CtrlCHandler.h
+ * \headerfile DataStorm/CtrlCHandler.h
  */
 //
 // TODO: Maybe the behavior on Windows should be the same? Now we
@@ -92,7 +92,7 @@ public:
 /**
  * Raised by CtrlCHandler.
  *
- * \headerfile IceUtil/CtrlCHandler.h
+ * \headerfile DataStorm/CtrlCHandler.h
  */
 class DATASTORM_API CtrlCHandlerException : public IceUtil::ExceptionHelper<CtrlCHandlerException>
 {
