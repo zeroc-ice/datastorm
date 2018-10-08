@@ -1,9 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
-//
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
+// Copyright (c) 2018-present ZeroC, Inc. All rights reserved.
 //
 // **********************************************************************
 
@@ -11,101 +8,71 @@
 #define DATASTORM_CTRL_C_HANDLER_H
 
 #include <DataStorm/Config.h>
-
-#include <IceUtil/Config.h>
-#include <IceUtil/Exception.h>
+#include <functional>
 
 namespace DataStorm
 {
 
 /**
  * Invoked when a signal occurs. The callback must not raise exceptions.
- * On Unix/POSIX, the callback is NOT a signal handler and can call
+ * On Linux and macOS, the callback is NOT a signal handler and can call
  * functions that are not async-signal safe.
  * @param sig The signal number that occurred.
  */
-#ifdef ICE_CPP11_MAPPING
 using CtrlCHandlerCallback = std::function<void(int sig)>;
-#else
-typedef void (*CtrlCHandlerCallback)(int sig);
-#endif
 
 /**
- * Provides a portable way to handle CTRL+C and CTRL+C like signals.
- * On Unix/POSIX, the CtrlCHandler handles SIGHUP, SIGINT and SIGTERM.
+ * Provides a portable way to handle Ctrl-C and Ctrl-C like signals.
+ * On Linux and macOS, the CtrlCHandler handles SIGHUP, SIGINT and SIGTERM.
  * On Windows, it is essentially a wrapper for SetConsoleCtrlHandler().
- *
- * In a process, only one CtrlCHandler can exist at a given time:
- * the CtrlCHandler constructor raises CtrlCHandlerException if
- * you attempt to create a second CtrlCHandler.
- * On Unix/POSIX, it is essential to create the CtrlCHandler before
- * creating any thread, as the CtrlCHandler constructor masks (blocks)
- * SIGHUP, SIGINT and SIGTERM; by default, threads created later will
- * inherit this signal mask.
- *
- * When a CTRL+C or CTRL+C like signal is sent to the process, the
- * user-registered callback is called in a separate thread; it is
- * given the signal number. The callback must not raise exceptions.
- * On Unix/POSIX, the callback is NOT a signal handler and can call
- * functions that are not async-signal safe.
- *
- * The CtrCHandler destructor "unregisters" the callback. However
- * on Unix/POSIX it does not restore the old signal mask in any
- * thread, so SIGHUP, SIGINT and SIGTERM remain blocked.
  *
  * \headerfile DataStorm/CtrlCHandler.h
  */
-//
-// TODO: Maybe the behavior on Windows should be the same? Now we
-// just restore the default behavior (TerminateProcess).
-//
 class DATASTORM_API CtrlCHandler
 {
 public:
 
     /**
-     * On Unix/POSIX, mask SIGHUP, SIGINT and SIGTERM signals.
+     * Linux and macOS: mask the SIGHUP, SIGINT and SIGTERM signals. It is
+     * essential to call maskSignals before creating any thread. Threads
+     * created later on will inherit this signal mask.
+     * Windows: call SetConsoleCtrlCHandler to register a handler routine that
+     * ignores signals.
      */
-    static void maskSignals() ICE_NOEXCEPT;
+    static void maskSignals() noexcept;
 
     /**
-     * Initializes the relevant signals.
-     * @param cb The signal callback.
+     * Register a function that handles Ctrl-C like signals.
+     * This constructor first calls maskSignals if it was not already called.
+     * On Linux and macOS, it creates a thread that waits on SIGHUP, SIGINT and
+     * SIGTERM using sigwait.
+     * Only a single CtrlCHandler object can exist in a process at a give time.
+     *
+     * @param cb The callback function to invoke when a signal is received.
      */
-    explicit CtrlCHandler(CtrlCHandlerCallback cb = ICE_NULLPTR);
+    explicit CtrlCHandler(CtrlCHandlerCallback cb = nullptr);
+
+    /**
+     * Unregister the callback function.
+     * This destructor does not "unmask" SIGHUP, SIGINT and SIGTERM or
+     * unregister the handler routine on Windows. As a result, Ctrl-C and
+     * similar signals are just ignored after this destructor completes.
+     */
     ~CtrlCHandler();
 
     /**
-     * Replaces the signal callback.
+     * Replace the signal callback.
      * @param cb The new callback.
-     * @return The old callback, or nil if no callback is currently set.
+     * @return The old callback
      */
     CtrlCHandlerCallback setCallback(CtrlCHandlerCallback cb);
 
     /**
-     * Obtains the signal callback.
-     * @return The callback, or nil if no callback is currently set.
+     * Obtain the signal callback.
+     * @return The callback
      */
     CtrlCHandlerCallback getCallback() const;
 };
-
-/**
- * Raised by CtrlCHandler.
- *
- * \headerfile DataStorm/CtrlCHandler.h
- */
-class DATASTORM_API CtrlCHandlerException : public IceUtil::ExceptionHelper<CtrlCHandlerException>
-{
-public:
-
-    CtrlCHandlerException(const char*, int);
-    virtual std::string ice_id() const;
-
-#ifndef ICE_CPP11_MAPPING
-    virtual CtrlCHandlerException* ice_clone() const;
-#endif
-};
-
 }
 
 #endif

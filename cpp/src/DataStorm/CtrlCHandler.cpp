@@ -1,81 +1,36 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
-//
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
+// Copyright (c) 2018-present ZeroC, Inc. All rights reserved.
 //
 // **********************************************************************
 
-#ifdef __sun
-#    define _POSIX_PTHREAD_SEMANTICS
-#endif
-
 #include <DataStorm/CtrlCHandler.h>
-#include <IceUtil/Mutex.h>
+#include <mutex>
+#include <cassert>
 
-#ifndef _WIN32
-#   include <signal.h>
+#ifdef _WIN32
+#   include <condition_variable>
+#   include <windows.h>
 #else
-#   include <IceUtil/Cond.h>
-#   include <IceUtil/MutexPtrLock.h>
+#   include <signal.h>
 #endif
 
-using namespace std;
 using namespace DataStorm;
 
 namespace
 {
 
-CtrlCHandlerCallback _callback = ICE_NULLPTR;
-
-const CtrlCHandler* _handler = 0;
-
-IceUtil::Mutex* globalMutex = 0;
-
-class Init
-{
-public:
-
-    Init()
-    {
-        globalMutex = new IceUtil::Mutex;
-    }
-
-    ~Init()
-    {
-        delete globalMutex;
-        globalMutex = 0;
-    }
-};
-
-Init init;
+std::mutex _mutex;
+CtrlCHandlerCallback _callback;
+CtrlCHandler* _handler = nullptr;
+bool _signalsMasked = false;
 
 }
-
-CtrlCHandlerException::CtrlCHandlerException(const char* file, int line) :
-    ExceptionHelper<CtrlCHandlerException>(file, line)
-{
-}
-
-string
-CtrlCHandlerException::ice_id() const
-{
-    return "::IceUtil::CtrlCHandlerException";
-}
-
-#ifndef ICE_CPP11_MAPPING
-CtrlCHandlerException*
-CtrlCHandlerException::ice_clone() const
-{
-    return new CtrlCHandlerException(*this);
-}
-#endif
 
 CtrlCHandlerCallback
 CtrlCHandler::setCallback(CtrlCHandlerCallback callback)
 {
-    IceUtil::Mutex::Lock lock(*globalMutex);
+    std::lock_guard<std::mutex> lg(_mutex);
     CtrlCHandlerCallback oldCallback = _callback;
     _callback = callback;
     return oldCallback;
@@ -84,7 +39,7 @@ CtrlCHandler::setCallback(CtrlCHandlerCallback callback)
 CtrlCHandlerCallback
 CtrlCHandler::getCallback() const
 {
-    IceUtil::Mutex::Lock lock(*globalMutex);
+    std::lock_guard<std::mutex> lg(_mutex);
     return _callback;
 }
 
@@ -93,8 +48,8 @@ CtrlCHandler::getCallback() const
 namespace
 {
 
-IceUtil::Cond globalCond;
-int inProgress = 0;
+int _inProgress = 0;
+std::condition_variable* _cond = nullptr;
 
 }
 
@@ -102,71 +57,62 @@ static BOOL WINAPI handlerRoutine(DWORD dwCtrlType)
 {
     CtrlCHandlerCallback callback;
     {
-        //
-        // Although unlikely, to be on the safe side we use a PtrLock in case this is somehow
-        // called after static destruction.
-        //
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
-        if(!_handler) // The handler is destroyed.
-        {
-            return FALSE;
-        }
+        std::lock_guard<std::mutex> lg(_mutex);
         if(!_callback) // No callback set.
         {
             return TRUE;
         }
         callback = _callback;
-        ++inProgress;
+        ++_inProgress;
     }
     assert(callback);
     callback(dwCtrlType);
     {
-        IceUtil::Mutex::Lock lock(*globalMutex);
-        --inProgress;
-        globalCond.signal();
+        std::lock_guard<std::mutex> lg(_mutex);
+        --_inProgress;
+        if(_inProgress == 0 && _cond)
+        {
+            _cond->notify_one();
+        }
     }
     return TRUE;
 }
 
 void
-CtrlCHandler::maskSignals() ICE_NOEXCEPT
+CtrlCHandler::maskSignals() noexcept
 {
-    // Nothinkg to do
+    std::lock_guard<std::mutex> lg(_mutex);
+    if(!_signalsMasked)
+    {
+        SetConsoleCtrlHandler(handlerRoutine, TRUE);
+        _signalsMasked = true;
+    }
 }
 
 CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
 {
-    IceUtil::Mutex::Lock lock(*globalMutex);
-    bool handler = _handler != 0;
+    maskSignals();
 
-    if(handler)
+    std::lock_guard<std::mutex> lg(_mutex);
+    if(_handler)
     {
-        throw CtrlCHandlerException(__FILE__, __LINE__);
+        throw std::logic_error("you cannot create more than one CtrlCHandler at a time");
     }
-    else
-    {
-        _callback = callback;
-        _handler = this;
-        lock.release();
 
-        SetConsoleCtrlHandler(handlerRoutine, TRUE);
-    }
+    _callback = callback;
+    _handler = this;
 }
 
 CtrlCHandler::~CtrlCHandler()
 {
-    SetConsoleCtrlHandler(handlerRoutine, FALSE);
+    std::unique_lock<std::mutex> lk(_mutex);
+    _handler = nullptr;
+    _callback = nullptr;
+    if(_inProgress > 0)
     {
-        IceUtil::Mutex::Lock lock(*globalMutex);
-        _handler = 0;
-        _callback = ICE_NULLPTR;
-        if(inProgress > 0)
-        {
-            while(inProgress > 0)
-            {
-                globalCond.wait(lock);
-            }
-        }
+        std::condition_variable cond;
+        _cond = &cond;
+        cond.wait(lk, []{ return _inProgress == 0; });
     }
 }
 
@@ -185,7 +131,7 @@ sigwaitThread(void*)
     sigaddset(&ctrlCLikeSignals, SIGTERM);
 
     //
-    // Run until the handler is destroyed (_handler == 0)
+    // Run until the handler is destroyed (_handler == nullptr)
     //
     for(;;)
     {
@@ -203,10 +149,10 @@ sigwaitThread(void*)
 
         CtrlCHandlerCallback callback;
         {
-            IceUtil::Mutex::Lock lock(*globalMutex);
+            std::lock_guard<std::mutex> lg(_mutex);
             if(!_handler) // The handler is destroyed.
             {
-                return 0;
+                break;
             }
             callback = _callback;
         }
@@ -225,14 +171,14 @@ namespace
 {
 
 pthread_t _tid;
-bool maskedSignals = false;
 
 }
 
 void
-CtrlCHandler::maskSignals() ICE_NOEXCEPT
+CtrlCHandler::maskSignals() noexcept
 {
-    if(!maskedSignals)
+    std::lock_guard<std::mutex> lg(_mutex);
+    if(!_signalsMasked)
     {
         //
         // We block these CTRL+C like signals in the main thread, and by default all other
@@ -250,25 +196,23 @@ CtrlCHandler::maskSignals() ICE_NOEXCEPT
 #else
         pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
 #endif
-        maskedSignals = true;
+        _signalsMasked = true;
     }
 }
 
 CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
 {
-    maskSignals(); // Mask signals
+    maskSignals();
 
-    IceUtil::Mutex::Lock lock(*globalMutex);
-    if(_handler != 0)
     {
-        throw CtrlCHandlerException(__FILE__, __LINE__);
-    }
-    else
-    {
+        std::lock_guard<std::mutex> lg(_mutex);
+        if(_handler)
+        {
+            throw std::logic_error("you cannot create more than one CtrlCHandler at a time");
+        }
         _callback = callback;
         _handler = this;
-
-        lock.release();
+    }
 
         // Joinable thread
 #ifndef NDEBUG
@@ -286,15 +230,15 @@ CtrlCHandler::~CtrlCHandler()
     // Clear the handler, the sigwaitThread will exit if _handler is null
     //
     {
-        IceUtil::Mutex::Lock lock(*globalMutex);
-        _handler = 0;
-        _callback = ICE_NULLPTR;
+        std::lock_guard<std::mutex> lg(_mutex);
+        _handler = nullptr;
+        _callback = nullptr;
     }
 
     //
     // Signal the sigwaitThread and join it.
     //
-    void* status = 0;
+    void* status = nullptr;
 #ifndef NDEBUG
     int rc = pthread_kill(_tid, SIGTERM);
     assert(rc == 0);
