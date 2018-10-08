@@ -58,7 +58,7 @@ static BOOL WINAPI handlerRoutine(DWORD dwCtrlType)
     CtrlCHandlerCallback callback;
     {
         std::lock_guard<std::mutex> lg(_mutex);
-        if(!_callback) // No callback set.
+        if(!_callback) // No callback set
         {
             return TRUE;
         }
@@ -214,14 +214,13 @@ CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
         _handler = this;
     }
 
-        // Joinable thread
+    // Joinable thread
 #ifndef NDEBUG
-        int rc = pthread_create(&_tid, 0, sigwaitThread, 0);
-        assert(rc == 0);
+    int rc = pthread_create(&_tid, 0, sigwaitThread, 0);
+    assert(rc == 0);
 #else
-        pthread_create(&_tid, 0, sigwaitThread, 0);
+    pthread_create(&_tid, 0, sigwaitThread, 0);
 #endif
-    }
 }
 
 CtrlCHandler::~CtrlCHandler()
