@@ -27,7 +27,7 @@ source is usually unnecessary.
 DataStorm was extensively tested using the operating systems and compiler
 versions listed on [supported platforms][2].
 
-### Third-Party Libraries
+### Dependencies
 
 DataStorm depends on the Ice for C++11 library. ZeroC supplies Ice binary
 packages for all the platforms supported by DataStorm.
@@ -152,7 +152,7 @@ library directory to your `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH (macOS
 
 On a Linux x86_64 system:
 ```
-<prefix>/lib64                 (RHEL, SLES, Amazon)
+<prefix>/lib64                 (RHEL, Amazon)
 <prefix>/lib/x86_64-linux-gnu  (Ubuntu)
 ```
 
@@ -165,9 +165,11 @@ When compiling DataStorm programs, you must pass the location of the
 `<prefix>/include` directory to the compiler with the `-I` option, and the
 location of the library directory with the `-L` option.
 
-You must also define the `ICE_CPP11_MAPPING` macro during compilation with the
-`-D` option (`c++ -DICE_CPP11_MAPPING`) and add the `-lDataStorm -lIce++11`
-options when linking.
+You must also add the `-lDataStorm -lIce++11` options when linking.
+
+If you are compiling Ice generated code, make sure to build it with the C++11
+mapping by defining the `ICE_CPP11_MAPPING` macro during compilation. You can
+set this macro with the `-D` option (`c++ -DICE_CPP11_MAPPING`).
 
 ## Creating a NuGet Package on Windows
 
@@ -212,6 +214,6 @@ python allTests.py --config Release
 If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
-[1]: https://zeroc.com/distributions/datastorm
-[2]: https://doc.zeroc.com/display/Rel/Supported+Platforms+for+DataStorm+0.1.0
+[1]: https://zeroc.com/downloads/datastorm
+[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-0-1
 [3]: https://doc.zeroc.com/ice/3.7/release-notes/using-the-linux-binary-distributions#id-.UsingtheLinuxBinaryDistributionsv3.7-InstallingtheLinuxDistributions
