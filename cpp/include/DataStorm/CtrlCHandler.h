@@ -65,13 +65,13 @@ public:
      * @param cb The new callback.
      * @return The old callback
      */
-    CtrlCHandlerCallback setCallback(CtrlCHandlerCallback cb);
+    CtrlCHandlerCallback setCallback(CtrlCHandlerCallback cb) noexcept;
 
     /**
      * Obtain the signal callback.
      * @return The callback
      */
-    CtrlCHandlerCallback getCallback() const;
+    CtrlCHandlerCallback getCallback() const noexcept;
 };
 }
 

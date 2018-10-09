@@ -28,7 +28,7 @@ bool _signalsMasked = false;
 }
 
 CtrlCHandlerCallback
-CtrlCHandler::setCallback(CtrlCHandlerCallback callback)
+CtrlCHandler::setCallback(CtrlCHandlerCallback callback) noexcept
 {
     std::lock_guard<std::mutex> lg(_mutex);
     CtrlCHandlerCallback oldCallback = _callback;
@@ -37,7 +37,7 @@ CtrlCHandler::setCallback(CtrlCHandlerCallback callback)
 }
 
 CtrlCHandlerCallback
-CtrlCHandler::getCallback() const
+CtrlCHandler::getCallback() const noexcept
 {
     std::lock_guard<std::mutex> lg(_mutex);
     return _callback;
