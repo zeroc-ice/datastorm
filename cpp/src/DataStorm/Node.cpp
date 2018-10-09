@@ -14,6 +14,12 @@
 using namespace std;
 using namespace DataStorm;
 
+const char*
+NodeShutdownException::what() const noexcept
+{
+    return "::DataStorm::NodeShutdownException";
+}
+
 Node::Node(std::shared_ptr<Ice::Communicator> communicator) noexcept :
     _ownsCommunicator(false)
 {

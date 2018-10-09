@@ -100,6 +100,7 @@ public:
 
     void shutdown();
     bool isShutdown() const;
+    void checkShutdown() const;
     void waitForShutdown() const;
 
     void destroy(bool);

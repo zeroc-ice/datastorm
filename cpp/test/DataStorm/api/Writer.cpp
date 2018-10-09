@@ -58,6 +58,46 @@ main(int argc, char* argv[])
         }
 
         Node n5(argc, argv, Ice::InitializationData {});
+
+        {
+            Node node;
+            test(!node.isShutdown());
+            node.shutdown();
+            test(node.isShutdown());
+            node.waitForShutdown();
+
+            auto testException = [](function<void()> fn)
+            {
+                try
+                {
+                    fn();
+                    test(false);
+                }
+                catch(NodeShutdownException&)
+                {
+                }
+                catch(...)
+                {
+                    test(false);
+                }
+            };
+
+            Topic<int, string> t1(node, "t1");
+            testException([&t1]() { t1.waitForWriters(); });
+            testException([&t1]() { t1.waitForNoWriters(); });
+            testException([&t1]() { t1.waitForReaders(); });
+            testException([&t1]() { t1.waitForNoReaders(); });
+
+            auto writer = makeSingleKeyWriter(t1, 0);
+            testException([&writer] { writer.waitForReaders(); });
+            testException([&writer] { writer.waitForNoReaders(); });
+
+            auto reader = makeSingleKeyReader(t1, 0);
+            testException([&reader] { reader.waitForWriters(); });
+            testException([&reader] { reader.waitForNoWriters(); });
+            testException([&reader] { reader.waitForUnread(); });
+            testException([&reader] { reader.getNextUnread(); });
+        }
     }
     cout << "ok" << endl;
 

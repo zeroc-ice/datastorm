@@ -15,6 +15,19 @@ namespace DataStorm
 template<typename, typename, typename> class Topic;
 
 /**
+ * The exception NodeShutdownException. It's raised by methods which might block
+ * waiting for a condition to occur and after the node has been shutdown. It
+ * informs the application that the condition won't occur because the DataStorm
+ * node is being shutdown and will disconnect from other nodes.
+ */
+class DATASTORM_API NodeShutdownException : public std::exception
+{
+public:
+
+    virtual const char* what() const noexcept;
+};
+
+/**
  * The Node class allows creating topic readers and writers.
  *
  * A Node is the main DataStorm object which allows creating topic readers or writers.

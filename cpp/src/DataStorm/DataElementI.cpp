@@ -511,8 +511,9 @@ DataElementI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_parent->_mutex);
     ++_waiters;
-    while(!_parent->getInstance()->isShutdown())
+    while(true)
     {
+        _parent->getInstance()->checkShutdown();
         if(count < 0 && _listenerCount == 0)
         {
             --_waiters;
@@ -672,10 +673,7 @@ void
 DataReaderI::waitForUnread(unsigned int count) const
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    while(!_parent->getInstance()->isShutdown() && _samples.size() < count)
-    {
-        _parent->_cond.wait(lock);
-    }
+    _parent->_cond.wait(lock, [&]() { _parent->getInstance()->checkShutdown(); return _samples.size() >= count; });
 }
 
 bool
@@ -689,7 +687,7 @@ shared_ptr<Sample>
 DataReaderI::getNextUnread()
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _parent->_cond.wait(lock, [&]() { return !_samples.empty(); });
+    _parent->_cond.wait(lock, [&]() { _parent->getInstance()->checkShutdown(); return !_samples.empty(); });
     shared_ptr<Sample> sample = _samples.front();
     _samples.pop_front();
     return sample;

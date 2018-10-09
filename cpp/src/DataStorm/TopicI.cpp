@@ -687,8 +687,9 @@ TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
     ++_waiters;
-    while(!_instance->isShutdown())
+    while(true)
     {
+        _instance->checkShutdown();
         if(count < 0 && _listenerCount == 0)
         {
             --_waiters;

@@ -281,16 +281,18 @@ public:
     bool hasWriters() const noexcept;
 
     /**
-     * Wait for given number of data writers to be online.
+     * Wait for given number of data writers to be online. The node shutdown
+     * will cause this method to raise NodeShutdownException.
      *
      * @param count The number of date writers to wait.
      */
-    void waitForWriters(unsigned int count = 1) const noexcept;
+    void waitForWriters(unsigned int count = 1) const;
 
     /**
-     * Wait for data writers to be offline.
+     * Wait for data writers to be offline. The node shutdown will cause this
+     * method to raise NodeShutdownException.
      */
-    void waitForNoWriters() const noexcept;
+    void waitForNoWriters() const;
 
     /**
      * Set the default configuration used to construct readers.
@@ -307,16 +309,18 @@ public:
     bool hasReaders() const noexcept;
 
     /**
-     * Wait for given number of data readers to be online.
+     * Wait for given number of data readers to be online. The node shutdown
+     * will cause this method to raise NodeShutdownException.
      *
      * @param count The number of data readers to wait.
      */
-    void waitForReaders(unsigned int count = 1) const noexcept;
+    void waitForReaders(unsigned int count = 1) const;
 
     /**
-     * Wait for data readers to be offline.
+     * Wait for data readers to be offline. The node shutdown will cause this
+     * method to raise NodeShutdownException.
      */
-    void waitForNoReaders() const noexcept;
+    void waitForNoReaders() const;
 
     /**
      * Set the default configuration used to construct readers.
@@ -433,16 +437,18 @@ public:
     bool hasWriters() const noexcept;
 
     /**
-     * Wait for given number of writers to be online.
+     * Wait for given number of writers to be online. The node shutdown
+     * will cause this method to raise NodeShutdownException.
      *
      * @param count The number of writers to wait.
      */
-    void waitForWriters(unsigned int count = 1) const noexcept;
+    void waitForWriters(unsigned int count = 1) const;
 
     /**
-     * Wait for readers to be offline.
+     * Wait for readers to be offline. The node shutdown will cause this
+     * method to raise NodeShutdownException.
      */
-    void waitForNoWriters() const noexcept;
+    void waitForNoWriters() const;
 
     /**
      * Get the connected writers.
@@ -466,9 +472,10 @@ public:
     std::vector<Sample<Key, Value, UpdateTag>> getAllUnread() noexcept;
 
     /**
-     * Wait for given number of unread samples to be available.
+     * Wait for given number of unread samples to be available. The node
+     * shutdown will cause this method to raise NodeShutdownException.
      */
-    void waitForUnread(unsigned int count = 1) const noexcept;
+    void waitForUnread(unsigned int count = 1) const;
 
     /**
      * Returns wether or not unread samples are available.
@@ -478,11 +485,12 @@ public:
     bool hasUnread() const noexcept;
 
     /**
-     * Returns the next unread sample.
+     * Returns the next unread sample.  The node  shutdown will cause this
+     * method to raise NodeShutdownException.
      *
      * @return The unread sample.
      */
-    Sample<Key, Value, UpdateTag> getNextUnread() noexcept;
+    Sample<Key, Value, UpdateTag> getNextUnread();
 
     /**
      * Calls the given functions to provide the initial set of connected keys and
@@ -947,16 +955,18 @@ public:
     bool hasReaders() const noexcept;
 
     /**
-     * Wait for given number of readers to be online.
+     * Wait for given number of readers to be online. The node shutdown
+     * will cause this method to raise NodeShutdownException.
      *
      * @param count The number of readers to wait.
      */
-    void waitForReaders(unsigned int count = 1) const noexcept;
+    void waitForReaders(unsigned int count = 1) const;
 
     /**
-     * Wait for readers to be offline.
+     * Wait for readers to be offline.  The node shutdown this method to
+     * raise NodeShutdownException.
      */
-    void waitForNoReaders() const noexcept;
+    void waitForNoReaders() const;
 
     /**
      * Get the connected readers.
@@ -1329,13 +1339,13 @@ Reader<Key, Value, UpdateTag>::hasWriters() const noexcept
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const noexcept
+Reader<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const
 {
     _impl->waitForWriters(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::waitForNoWriters() const noexcept
+Reader<Key, Value, UpdateTag>::waitForNoWriters() const
 {
     _impl->waitForWriters(-1);
 }
@@ -1373,7 +1383,7 @@ Reader<Key, Value, UpdateTag>::getAllUnread() noexcept
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Reader<Key, Value, UpdateTag>::waitForUnread(unsigned int count) const noexcept
+Reader<Key, Value, UpdateTag>::waitForUnread(unsigned int count) const
 {
     _impl->waitForUnread(count);
 }
@@ -1385,7 +1395,7 @@ Reader<Key, Value, UpdateTag>::hasUnread() const noexcept
 }
 
 template<typename Key, typename Value, typename UpdateTag> Sample<Key, Value, UpdateTag>
-Reader<Key, Value, UpdateTag>::getNextUnread() noexcept
+Reader<Key, Value, UpdateTag>::getNextUnread()
 {
     return Sample<Key, Value, UpdateTag>(_impl->getNextUnread());
 }
@@ -1587,13 +1597,13 @@ Writer<Key, Value, UpdateTag>::hasReaders() const noexcept
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const noexcept
+Writer<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const
 {
     return _impl->waitForReaders(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Writer<Key, Value, UpdateTag>::waitForNoReaders() const noexcept
+Writer<Key, Value, UpdateTag>::waitForNoReaders() const
 {
     return _impl->waitForReaders(-1);
 }
@@ -1952,13 +1962,13 @@ Topic<Key, Value, UpdateTag>::hasWriters() const noexcept
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const noexcept
+Topic<Key, Value, UpdateTag>::waitForWriters(unsigned int count) const
 {
     getReader()->waitForWriters(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForNoWriters() const noexcept
+Topic<Key, Value, UpdateTag>::waitForNoWriters() const
 {
     getReader()->waitForWriters(-1);
 }
@@ -1976,13 +1986,13 @@ Topic<Key, Value, UpdateTag>::hasReaders() const noexcept
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const noexcept
+Topic<Key, Value, UpdateTag>::waitForReaders(unsigned int count) const
 {
     getWriter()->waitForReaders(count);
 }
 
 template<typename Key, typename Value, typename UpdateTag> void
-Topic<Key, Value, UpdateTag>::waitForNoReaders() const noexcept
+Topic<Key, Value, UpdateTag>::waitForNoReaders() const
 {
     getWriter()->waitForReaders(-1);
 }

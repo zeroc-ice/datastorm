@@ -10,6 +10,7 @@
 #include <DataStorm/TraceUtil.h>
 #include <DataStorm/TopicFactoryI.h>
 #include <DataStorm/NodeI.h>
+#include <DataStorm/Node.h>
 #include <DataStorm/CallbackExecutor.h>
 
 #include <IceUtil/UUID.h>
@@ -79,6 +80,16 @@ Instance::isShutdown() const
 {
     unique_lock<mutex> lock(_mutex);
     return _shutdown;
+}
+
+void
+Instance::checkShutdown() const
+{
+    unique_lock<mutex> lock(_mutex);
+    if(_shutdown)
+    {
+        throw DataStorm::NodeShutdownException();
+    }
 }
 
 void
