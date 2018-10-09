@@ -151,11 +151,12 @@ main(int argc, char* argv[])
             writer.waitForNoReaders();
             writer.getConnectedReaders();
             writer.getConnectedKeys();
+            test(writer.getAll().empty());
             try
             {
                 writer.getLast();
             }
-            catch(const std::invalid_argument&)
+            catch(const std::logic_error&)
             {
             }
             writer.getAll();

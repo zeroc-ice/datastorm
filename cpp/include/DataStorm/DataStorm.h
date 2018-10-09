@@ -983,7 +983,7 @@ public:
     std::vector<Key> getConnectedKeys() const noexcept;
 
     /**
-     * Get the last written sample. If there's no sample, the std::invalid_argument
+     * Get the last written sample. If there's no sample, the std::logic_error
      * exception is raised.
      *
      * @return The last written sample.
@@ -1633,7 +1633,7 @@ Writer<Key, Value, UpdateTag>::getLast()
     auto sample = _impl->getLast();
     if(!sample)
     {
-        throw std::invalid_argument("no sample");
+        throw std::logic_error("no sample");
     }
     return Sample<Key, Value, UpdateTag>(sample);
 }
