@@ -74,12 +74,10 @@ or change the SDK version in the project property pages or by right-clicking the
 
 ### Building the Demos
 
-#### Building the demos using NuGet packages:
-
 Open the solution file `DataStorm C++ demos.sln` to build the sample programs.
 
-The demos are configured to use DataStorm C++ binary distribution, packaged with
-NuGet. The build downloads automatically the DataStorm NuGet package.
+The demos are configured to use the DataStorm NuGet package provided by ZeroC. 
+The build downloads automatically this DataStorm NuGet package.
 
 If you have disabled the automatic download of NuGet packages by Visual Studio,
 you need to restore the packages before you build using `Tools > NuGet Package
@@ -91,19 +89,19 @@ select `Build`.
 
 ### Running the Demos
 
-You need to add the DataStorm `bin` directory to your PATH before running the
-demos.
+You need to add the DataStorm and Ice `bin` directories to your PATH before running
+the demos.
 
-If you are building Debug, add the Debug `bin` directory with a command similar
+If you are building Debug, add the Debug `bin` directories with a command similar
 to:
 ```
-set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v140.0.1.0\build\native\bin\x64\Debug;%PATH%
+set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v140.0.1.0\build\native\bin\x64\Debug;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v140.3.7.1\build\native\bin\x64\Debug;%PATH%
 ```
 
-If you are building Release, add the Release `bin` directory with a command
+If you are building Release, add the Release `bin` directories with a command
 similar to:
 ```
-set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v140.0.1.0\build\native\bin\x64\Release;%PATH%
+set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v140.0.1.0\build\native\bin\x64\Release;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.icev140.3.7.1\build\native\bin\x64\Release;%PATH%
 ```
 
 Then refer to the README.md file in each demo directory for usage instructions.
