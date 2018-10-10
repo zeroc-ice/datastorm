@@ -27,6 +27,9 @@ source is usually unnecessary.
 DataStorm was extensively tested using the operating systems and compiler
 versions listed on [supported platforms][2].
 
+On Windows, the build requires a recent version of Visual Studio, and the Windows 10 SDK (10.0.14393.0)
+component when building with Visual Studio 2017.
+
 ### Dependencies
 
 DataStorm depends on the Ice for C++11 library. ZeroC supplies Ice binary
