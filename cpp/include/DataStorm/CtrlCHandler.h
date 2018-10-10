@@ -26,7 +26,7 @@ using CtrlCHandlerCallback = std::function<void(int sig)>;
  * On Linux and macOS, the CtrlCHandler handles SIGHUP, SIGINT and SIGTERM.
  * On Windows, it is essentially a wrapper for SetConsoleCtrlHandler().
  *
- * \headerfile DataStorm/CtrlCHandler.h
+ * \headerfile DataStorm/DataStorm.h
  */
 class DATASTORM_API CtrlCHandler
 {

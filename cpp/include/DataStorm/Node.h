@@ -19,6 +19,8 @@ template<typename, typename, typename> class Topic;
  * waiting for a condition to occur and after the node has been shutdown. It
  * informs the application that the condition won't occur because the DataStorm
  * node is being shutdown and will disconnect from other nodes.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 class DATASTORM_API NodeShutdownException : public std::exception
 {
@@ -31,6 +33,8 @@ public:
  * The Node class allows creating topic readers and writers.
  *
  * A Node is the main DataStorm object which allows creating topic readers or writers.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 class DATASTORM_API Node
 {

@@ -29,9 +29,6 @@
 namespace DataStorm
 {
 
-template<typename, typename, typename> class Reader;
-template<typename, typename, typename> class Writer;
-
 /**
  * A sample provides information about a data element update.
  *
@@ -39,6 +36,8 @@ template<typename, typename, typename> class Writer;
  * as additional information such as the event, timestamp, update
  * tag. Samples are generated and published by writers and
  * received by readers.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string> class Sample
 {
@@ -205,11 +204,309 @@ operator<<(std::ostream& os, const Sample<K, V, U>& sample)
 }
 
 /**
+ * The Reader class is used to retrieve samples for a data element.
+ *
+ * @headerfile DataStorm/DataStorm.h
+ */
+template<typename Key, typename Value, typename UpdateTag>
+class Reader
+{
+public:
+
+    /**
+     * The key type.
+     */
+    using KeyType = Key;
+
+    /**
+     * The value type.
+     */
+    using ValueType = Value;
+
+    /**
+     * Transfers the given reader to this reader.
+     *
+     * @param reader The reader.
+     **/
+    Reader(Reader&& reader) noexcept;
+
+    /**
+     * Destruct the reader. The destruction of the reader disconnects
+     * the reader from the writers.
+     */
+    ~Reader();
+
+    /**
+     * Move assignement operator
+     *
+     * @param reader The reader.
+     **/
+    Reader& operator=(Reader&& reader) noexcept;
+
+    /**
+     * Indicates whether or not writers are online.
+     *
+     * @return True if writers are connected, false otherwise.
+     */
+    bool hasWriters() const noexcept;
+
+    /**
+     * Wait for given number of writers to be online. The node shutdown
+     * will cause this method to raise NodeShutdownException.
+     *
+     * @param count The number of writers to wait.
+     */
+    void waitForWriters(unsigned int count = 1) const;
+
+    /**
+     * Wait for readers to be offline. The node shutdown will cause this
+     * method to raise NodeShutdownException.
+     */
+    void waitForNoWriters() const;
+
+    /**
+     * Get the connected writers.
+     *
+     * @return The names of the connected writers.
+     */
+    std::vector<std::string> getConnectedWriters() const noexcept;
+
+    /**
+     * Get the keys for which writers are connected to this reader.
+     *
+     * @return The keys for which we have writers connected.
+     **/
+    std::vector<Key> getConnectedKeys() const noexcept;
+
+    /**
+     * Returns all the unread samples.
+     *
+     * @return The unread samples.
+     */
+    std::vector<Sample<Key, Value, UpdateTag>> getAllUnread() noexcept;
+
+    /**
+     * Wait for given number of unread samples to be available. The node
+     * shutdown will cause this method to raise NodeShutdownException.
+     */
+    void waitForUnread(unsigned int count = 1) const;
+
+    /**
+     * Returns wether or not unread samples are available.
+     *
+     * @return True if there unread samples are queued, false otherwise.
+     */
+    bool hasUnread() const noexcept;
+
+    /**
+     * Returns the next unread sample.  The node  shutdown will cause this
+     * method to raise NodeShutdownException.
+     *
+     * @return The unread sample.
+     */
+    Sample<Key, Value, UpdateTag> getNextUnread();
+
+    /**
+     * Calls the given functions to provide the initial set of connected keys and
+     * when a key is added or removed from the set of connected keys. If callback
+     * functions are already set, they will be replaced.
+     *
+     * The connected keys represent the set of keys for which writers are connected
+     * to this reader.
+     *
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected keys. The update callback is called when new keys
+     * are added or removed from the set of connected keys.
+     *
+     * @param init The function to call with the initial set of connected keys.
+     * @param update The function to call when a key is added or removed from the set.
+     **/
+    void onConnectedKeys(std::function<void(std::vector<Key>)> init,
+                         std::function<void(CallbackReason, Key)> update) noexcept;
+
+    /**
+     * Calls the given functions to provide the initial set of connected writers
+     * and when a new writer connects or disconnects. If callback functions are
+     * already set, they will be replaced.
+     *
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected writers. The update callback is called when new writers
+     * connect or disconnect.
+     *
+     * @param init The function to call with the initial set of connected writers.
+     * @param update The function to call when a new writer connects or disconnects.
+     **/
+    void onConnectedWriters(std::function<void(std::vector<std::string>)> init,
+                            std::function<void(CallbackReason, std::string)> update) noexcept;
+
+    /**
+     * Calls the given function to provide the initial set of unread samples and
+     * when new samples are queued.
+     *
+     * If a function is already set, it will be replaced.
+     *
+     * The init callback is always called after this method returns to provide the
+     * initial set of unread samples. The queue callback is called when a new sample
+     * is received.
+     *
+     * @param init The function to call with the initial set of unread samples.
+     * @param queue The function to call when a new sample is received.
+     **/
+    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> init,
+                   std::function<void(Sample<Key, Value, UpdateTag>)> queue) noexcept;
+
+protected:
+
+    /** @private */
+    Reader(const std::shared_ptr<DataStormI::DataReader>& impl) noexcept : _impl(impl)
+    {
+    }
+
+    /** @private */
+    std::shared_ptr<DataStormI::DataReader> _impl;
+};
+
+/**
+ * The writer class is used to write samples for a data element.
+ *
+ * @headerfile DataStorm/DataStorm.h
+ */
+template<typename Key, typename Value, typename UpdateTag>
+class Writer
+{
+public:
+
+    /**
+     * The key type.
+     */
+    using KeyType = Key;
+
+    /**
+     * The value type.
+     */
+    using ValueType = Value;
+
+    /**
+     * Transfers the given writer to this writer.
+     *
+     * @param writer The writer.
+     **/
+    Writer(Writer&& writer) noexcept;
+
+    /**
+     * Move assignement operator.
+     *
+     * @param writer The writer.
+     **/
+    Writer& operator=(Writer&& writer) noexcept;
+
+    /**
+     * Destruct the writer. The destruction of the writer disconnects
+     * the writer from the readers.
+     */
+    ~Writer();
+
+    /**
+     * Indicates whether or not readers are online.
+     *
+     * @return True if readers are connected, false otherwise.
+     */
+    bool hasReaders() const noexcept;
+
+    /**
+     * Wait for given number of readers to be online. The node shutdown
+     * will cause this method to raise NodeShutdownException.
+     *
+     * @param count The number of readers to wait.
+     */
+    void waitForReaders(unsigned int count = 1) const;
+
+    /**
+     * Wait for readers to be offline.  The node shutdown this method to
+     * raise NodeShutdownException.
+     */
+    void waitForNoReaders() const;
+
+    /**
+     * Get the connected readers.
+     *
+     * @return The names of the connected readers.
+     */
+    std::vector<std::string> getConnectedReaders() const noexcept;
+
+    /**
+     * Get the keys for which readers are connected to this writer.
+     *
+     * @return The keys for which we have writers connected.
+     **/
+    std::vector<Key> getConnectedKeys() const noexcept;
+
+    /**
+     * Get the last written sample. If there's no sample, the std::logic_error
+     * exception is raised.
+     *
+     * @return The last written sample.
+     **/
+    Sample<Key, Value, UpdateTag> getLast();
+
+    /**
+     * Get all the written sample kept in the writer history.
+     *
+     * @return The sample history.
+     **/
+    std::vector<Sample<Key, Value, UpdateTag>> getAll() noexcept;
+
+    /**
+     * Calls the given functions to provide the initial set of connected keys and
+     * when a key is added or removed from the set of connected keys. If callback
+     * functions are already set, they will be replaced.
+     *
+     * The connected keys represent the set of keys for which writers are connected
+     * to this reader.
+     *
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected keys. The update callback is called when new keys
+     * are added or removed from the set of connected keys.
+     *
+     * @param init The function to call with the initial set of connected keys.
+     * @param update The function to call when a key is added or removed from the set.
+     **/
+    void onConnectedKeys(std::function<void(std::vector<Key>)> init,
+                         std::function<void(CallbackReason, Key)> update) noexcept;
+
+    /**
+     * Calls the given functions to provide the initial set of connected readers
+     * and when a new reader connects or disconnects. If callback functions are
+     * already set, they will be replaced.
+     *
+     * The init callback is always called after this method returns to provide the
+     * initial set of connected readers. The update callback is called when new readers
+     * connect or disconnect.
+     *
+     * @param init The function to call with the initial set of connected readers.
+     * @param update The function to call when a new reader connects or disconnects.
+     **/
+    void onConnectedReaders(std::function<void(std::vector<std::string>)> init,
+                            std::function<void(CallbackReason, std::string)> update) noexcept;
+
+protected:
+
+    /** @private */
+    Writer(const std::shared_ptr<DataStormI::DataWriter>& impl) noexcept : _impl(impl)
+    {
+    }
+
+    /** @private */
+    std::shared_ptr<DataStormI::DataWriter> _impl;
+};
+
+/**
  * The Topic class.
  *
  * This class allows constructing reader and writer objects. It's also
  * used to setup filter and updater functions.
  *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
 class Topic
@@ -392,168 +689,9 @@ private:
 };
 
 /**
- * The Reader class is used to retrieve samples for a data element.
- */
-template<typename Key, typename Value, typename UpdateTag>
-class Reader
-{
-public:
-
-    /**
-     * The key type.
-     */
-    using KeyType = Key;
-
-    /**
-     * The value type.
-     */
-    using ValueType = Value;
-
-    /**
-     * Transfers the given reader to this reader.
-     *
-     * @param reader The reader.
-     **/
-    Reader(Reader&& reader) noexcept;
-
-    /**
-     * Destruct the reader. The destruction of the reader disconnects
-     * the reader from the writers.
-     */
-    ~Reader();
-
-    /**
-     * Move assignement operator
-     *
-     * @param reader The reader.
-     **/
-    Reader& operator=(Reader&& reader) noexcept;
-
-    /**
-     * Indicates whether or not writers are online.
-     *
-     * @return True if writers are connected, false otherwise.
-     */
-    bool hasWriters() const noexcept;
-
-    /**
-     * Wait for given number of writers to be online. The node shutdown
-     * will cause this method to raise NodeShutdownException.
-     *
-     * @param count The number of writers to wait.
-     */
-    void waitForWriters(unsigned int count = 1) const;
-
-    /**
-     * Wait for readers to be offline. The node shutdown will cause this
-     * method to raise NodeShutdownException.
-     */
-    void waitForNoWriters() const;
-
-    /**
-     * Get the connected writers.
-     *
-     * @return The names of the connected writers.
-     */
-    std::vector<std::string> getConnectedWriters() const noexcept;
-
-    /**
-     * Get the keys for which writers are connected to this reader.
-     *
-     * @return The keys for which we have writers connected.
-     **/
-    std::vector<Key> getConnectedKeys() const noexcept;
-
-    /**
-     * Returns all the unread samples.
-     *
-     * @return The unread samples.
-     */
-    std::vector<Sample<Key, Value, UpdateTag>> getAllUnread() noexcept;
-
-    /**
-     * Wait for given number of unread samples to be available. The node
-     * shutdown will cause this method to raise NodeShutdownException.
-     */
-    void waitForUnread(unsigned int count = 1) const;
-
-    /**
-     * Returns wether or not unread samples are available.
-     *
-     * @return True if there unread samples are queued, false otherwise.
-     */
-    bool hasUnread() const noexcept;
-
-    /**
-     * Returns the next unread sample.  The node  shutdown will cause this
-     * method to raise NodeShutdownException.
-     *
-     * @return The unread sample.
-     */
-    Sample<Key, Value, UpdateTag> getNextUnread();
-
-    /**
-     * Calls the given functions to provide the initial set of connected keys and
-     * when a key is added or removed from the set of connected keys. If callback
-     * functions are already set, they will be replaced.
-     *
-     * The connected keys represent the set of keys for which writers are connected
-     * to this reader.
-     *
-     * The init callback is always called after this method returns to provide the
-     * initial set of connected keys. The update callback is called when new keys
-     * are added or removed from the set of connected keys.
-     *
-     * @param init The function to call with the initial set of connected keys.
-     * @param update The function to call when a key is added or removed from the set.
-     **/
-    void onConnectedKeys(std::function<void(std::vector<Key>)> init,
-                         std::function<void(CallbackReason, Key)> update) noexcept;
-
-    /**
-     * Calls the given functions to provide the initial set of connected writers
-     * and when a new writer connects or disconnects. If callback functions are
-     * already set, they will be replaced.
-     *
-     * The init callback is always called after this method returns to provide the
-     * initial set of connected writers. The update callback is called when new writers
-     * connect or disconnect.
-     *
-     * @param init The function to call with the initial set of connected writers.
-     * @param update The function to call when a new writer connects or disconnects.
-     **/
-    void onConnectedWriters(std::function<void(std::vector<std::string>)> init,
-                            std::function<void(CallbackReason, std::string)> update) noexcept;
-
-    /**
-     * Calls the given function to provide the initial set of unread samples and
-     * when new samples are queued.
-     *
-     * If a function is already set, it will be replaced.
-     *
-     * The init callback is always called after this method returns to provide the
-     * initial set of unread samples. The queue callback is called when a new sample
-     * is received.
-     *
-     * @param init The function to call with the initial set of unread samples.
-     * @param queue The function to call when a new sample is received.
-     **/
-    void onSamples(std::function<void(std::vector<Sample<Key, Value, UpdateTag>>)> init,
-                   std::function<void(Sample<Key, Value, UpdateTag>)> queue) noexcept;
-
-protected:
-
-    /** @private */
-    Reader(const std::shared_ptr<DataStormI::DataReader>& impl) noexcept : _impl(impl)
-    {
-    }
-
-    /** @private */
-    std::shared_ptr<DataStormI::DataReader> _impl;
-};
-
-/**
  * Filter structure to specify the filter name and criteria value.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename T> struct Filter
 {
@@ -577,6 +715,8 @@ template<typename T> struct Filter
 
 /**
  * The key reader to read the data element associated with a given key.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
 class SingleKeyReader : public Reader<Key, Value, UpdateTag>
@@ -633,6 +773,8 @@ public:
 
 /**
  * The key reader to read the data element associated with a given set of keys.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
 class MultiKeyReader : public Reader<Key, Value, UpdateTag>
@@ -811,6 +953,8 @@ makeAnyKeyReader(const Topic<K, V, UT>& topic,
 
 /**
  * The filtered reader to read data elements whose key match a given filter.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
 class FilteredKeyReader : public Reader<Key, Value, UpdateTag>
@@ -910,139 +1054,9 @@ makeFilteredKeyReader(const Topic<K, V, UT>& topic,
 }
 
 /**
- * The writer class is used to write samples for a data element.
- */
-template<typename Key, typename Value, typename UpdateTag>
-class Writer
-{
-public:
-
-    /**
-     * The key type.
-     */
-    using KeyType = Key;
-
-    /**
-     * The value type.
-     */
-    using ValueType = Value;
-
-    /**
-     * Transfers the given writer to this writer.
-     *
-     * @param writer The writer.
-     **/
-    Writer(Writer&& writer) noexcept;
-
-    /**
-     * Move assignement operator.
-     *
-     * @param writer The writer.
-     **/
-    Writer& operator=(Writer&& writer) noexcept;
-
-    /**
-     * Destruct the writer. The destruction of the writer disconnects
-     * the writer from the readers.
-     */
-    ~Writer();
-
-    /**
-     * Indicates whether or not readers are online.
-     *
-     * @return True if readers are connected, false otherwise.
-     */
-    bool hasReaders() const noexcept;
-
-    /**
-     * Wait for given number of readers to be online. The node shutdown
-     * will cause this method to raise NodeShutdownException.
-     *
-     * @param count The number of readers to wait.
-     */
-    void waitForReaders(unsigned int count = 1) const;
-
-    /**
-     * Wait for readers to be offline.  The node shutdown this method to
-     * raise NodeShutdownException.
-     */
-    void waitForNoReaders() const;
-
-    /**
-     * Get the connected readers.
-     *
-     * @return The names of the connected readers.
-     */
-    std::vector<std::string> getConnectedReaders() const noexcept;
-
-    /**
-     * Get the keys for which readers are connected to this writer.
-     *
-     * @return The keys for which we have writers connected.
-     **/
-    std::vector<Key> getConnectedKeys() const noexcept;
-
-    /**
-     * Get the last written sample. If there's no sample, the std::logic_error
-     * exception is raised.
-     *
-     * @return The last written sample.
-     **/
-    Sample<Key, Value, UpdateTag> getLast();
-
-    /**
-     * Get all the written sample kept in the writer history.
-     *
-     * @return The sample history.
-     **/
-    std::vector<Sample<Key, Value, UpdateTag>> getAll() noexcept;
-
-    /**
-     * Calls the given functions to provide the initial set of connected keys and
-     * when a key is added or removed from the set of connected keys. If callback
-     * functions are already set, they will be replaced.
-     *
-     * The connected keys represent the set of keys for which writers are connected
-     * to this reader.
-     *
-     * The init callback is always called after this method returns to provide the
-     * initial set of connected keys. The update callback is called when new keys
-     * are added or removed from the set of connected keys.
-     *
-     * @param init The function to call with the initial set of connected keys.
-     * @param update The function to call when a key is added or removed from the set.
-     **/
-    void onConnectedKeys(std::function<void(std::vector<Key>)> init,
-                         std::function<void(CallbackReason, Key)> update) noexcept;
-
-    /**
-     * Calls the given functions to provide the initial set of connected readers
-     * and when a new reader connects or disconnects. If callback functions are
-     * already set, they will be replaced.
-     *
-     * The init callback is always called after this method returns to provide the
-     * initial set of connected readers. The update callback is called when new readers
-     * connect or disconnect.
-     *
-     * @param init The function to call with the initial set of connected readers.
-     * @param update The function to call when a new reader connects or disconnects.
-     **/
-    void onConnectedReaders(std::function<void(std::vector<std::string>)> init,
-                            std::function<void(CallbackReason, std::string)> update) noexcept;
-
-protected:
-
-    /** @private */
-    Writer(const std::shared_ptr<DataStormI::DataWriter>& impl) noexcept : _impl(impl)
-    {
-    }
-
-    /** @private */
-    std::shared_ptr<DataStormI::DataWriter> _impl;
-};
-
-/**
  * The key writer to write the data element associated with a given key.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
 class SingleKeyWriter : public Writer<Key, Value, UpdateTag>
@@ -1117,6 +1131,8 @@ private:
 
 /**
  * The key writer to write data elements associated with a given set of keys.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename Key, typename Value, typename UpdateTag=std::string>
 class MultiKeyWriter : public Writer<Key, Value, UpdateTag>

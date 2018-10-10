@@ -62,6 +62,8 @@ enum struct ClearHistoryPolicy
 /**
  * The configuration base class holds configuration options common to readers and
  * writers.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 class Config
 {
@@ -115,6 +117,7 @@ public:
  * It extends the Config class and therefore inherits its configuration
  * options.
  *
+ * @headerfile DataStorm/DataStorm.h
  */
 class ReaderConfig : public Config
 {
@@ -152,6 +155,8 @@ public:
  *
  * It extends the Config class and therefore inherits its configuration
  * options.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 class WriterConfig : public Config
 {
@@ -202,6 +207,8 @@ enum struct CallbackReason
  * The encoder template can be specialized to provide encoding for types that don't
  * support being encoded with Ice. By default, the Ice encoding is used if no
  * Encoder template specialization is provided for the type.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename T, typename Enabler=void>
 struct Encoder
@@ -227,6 +234,8 @@ struct Encoder
  * The decoder template can be specialized to provide decoding for types that don't
  * support being decoded with Ice. By default, the Ice decoding is used if no
  * Decoder template specialization is provided for the type.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename T, typename Enabler=void>
 struct Decoder
@@ -251,6 +260,8 @@ struct Decoder
  *
  * The cloner template can be specialized to provide cloning for types that
  * require special cloning. By defaut, the template uses plain C++ copy.
+ *
+ * @headerfile DataStorm/DataStorm.h
  */
 template<typename T, typename Enabler=void>
 struct Cloner
