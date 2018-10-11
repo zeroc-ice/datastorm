@@ -5,12 +5,12 @@
     <title>ZeroC DataStorm C++ for Visual Studio 2017</title>
     <version>0.1.0</version>
     <authors>ZeroC</authors>
-    <licenseUrl>https://raw.githubusercontent.com/zeroc-ice/datastorm/0.1/LICENSE</licenseUrl>
+    <licenseUrl>https://raw.githubusercontent.com/zeroc-ice/datastorm/master/LICENSE</licenseUrl>
     <projectUrl>https://github.com/zeroc-ice/datastorm</projectUrl>
     <iconUrl>https://zeroc.com/images/logos/zeroc/zeroc_logo-64x64.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>DataStorm C++ SDK for Visual Studio 2017 (v141).</description>
-    <releaseNotes>https://doc.zeroc.com/display/Rel/DataStorm+0.1.0+Release+Notes</releaseNotes>
+    <releaseNotes>https://doc.zeroc.com/datastorm/latest/release-notes</releaseNotes>
     <tags>datastorm ice native dds v141 zeroc</tags>
     <dependencies>
       <dependency id="zeroc.ice.v141" version="[3.7.1]"/>
