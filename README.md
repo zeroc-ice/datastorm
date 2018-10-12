@@ -1,8 +1,8 @@
 [![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/datastorm.svg)](https://gitter.im/zeroc-ice/datastorm?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-# DataStorm - ZeroC's new Pub/Sub Framework
+# DataStorm - Data Centric Pub/Sub Framework
 
-DataStorm is a new high-performance brokerless [pub-sub
+DataStorm is a new high-performance brokerless data centric [pub/sub
 framework](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern). It
 allows you to distribute data between your applications through a simple yet
 powerful API.
@@ -20,10 +20,10 @@ DataStorm is currently in alpha and we welcome your feedback!
 
 ## DataStorm vs IceStorm
 
-Ice already provides a pub-sub service named IceStorm. So if you need pub-sub
+Ice already provides a pub/sub service named IceStorm. So if you need pub/sub
 with Ice, should you use IceStorm or DataStorm?
 
-IceStorm is broker-based pub-sub service, where the broker (the IceStorm
+IceStorm is broker-based pub/sub service, where the broker (the IceStorm
 service) can be replicated for fault-tolerance. It is mature and available for
 all programming languages supported by Ice.
 
@@ -34,13 +34,13 @@ topic. These subscribers are regular Ice objects that you implement, and they
 receive the message sent by the publisher just like any other Ice request
 dispatch.
 
-DataStorm is a brand-new library-based pub-sub service. It is currently in alpha
+DataStorm is a brand-new library-based pub/sub service. It is currently in alpha
 and should not be used for production. At this time, it provides only a C++ API.
 
 DataStorm is all about distributing data. When one of your applications needs
 data produced by another application, DataStorm helps you publish, filter and
 receive data items very easily - you don't need to worry about network
-connections or making remoting calls.
+connections or making remote calls.
 
 ## Languages
 
