@@ -9,7 +9,7 @@ source is usually unnecessary.
 
 * [C++ Build Requirements](#c-build-requirements)
   * [Operating Systems and Compilers](#operating-systems-and-compilers)
-  * [Third-Party Libraries](#third-party-libraries)
+  * [Dependencies](#dependencies)
     * [Linux](#linux)
     * [macOS](#macos)
     * [Windows](#windows)
@@ -27,8 +27,8 @@ source is usually unnecessary.
 DataStorm was extensively tested using the operating systems and compiler
 versions listed on [supported platforms][2].
 
-On Windows, the build requires a recent version of Visual Studio, and the Windows 10 SDK (10.0.14393.0)
-component when building with Visual Studio 2017.
+On Windows, the build requires a recent version of Visual Studio, and the
+Windows 10 SDK (10.0.14393.0) component when building with Visual Studio 2017.
 
 ### Dependencies
 
