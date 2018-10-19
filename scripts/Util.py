@@ -323,6 +323,7 @@ class Linux(Platform):
             for p in [self.buildPlatform] + self.foreignPlatforms:
                 self.multiArch[p] = run("dpkg-architecture -f -a{0} -qDEB_HOST_MULTIARCH 2> /dev/null".format(p))
 
+
     def hasOpenSSL(self):
         return True
 
@@ -448,7 +449,7 @@ class Windows(Platform):
     def getBuildSubDir(self, mapping, name, current):
         buildPlatform = current.driver.configs[mapping].buildPlatform
         buildConfig = current.driver.configs[mapping].buildConfig
-        if os.path.exists(os.path.join(current.testcase.getPath(), "msbuild", name)):
+        if os.path.exists(os.path.join(current.testcase.getPath(current), "msbuild", name)):
             return os.path.join("msbuild", name, buildPlatform, buildConfig)
         else:
             return os.path.join("msbuild", buildPlatform, buildConfig)
@@ -553,6 +554,7 @@ class Mapping(object):
             else:
                 self.buildPlatform = platform.getDefaultBuildPlatform()
 
+            self.pathOverride = ""
             self.protocol = "tcp"
             self.compress = False
             self.serialize = False
@@ -569,6 +571,7 @@ class Mapping(object):
             self.uwp = False
             self.openssl = False
             self.browser = False
+            self.typescript = False
             self.device = ""
             self.avd = ""
             self.androidemulator = False
@@ -911,7 +914,7 @@ class Mapping(object):
         return self.path
 
     def getTestCwd(self, process, current):
-        return current.testcase.getPath()
+        return current.testcase.getPath(current)
 
     def getDefaultSource(self, processType):
         default = self.component.getDefaultSource(self, processType)
@@ -966,7 +969,7 @@ class Mapping(object):
             cmd = os.path.join(self.component.getBinDir(process, self, current), exe)
         elif current.testcase:
             # If it's a process from a testcase, the binary is in the test build directory.
-            cmd = os.path.join(current.testcase.getPath(), current.getBuildDir(exe), exe)
+            cmd = os.path.join(current.testcase.getPath(current), current.getBuildDir(exe), exe)
         else:
             cmd = exe
 
@@ -1325,15 +1328,6 @@ class ProcessFromBinDir:
         return True
 
 #
-# Executables for processes inheriting this marker class are looked up in the
-# Ice distribution bin directory.
-#
-class ProcessFromBinDir:
-
-    def isFromBinDir(self):
-        return True
-
-#
 # Executables for processes inheriting this marker class are only provided
 # as a Release executble on Windows
 #
@@ -1506,8 +1500,12 @@ class TestCase(Runnable):
     def getName(self):
         return self.name
 
-    def getPath(self):
-        return self.testsuite.getPath()
+    def getPath(self, current):
+        path = self.testsuite.getPath()
+        if current.config.pathOverride:
+            return path.replace(toplevel, current.config.pathOverride)
+        else:
+            return path
 
     def getMapping(self):
         return self.mapping
@@ -2520,7 +2518,6 @@ class UWPProcessController(RemoteProcessController):
 
         print("Registering application to run from layout...")
 
-        print(os.path.join(os.path.dirname(packageFullPath), "Dependencies", arch))
         for root, dirs, files in os.walk(os.path.join(os.path.dirname(packageFullPath), "Dependencies", arch)):
             for f in files:
                 self.installPackage(os.path.join(root, f), arch)
@@ -2544,6 +2541,15 @@ class UWPProcessController(RemoteProcessController):
         except:
             pass
 
+    def getPackageVersion(self, package):
+        import zipfile
+        import xml.etree.ElementTree as ElementTree
+        with zipfile.ZipFile(package) as zipfile:
+            with zipfile.open('AppxManifest.xml') as file:
+                xml = ElementTree.fromstring(file.read())
+                identity = xml.find("{http://schemas.microsoft.com/appx/manifest/foundation/windows10}Identity")
+                return tuple(map(int, identity.attrib['Version'].split(".")))
+
     def installPackage(self, package, arch):
         packages = {
             "Microsoft.VCLibs.x64.14.00.appx" : "Microsoft.VCLibs.140.00",
@@ -2554,7 +2560,10 @@ class UWPProcessController(RemoteProcessController):
         }
         packageName = packages[os.path.basename(package)]
         output = run("powershell Get-AppxPackage -Name {0}".format(packageName))
-        if packageName not in output or "Architecture      : {0}".format(arch) not in output:
+        m = re.search("Architecture.*: {0}\\r\\nResourceId.*:.*\\r\\nVersion.*: (.*)\\r\\n".format(arch), output)
+        installedVersion = tuple(map(int, m.group(1).split("."))) if m else (0, 0, 0, 0)
+        version = self.getPackageVersion(package)
+        if installedVersion <= version:
             run("powershell Add-AppxPackage -Path \"{0}\" -ForceApplicationShutdown".format(package))
 
 class BrowserProcessController(RemoteProcessController):
@@ -2990,12 +2999,13 @@ class CppMapping(Mapping):
 
         @classmethod
         def getSupportedArgs(self):
-            return ("", ["cpp-config=", "cpp-platform=", "uwp", "openssl"])
+            return ("", ["cpp-config=", "cpp-platform=", "cpp-path=", "uwp", "openssl"])
 
         @classmethod
         def usage(self):
             print("")
             print("C++ Mapping options:")
+            print("--cpp-path=<path>         Path of alternate source tree for the C++ mapping.")
             print("--cpp-config=<config>     C++ build configuration for native executables (overrides --config).")
             print("--cpp-platform=<platform> C++ build platform for native executables (overrides --platform).")
             print("--uwp                     Run UWP (Universal Windows Platform).")
@@ -3008,7 +3018,12 @@ class CppMapping(Mapping):
             # tests on the cpp11 value in the testcase options specification
             self.cpp11 = self.buildConfig.lower().find("cpp11") >= 0
 
-            parseOptions(self, options, { "cpp-config" : "buildConfig", "cpp-platform" : "buildPlatform" })
+            parseOptions(self, options, { "cpp-config" : "buildConfig",
+                                          "cpp-platform" : "buildPlatform",
+                                          "cpp-path" : "pathOverride" })
+
+            if self.pathOverride:
+                self.pathOverride = os.path.abspath(self.pathOverride)
 
     def getOptions(self, current):
         return { "compress" : [False] } if current.config.uwp else {}
@@ -3101,23 +3116,18 @@ class CppMapping(Mapping):
                             "{0}_Test".format(prefix), "{0}.appx".format(prefix))
 
     def getIOSControllerIdentity(self, current):
-        if current.config.buildPlatform == "iphonesimulator":
-            return ("iPhoneSimulator/com.zeroc.Cpp11-Test-Controller" if current.config.cpp11 else
-                    "iPhoneSimulator/com.zeroc.Cpp98-Test-Controller")
-        else:
-            return ("iPhoneOS/com.zeroc.Cpp11-Test-Controller" if current.config.cpp11 else
-                    "iPhoneOS/com.zeroc.Cpp98-Test-Controller")
+        category = "iPhoneSimulator" if current.config.buildPlatform == "iphonesimulator" else "iPhoneOS"
+        mapping = "Cpp11" if current.config.cpp11 else "Cpp98"
+        return "{0}/com.zeroc.{1}-Test-Controller".format(category, mapping)
 
     def getIOSAppName(self, current):
         return "C++11 Test Controller.app" if current.config.cpp11 else "C++98 Test Controller.app"
 
     def getIOSAppFullPath(self, current):
-        path = os.path.join(self.component.getTestDir(self), "ios/controller/build", "Debug-iphonesimulator",
-                            self.getIOSAppName(current))
-        if not os.path.exists(path):
-            path = os.path.join(self.component.getTestDir(self), "ios/controller/build", "Release-iphonesimulator",
-                                self.getIOSAppName(current))
-        return path
+        path = os.path.join(self.component.getTestDir(self), "ios", "controller")
+        path = os.path.join(path, "build-{0}-{1}".format(current.config.buildPlatform, current.config.buildConfig))
+        build = "Debug" if os.path.exists(os.path.join(path, "Debug-{0}".format(current.config.buildPlatform))) else "Release"
+        return os.path.join(path, "{0}-{1}".format(build, current.config.buildPlatform), self.getIOSAppName(current))
 
 class JavaMapping(Mapping):
 
@@ -3125,15 +3135,16 @@ class JavaMapping(Mapping):
         javaHome = os.getenv("JAVA_HOME", "")
         java = os.path.join(javaHome, "bin", "java") if javaHome else "java"
         if process.isFromBinDir():
-            return "{0} {1} {2}".format(java, exe, args)
+            return "{0} -ea {1} {2}".format(java, exe, args)
 
-        assert(current.testcase.getPath().startswith(self.component.getTestDir(self)))
-        package = "test." + current.testcase.getPath()[len(self.component.getTestDir(self)) + 1:].replace(os.sep, ".")
+        testdir = self.component.getTestDir(self)
+        assert(current.testcase.getPath(current).startswith(testdir))
+        package = "test." + current.testcase.getPath(current)[len(testdir) + 1:].replace(os.sep, ".")
         javaArgs = self.getJavaArgs(process, current)
         if javaArgs:
-            return "{0} {1} -Dtest.class={2}.{3} test.TestDriver {4}".format(java, " ".join(javaArgs), package, exe, args)
+            return "{0} -ea {1} -Dtest.class={2}.{3} test.TestDriver {4}".format(java, " ".join(javaArgs), package, exe, args)
         else:
-            return "{0} -Dtest.class={1}.{2} test.TestDriver {3}".format(java, package, exe, args)
+            return "{0} -ea -Dtest.class={1}.{2} test.TestDriver {3}".format(java, package, exe, args)
 
     def getJavaArgs(self, process, current):
         return []
@@ -3296,7 +3307,7 @@ class CSharpMapping(Mapping):
         #
         proccessType = current.testcase.getProcessType(process)
         if proccessType:
-            testdir = os.path.join(current.testcase.getPath(), self.getBuildDir(proccessType, current))
+            testdir = os.path.join(current.testcase.getPath(current), self.getBuildDir(proccessType, current))
             if os.path.isfile(os.path.join(testdir, plugin + ".dll")):
                 plugindir = testdir
 
@@ -3333,7 +3344,7 @@ class CSharpMapping(Mapping):
         if process.isFromBinDir():
             path = self.component.getBinDir(process, self, current)
         else:
-            path = os.path.join(current.testcase.getPath(), current.getBuildDir(exe))
+            path = os.path.join(current.testcase.getPath(current), current.getBuildDir(exe))
 
         if current.config.dotnetcore:
             return "dotnet " + os.path.join(path, exe) + ".dll " + args
@@ -3508,23 +3519,18 @@ class ObjCMapping(CppBasedMapping):
         return Mapping._getDefaultExe(self, processType).lower()
 
     def getIOSControllerIdentity(self, current):
-        if current.config.buildPlatform == "iphonesimulator":
-            return ("iPhoneSimulator/com.zeroc.ObjC-ARC-Test-Controller" if current.config.arc else
-                    "iPhoneSimulator/com.zeroc.ObjC-Test-Controller")
-        else:
-            return ("iPhoneOS/com.zeroc.ObjC-ARC-Test-Controller" if current.config.arc else
-                    "iPhoneOS/com.zeroc.ObjC-Test-Controller")
+        category = "iPhoneSimulator" if current.config.buildPlatform == "iphonesimulator" else "iPhoneOS"
+        mapping = "ObjC-ARC" if current.config.arc else "ObjC"
+        return "{0}/com.zeroc.{1}-Test-Controller".format(category, mapping)
 
     def getIOSAppName(self, current):
         return "Objective-C ARC Test Controller.app" if current.config.arc else "Objective-C Test Controller.app"
 
     def getIOSAppFullPath(self, current):
-        path = os.path.join(self.component.getTestDir(self), "ios/controller/build", "Debug-iphonesimulator",
-                            self.getIOSAppName(current))
-        if not os.path.exists(path):
-            path = os.path.join(mapping.getTestDir(), "ios/controller/build", "Release-iphonesimulator",
-                                self.getIOSAppName(current))
-        return path
+        path = os.path.join(self.component.getTestDir(self), "ios", "controller")
+        path = os.path.join(path, "build-{0}-{1}".format(current.config.buildPlatform, current.config.buildConfig))
+        build = "Debug" if os.path.exists(os.path.join(path, "Debug-{0}".format(current.config.buildPlatform))) else "Release"
+        return os.path.join(path, "{0}-{1}".format(build, current.config.buildPlatform), self.getIOSAppName(current))
 
 class PythonMapping(CppBasedMapping):
 
@@ -3545,7 +3551,7 @@ class PythonMapping(CppBasedMapping):
             # If not installed in the default platform installation directory, add
             # the Ice python directory to PYTHONPATH
             dirs += self.getPythonDirs(self.component.getInstallDir(self, current), current.config)
-        dirs += [current.testcase.getPath()]
+        dirs += [current.testcase.getPath(current)]
         env["PYTHONPATH"] = os.pathsep.join(dirs)
         return env
 
@@ -3589,7 +3595,7 @@ class RubyMapping(CppBasedClientMapping):
             # If not installed in the default platform installation directory, add
             # the Ice ruby directory to RUBYLIB
             dirs += [os.path.join(self.path, "ruby")]
-        dirs += [current.testcase.getPath()]
+        dirs += [current.testcase.getPath(current)]
         env["RUBYLIB"] = os.pathsep.join(dirs)
         return env
 
@@ -3690,7 +3696,7 @@ class JavaScriptMapping(Mapping):
 
         @classmethod
         def getSupportedArgs(self):
-            return ("", ["es5", "browser=", "worker"])
+            return ("", ["es5", "browser=", "worker", "typescript"])
 
         @classmethod
         def usage(self):
@@ -3699,10 +3705,12 @@ class JavaScriptMapping(Mapping):
             print("--es5                 Use JavaScript ES5 (Babel compiled code).")
             print("--browser=<name>      Run with the given browser.")
             print("--worker              Run with Web workers enabled.")
+            print("--typescript          Run TypeScript tests.")
 
         def __init__(self, options=[]):
             Mapping.Config.__init__(self, options)
             self.es5 = False
+            self.typescript = False
             self.browser = ""
             self.worker = False
             parseOptions(self, options)
@@ -3714,6 +3722,7 @@ class JavaScriptMapping(Mapping):
                 self.es5 = True
 
     def loadTestSuites(self, tests, config, filters, rfilters):
+        #filters = filters + ["ts"] if filters else ["ts"]
         Mapping.loadTestSuites(self, tests, config, filters, rfilters)
         self.getServerMapping().loadTestSuites(list(self.testsuites.keys()) + ["Ice/echo"], config)
 
@@ -3743,7 +3752,12 @@ class JavaScriptMapping(Mapping):
         if current.config.es5:
             commonPath = os.path.join(commonPath, "es5")
         commonPath = os.path.join(commonPath, "Common")
-        env["NODE_PATH"] = os.pathsep.join([commonPath, self.getTestCwd(process, current)])
+        testDir = self.getTestCwd(process, current)
+        if current.config.typescript:
+            env["NODE_PATH"] = os.pathsep.join([commonPath, testDir.replace(os.path.join("js", "test"),
+                                                                            os.path.join("js", "test", "ts"))])
+        else:
+            env["NODE_PATH"] = os.pathsep.join([commonPath, testDir])
         return env
 
     def getSSLProps(self, process, current):
