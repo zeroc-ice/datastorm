@@ -122,6 +122,13 @@
         </Link>
     </ItemDefinitionGroup>
 
+    <ItemDefinitionGroup Condition="'$(DefaultPlatformToolset)' == 'v142'">
+        <Link>
+            <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+            <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+        </Link>
+    </ItemDefinitionGroup>
+
     <Choose>
         <When Condition="'$(ConfigurationType)' == 'DynamicLibrary'">
             <PropertyGroup Condition="'$(UseDebugLibraries)' == 'true'">
