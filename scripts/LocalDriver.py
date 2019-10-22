@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import sys, os, time, threading
 from Util import *
@@ -238,6 +233,12 @@ class RemoteTestCaseRunner(TestCaseRunner):
             else:
                 testSuiteIds = serverTestSuiteIds
         return mapping.getTestSuites(testSuiteIds)
+
+    def getHost(self, protocol, ipv6):
+        if self.clientController:
+            return self.clientController.getHost(protocol, ipv6)
+        else:
+            return self.serverController.getHost(protocol, ipv6)
 
     def filterOptions(self, options):
         if options is None:
@@ -570,19 +571,28 @@ class LocalDriver(Driver):
                 # behind.
                 #
                 failure = []
+                sem = threading.Semaphore(0)
                 def stopServerSide():
                     try:
                         self.runner.stopServerSide(server, current, success)
                     except Exception as ex:
                         failure.append(ex)
+                    except KeyboardInterrupt: # Potentially raised by Except.py if Ctrl-C
+                        pass
+                    sem.release()
 
                 t=threading.Thread(target = stopServerSide)
                 t.start()
                 while True:
                     try:
-                        t.join()
+                        #
+                        # NOTE: we can't just use join() here because of https://bugs.python.org/issue21822
+                        # We use a semaphore to wait for the servers to be stopped and return.
+                        #
+                        sem.acquire()
                         if failure:
                             raise failure[0]
+                        t.join()
                         break
                     except KeyboardInterrupt:
                         pass # Ignore keyboard interrupts
@@ -605,6 +615,12 @@ class LocalDriver(Driver):
                 return
 
         current.testcase._runClientSide(current)
+
+    def getHost(self, protocol, ipv6):
+        if isinstance(self.runner, RemoteTestCaseRunner):
+            return self.runner.getHost(protocol, ipv6)
+        else:
+            return Driver.getHost(self, protocol, ipv6)
 
     def isWorkerThread(self):
         return hasattr(self.threadlocal, "num")

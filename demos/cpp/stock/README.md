@@ -11,7 +11,7 @@ To run the demo, start the writer and specify the ticker of the stocks to write:
 writer
 ```
 
-In a separate window, start the reader and specify the stock tickers on wish to
+In a separate window, start the reader and specify the stock tickers you wish to
 follow:
 ```
 reader
