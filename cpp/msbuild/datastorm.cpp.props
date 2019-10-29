@@ -106,6 +106,20 @@
         </Link>
     </ItemDefinitionGroup>
 
+    <ItemDefinitionGroup Condition="'$(DefaultPlatformToolset)'=='v140'">
+      <Link>
+        <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+        <GenerateDebugInformation>Debug</GenerateDebugInformation>
+      </Link>
+    </ItemDefinitionGroup>
+
+    <ItemDefinitionGroup Condition="'$(DefaultPlatformToolset)'=='v141' or '$(DefaultPlatformToolset)'=='v142'">
+      <Link>
+        <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+        <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      </Link>
+    </ItemDefinitionGroup>
+
     <Choose>
         <When Condition="'$(ConfigurationType)' == 'DynamicLibrary'">
             <PropertyGroup Condition="'$(UseDebugLibraries)' == 'true'">
