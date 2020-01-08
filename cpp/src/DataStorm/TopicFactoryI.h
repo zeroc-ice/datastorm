@@ -47,23 +47,32 @@ public:
     std::vector<std::shared_ptr<TopicI>> getTopicReaders(const std::string&) const;
     std::vector<std::shared_ptr<TopicI>> getTopicWriters(const std::string&) const;
 
-    void createSubscriberSession(const std::string&, const std::shared_ptr<DataStormContract::NodePrx>&);
-    void createPublisherSession(const std::string&, const std::shared_ptr<DataStormContract::NodePrx>&);
+    void createSubscriberSession(const std::string&,
+                                 const std::shared_ptr<DataStormContract::NodePrx>&,
+                                 const std::shared_ptr<Ice::Connection>&);
+    void createPublisherSession(const std::string&,
+                                const std::shared_ptr<DataStormContract::NodePrx>&,
+                                const std::shared_ptr<Ice::Connection>&);
 
     std::shared_ptr<Instance> getInstance() const
     {
-        return _instance;
+        auto instance = _instance.lock();
+        assert(instance);
+        return instance;
     }
 
     DataStormContract::TopicInfoSeq getTopicReaders() const;
     DataStormContract::TopicInfoSeq getTopicWriters() const;
+
+    DataStormContract::StringSeq getTopicReaderNames() const;
+    DataStormContract::StringSeq getTopicWriterNames() const;
 
     void shutdown() const;
 
 private:
 
     mutable std::mutex _mutex;
-    std::shared_ptr<Instance> _instance;
+    std::weak_ptr<Instance> _instance;
     std::shared_ptr<TraceLevels> _traceLevels;
     std::map<std::string, std::vector<std::shared_ptr<TopicI>>> _readers;
     std::map<std::string, std::vector<std::shared_ptr<TopicI>>> _writers;

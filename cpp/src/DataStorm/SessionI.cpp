@@ -12,16 +12,45 @@
 #endif
 
 #include <DataStorm/SessionI.h>
-#include <DataStorm/SessionManager.h>
+#include <DataStorm/ConnectionManager.h>
 #include <DataStorm/NodeI.h>
 #include <DataStorm/Instance.h>
 #include <DataStorm/TopicI.h>
 #include <DataStorm/TopicFactoryI.h>
 #include <DataStorm/TraceUtil.h>
+#include <DataStorm/CallbackExecutor.h>
+#include <DataStorm/Timer.h>
 
 using namespace std;
 using namespace DataStormI;
 using namespace DataStormContract;
+
+namespace
+{
+
+class DispatchInterceptorI : public Ice::DispatchInterceptor
+{
+public:
+
+    DispatchInterceptorI(shared_ptr<Ice::Object> servant, shared_ptr<CallbackExecutor> executor) :
+        _servant(move(servant)), _executor(move(executor))
+    {
+    }
+
+    virtual bool dispatch(Ice::Request& req) override
+    {
+        bool sync = _servant->ice_dispatch(req);
+        _executor->flush();
+        return sync;
+    }
+
+private:
+
+    shared_ptr<Ice::Object> _servant;
+    shared_ptr<CallbackExecutor> _executor;
+};
+
+}
 
 SessionI::SessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePrx>& node) :
     _instance(parent->getInstance()),
@@ -29,7 +58,8 @@ SessionI::SessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePr
     _parent(parent),
     _node(node),
     _destroyed(false),
-    _sessionInstanceId(0)
+    _sessionInstanceId(0),
+    _retryCount(0)
 {
 }
 
@@ -39,6 +69,16 @@ SessionI::init(const shared_ptr<SessionPrx>& prx)
     assert(_node);
     _proxy = prx;
     _id = Ice::identityToString(prx->ice_getIdentity());
+
+    //
+    // Even though the node register a default servant for sessions, we still need to
+    // register the session servant explicitly here to ensure collocation works. The
+    // default servant from the node is used for facet calls.
+    //
+    _instance->getObjectAdapter()->add(make_shared<DispatchInterceptorI>(shared_from_this(),
+                                                                         _instance->getCallbackExecutor()),
+                                       _proxy->ice_getIdentity());
+
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
@@ -76,7 +116,6 @@ SessionI::announceTopics(TopicInfoSeq topics, bool initialize, const Ice::Curren
                 {
                     topic->attach(id, shared_from_this(), _session);
                 }
-
                 _session->attachTopicAsync(topic->getTopicSpec());
             });
         }
@@ -454,6 +493,12 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
 }
 
 void
+SessionI::disconnected(const Ice::Current& current)
+{
+    disconnected(current.con, nullptr);
+}
+
+void
 SessionI::connected(const shared_ptr<SessionPrx>& session,
                     const shared_ptr<Ice::Connection>& connection,
                     const TopicInfoSeq& topics)
@@ -465,31 +510,34 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
         return;
     }
 
-    shared_ptr<Ice::ObjectPrx> prx;
+    _session = session;
+    _connection = connection;
     if(connection)
     {
-        if(!connection->getAdapter())
-        {
-            connection->setAdapter(_instance->getObjectAdapter());
-        }
-        _instance->getSessionManager()->add(shared_from_this(), connection);
-        prx = connection->createProxy(session->ice_getIdentity());
+        auto self = shared_from_this();
+        _instance->getConnectionManager()->add(self,
+                                               connection,
+                                               [self](auto connection, auto ex)
+                                               {
+                                                   self->disconnected(connection, ex);
+                                               });
     }
-    else
+
+    if(_retryCanceller)
     {
-        prx = _instance->getObjectAdapter()->createProxy(session->ice_getIdentity());
+        _retryCanceller();
+        _retryCanceller = nullptr;
     }
-    _connection = connection;
-    _session = Ice::uncheckedCast<SessionPrx>(prx->ice_oneway());
+
     ++_sessionInstanceId;
 
     if(_traceLevels->session > 0)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": session `" << _session->ice_getIdentity() << "' connected\n";
+        out << _id << ": session `" << _session->ice_getIdentity() << "' connected";
         if(_connection)
         {
-            out << _connection->toString();
+            out << "\n" << _connection->toString();
         }
     }
 
@@ -515,6 +563,7 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
 void
 SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_ptr ex)
 {
+    shared_ptr<NodePrx> node;
     {
         lock_guard<mutex> lock(_mutex);
         if(_destroyed || (connection && _connection != connection) || !_session)
@@ -554,17 +603,67 @@ SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_
 
         _session = nullptr;
         _connection = nullptr;
+        _retryCount = 0;
+        node = _node;
     }
 
     //
     // Try re-connecting if we got disconnected.
     //
-    // TODO: Improve retry logic.
-    //
-    if(connection && !reconnect())
+    if(connection)
     {
-        _proxy->destroy();
+        if(node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
+        {
+            _instance->getTimer()->schedule(chrono::minutes(1),
+                                            [=, self=shared_from_this()]
+                                            {
+                                                remove();
+                                            });
+        }
+        else if(!reconnect(node))
+        {
+            remove();
+        }
     }
+}
+
+bool
+SessionI::retry(const shared_ptr<NodePrx>& node, exception_ptr exception)
+{
+    lock_guard<mutex> lock(_mutex);
+    if(_traceLevels->session > 0)
+    {
+        Trace out(_traceLevels, _traceLevels->sessionCat);
+        out << _id << ": failed to create session with `" << node->ice_toString() << "`";
+        if(_retryCount < _instance->getRetryCount())
+        {
+            out << " (retrying " << _retryCount << '/' << _instance->getRetryCount() << ')';
+        }
+        if(exception)
+        {
+            try
+            {
+                rethrow_exception(exception);
+            }
+            catch(const Ice::LocalException& ex)
+            {
+                out << '\n' << ex.what();
+            }
+        }
+    }
+
+    if((node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty()) ||
+       (_retryCount == _instance->getRetryCount()))
+    {
+        return false;
+    }
+
+    _retryCanceller = _instance->getTimer()->schedule(_instance->getRetryDelay(_retryCount++),
+                                                      [=, self=shared_from_this()]
+                                                      {
+                                                          reconnect(node);
+                                                      });
+    return true;
 }
 
 void
@@ -584,6 +683,10 @@ SessionI::destroyImpl(const exception_ptr& ex)
             {
                 rethrow_exception(ex);
             }
+            catch(const Ice::Exception& e)
+            {
+                out << "\n:" << e.what() << "\n" << e.ice_stackTrace();
+            }
             catch(const exception& e)
             {
                 out << "\n:" << e.what();
@@ -599,7 +702,7 @@ SessionI::destroyImpl(const exception_ptr& ex)
     {
         if(_connection)
         {
-            _instance->getSessionManager()->remove(shared_from_this(), _connection);
+            _instance->getConnectionManager()->remove(shared_from_this(), _connection);
         }
 
         _session = nullptr;
@@ -620,22 +723,21 @@ SessionI::destroyImpl(const exception_ptr& ex)
         c(nullptr);
     }
     _connectedCallbacks.clear();
+
+    try
+    {
+        _instance->getObjectAdapter()->remove(_proxy->ice_getIdentity());
+    }
+    catch(const Ice::ObjectAdapterDeactivatedException&)
+    {
+    }
 }
 
-void
-SessionI::addConnectedCallback(function<void(shared_ptr<SessionPrx>)> callback,
-                               const shared_ptr<Ice::Connection>& connection)
+shared_ptr<Ice::Connection>
+SessionI::getConnection() const
 {
-    {
-        lock_guard<mutex> lock(_mutex);
-        assert(!_destroyed);
-        if(!_session || connection != _connection)
-        {
-            _connectedCallbacks.push_back(callback);
-            return;
-        }
-    }
-    callback(_proxy);
+    lock_guard<mutex> lock(_mutex);
+    return _connection;
 }
 
 shared_ptr<SessionPrx>
@@ -643,6 +745,20 @@ SessionI::getSession() const
 {
     lock_guard<mutex> lock(_mutex);
     return _session;
+}
+
+shared_ptr<NodePrx>
+SessionI::getNode() const
+{
+    lock_guard<mutex> lock(_mutex);
+    return _node;
+}
+
+void
+SessionI::setNode(shared_ptr<NodePrx> node)
+{
+    lock_guard<mutex> lock(_mutex);
+    _node = node;
 }
 
 void
@@ -984,12 +1100,6 @@ SubscriberSessionI::SubscriberSessionI(const std::shared_ptr<NodeI>& parent, con
 {
 }
 
-void
-SubscriberSessionI::destroy(const Ice::Current&)
-{
-    _parent->removeSubscriberSession(dynamic_pointer_cast<SubscriberSessionI>(shared_from_this()), nullptr);
-}
-
 vector<shared_ptr<TopicI>>
 SubscriberSessionI::getTopics(const string& name) const
 {
@@ -1005,8 +1115,15 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
         if(current.con != _connection)
         {
             Trace out(_traceLevels, _traceLevels->sessionCat);
-            out << _id << ": discarding sample `" << s.id << "' from `e" << elementId << '@' << topicId << "'";
-            out << current.con->toString() << " " << (_connection ? _connection->toString() : "null");
+            out << _id << ": discarding sample `" << s.id << "' from `e" << elementId << '@' << topicId << "'\n";
+            if(_connection)
+            {
+                out << current.con->toString() << "\n" << _connection->toString();
+            }
+            else
+            {
+                out << "<not connected>";
+            }
         }
         return;
     }
@@ -1073,20 +1190,25 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
 }
 
 bool
-SubscriberSessionI::reconnect() const
+SubscriberSessionI::reconnect(const shared_ptr<NodePrx>& node)
 {
-    return _parent->createPublisherSession(_node);
+    if(_traceLevels->session > 0)
+    {
+        Trace out(_traceLevels, _traceLevels->sessionCat);
+        out << _id << ": trying to reconnect session with `" << node->ice_toString() << "'";
+    }
+    return _parent->createPublisherSession(node, nullptr, dynamic_pointer_cast<SubscriberSessionI>(shared_from_this()));
+}
+
+void
+SubscriberSessionI::remove()
+{
+    _parent->removeSubscriberSession(getNode(), dynamic_pointer_cast<SubscriberSessionI>(shared_from_this()), nullptr);
 }
 
 PublisherSessionI::PublisherSessionI(const std::shared_ptr<NodeI>& parent, const shared_ptr<NodePrx>& node) :
     SessionI(parent, node)
 {
-}
-
-void
-PublisherSessionI::destroy(const Ice::Current&)
-{
-    _parent->removePublisherSession(dynamic_pointer_cast<PublisherSessionI>(shared_from_this()), nullptr);
 }
 
 vector<shared_ptr<TopicI>>
@@ -1096,7 +1218,18 @@ PublisherSessionI::getTopics(const string& name) const
 }
 
 bool
-PublisherSessionI::reconnect() const
+PublisherSessionI::reconnect(const shared_ptr<NodePrx>& node)
 {
-    return _parent->createSubscriberSession(_node);
+    if(_traceLevels->session > 0)
+    {
+        Trace out(_traceLevels, _traceLevels->sessionCat);
+        out << _id << ": trying to reconnect session with `" << node->ice_toString() << "'";
+    }
+    return _parent->createSubscriberSession(node, nullptr, dynamic_pointer_cast<PublisherSessionI>(shared_from_this()));
+}
+
+void
+PublisherSessionI::remove()
+{
+    _parent->removePublisherSession(getNode(), dynamic_pointer_cast<PublisherSessionI>(shared_from_this()), nullptr);
 }

@@ -115,7 +115,8 @@ TopicI::~TopicI()
 void
 TopicI::init()
 {
-    _forwarder = Ice::uncheckedCast<SessionPrx>(_instance->getForwarderManager()->add(shared_from_this()));
+    auto forwarder = [self=shared_from_this()](Ice::ByteSeq e, const Ice::Current& c) { self->forward(e, c); };
+    _forwarder = Ice::uncheckedCast<SessionPrx>(_instance->getCollocatedForwarder()->add(forwarder));
 }
 
 string
@@ -143,7 +144,7 @@ TopicI::destroy()
         }
         _keyElements.swap(keyElements);
         _filteredElements.swap(filteredElements);
-        _instance->getForwarderManager()->remove(_forwarder->ice_getIdentity());
+        _instance->getCollocatedForwarder()->remove(_forwarder->ice_getIdentity());
     }
     disconnect();
 }

@@ -15,30 +15,33 @@ namespace DataStormI
 
 class Instance;
 
-class Forwarder
+class ForwarderManager : public Ice::BlobjectAsync
 {
 public:
 
-    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const = 0;
-};
+    using Response = std::function<void(bool, const std::vector<Ice::Byte>&)>;
+    using Exception = std::function<void(std::exception_ptr)>;
 
-class ForwarderManager : public Ice::Blobject
-{
-public:
+    ForwarderManager(const std::shared_ptr<Ice::ObjectAdapter>&, const std::string&);
 
-    ForwarderManager(const std::shared_ptr<Ice::ObjectAdapter>&);
-
-    std::shared_ptr<Ice::ObjectPrx> add(const std::shared_ptr<Forwarder>&);
+    std::shared_ptr<Ice::ObjectPrx> add(std::function<void(Ice::ByteSeq, Response, Exception, const Ice::Current&)>);
+    std::shared_ptr<Ice::ObjectPrx> add(std::function<void(Ice::ByteSeq, const Ice::Current&)>);
     void remove(const Ice::Identity&);
+
+    void destroy();
 
 private:
 
-    virtual bool ice_invoke(Ice::ByteSeq, Ice::ByteSeq&, const Ice::Current&);
+    virtual void ice_invokeAsync(Ice::ByteSeq,
+                                 std::function<void(bool, const std::vector<Ice::Byte>&)>,
+                                 std::function<void(std::exception_ptr)>,
+                                 const Ice::Current&);
 
     const std::shared_ptr<Ice::ObjectAdapter> _adapter;
+    const std::string _category;
 
     std::mutex _mutex;
-    std::map<std::string, std::shared_ptr<Forwarder>> _forwarders;
+    std::map<std::string, std::function<void(Ice::ByteSeq, Response, Exception, const Ice::Current&)>> _forwarders;
     unsigned int _nextId;
 };
 

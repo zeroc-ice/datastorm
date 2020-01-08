@@ -9,14 +9,15 @@
 #include <DataStorm/NodeI.h>
 #include <DataStorm/TraceUtil.h>
 #include <DataStorm/Instance.h>
+#include <DataStorm/NodeSessionManager.h>
 
 using namespace std;
 using namespace DataStormI;
 
-TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(10)
+TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(0)
 {
     _instance = instance;
-    _traceLevels = _instance->getTraceLevels();
+    _traceLevels = instance->getTraceLevels();
 }
 
 shared_ptr<TopicReader>
@@ -28,6 +29,7 @@ TopicFactoryI::createTopicReader(const string& name,
                                  const shared_ptr<FilterManager>& sampleFilterFactories)
 {
     shared_ptr<TopicReaderI> reader;
+    bool hasWriters;
     {
         lock_guard<mutex> lock(_mutex);
         reader = make_shared<TopicReaderI>(shared_from_this(),
@@ -45,9 +47,20 @@ TopicFactoryI::createTopicReader(const string& name,
             Trace out(_traceLevels, _traceLevels->topicCat);
             out << name << ": created topic reader";
         }
+
+        hasWriters = _writers.find(name) != _writers.end();
     }
-    _instance->getNode()->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
-    _instance->getTopicLookup()->announceTopicReaderAsync(name, _instance->getNode()->getProxy());
+
+    auto instance = getInstance();
+    auto node = instance->getNode();
+    auto nodePrx = node->getProxy();
+    if(hasWriters)
+    {
+        node->createSubscriberSession(nodePrx, nullptr, nullptr);
+    }
+    node->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
+    instance->getLookup()->announceTopicReaderAsync(name, nodePrx);
+    instance->getNodeSessionManager()->announceTopicReader(name, nodePrx);
     return reader;
 }
 
@@ -60,6 +73,7 @@ TopicFactoryI::createTopicWriter(const string& name,
                                  const shared_ptr<FilterManager>& sampleFilterFactories)
 {
     shared_ptr<TopicWriterI> writer;
+    bool hasReaders;
     {
         lock_guard<mutex> lock(_mutex);
         writer = make_shared<TopicWriterI>(shared_from_this(),
@@ -77,9 +91,20 @@ TopicFactoryI::createTopicWriter(const string& name,
             Trace out(_traceLevels, _traceLevels->topicCat);
             out << name << ": created topic writer";
         }
+
+        hasReaders = _readers.find(name) != _readers.end();
     }
-    _instance->getNode()->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
-    _instance->getTopicLookup()->announceTopicWriterAsync(name, _instance->getNode()->getProxy());
+
+    auto instance = getInstance();
+    auto node = instance->getNode();
+    auto nodePrx = node->getProxy();
+    if(hasReaders)
+    {
+        node->createPublisherSession(nodePrx, nullptr, nullptr);
+    }
+    node->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
+    instance->getLookup()->announceTopicWriterAsync(name, nodePrx);
+    instance->getNodeSessionManager()->announceTopicWriter(name, nodePrx);
     return writer;
 }
 
@@ -142,22 +167,26 @@ TopicFactoryI::getTopicWriters(const string& name) const
 }
 
 void
-TopicFactoryI::createPublisherSession(const string& topic, const shared_ptr<DataStormContract::NodePrx>& publisher)
+TopicFactoryI::createPublisherSession(const string& topic,
+                                      const shared_ptr<DataStormContract::NodePrx>& publisher,
+                                      const shared_ptr<Ice::Connection>& connection)
 {
     auto readers = getTopicReaders(topic);
     if(!readers.empty())
     {
-        _instance->getNode()->createPublisherSession(publisher);
+        getInstance()->getNode()->createPublisherSession(publisher, connection, nullptr);
     }
 }
 
 void
-TopicFactoryI::createSubscriberSession(const string& topic, const shared_ptr<DataStormContract::NodePrx>& subscriber)
+TopicFactoryI::createSubscriberSession(const string& topic,
+                                       const shared_ptr<DataStormContract::NodePrx>& subscriber,
+                                       const shared_ptr<Ice::Connection>& connection)
 {
     auto writers = getTopicWriters(topic);
     if(!writers.empty())
     {
-        _instance->getNode()->createSubscriberSession(subscriber);
+        getInstance()->getNode()->createSubscriberSession(subscriber, connection, nullptr);
     }
 }
 
@@ -196,7 +225,33 @@ TopicFactoryI::getTopicWriters() const
         {
             info.ids.push_back(q->getId());
         }
-        writers.push_back(info);
+        writers.push_back(move(info));
+    }
+    return writers;
+}
+
+DataStormContract::StringSeq
+TopicFactoryI::getTopicReaderNames() const
+{
+    lock_guard<mutex> lock(_mutex);
+    DataStormContract::StringSeq readers;
+    readers.reserve(_readers.size());
+    for(const auto& p : _readers)
+    {
+        readers.push_back(p.first);
+    }
+    return readers;
+}
+
+DataStormContract::StringSeq
+TopicFactoryI::getTopicWriterNames() const
+{
+    lock_guard<mutex> lock(_mutex);
+    DataStormContract::StringSeq writers;
+    writers.reserve(_writers.size());
+    for(const auto& p : _writers)
+    {
+        writers.push_back(p.first);
     }
     return writers;
 }
@@ -224,5 +279,5 @@ TopicFactoryI::shutdown() const
 shared_ptr<Ice::Communicator>
 TopicFactoryI::getCommunicator() const
 {
-    return _instance->getCommunicator();
+    return getInstance()->getCommunicator();
 }

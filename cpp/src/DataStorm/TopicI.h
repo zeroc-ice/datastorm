@@ -18,7 +18,7 @@ namespace DataStormI
 class SessionI;
 class TopicFactoryI;
 
-class TopicI : virtual public Topic, public Forwarder, public std::enable_shared_from_this<TopicI>
+class TopicI : virtual public Topic, public std::enable_shared_from_this<TopicI>
 {
     struct ListenerKey
     {
@@ -142,7 +142,7 @@ protected:
 
     void disconnect();
 
-    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
+    void forward(const Ice::ByteSeq&, const Ice::Current&) const;
     void forwarderException() const;
 
     void add(const std::shared_ptr<DataElementI>&, const std::vector<std::shared_ptr<Key>>&);

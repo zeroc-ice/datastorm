@@ -59,7 +59,7 @@ include $(top_srcdir)/config/Make.rules.$(os)
 include $(top_srcdir)/config/Make.project.rules
 include $(top_srcdir)/config/Make.tests.rules
 
-version                 = 0.1.0
+version                 = 0.2.0
 soversion               = 0
 
 #

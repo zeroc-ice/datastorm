@@ -69,7 +69,7 @@
     <ClCompile Include="..\..\TopicFactoryI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\SessionManager.cpp">
+    <ClCompile Include="..\..\ConnectionManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\SessionI.cpp">
@@ -123,6 +123,15 @@
     <ClCompile Include="..\..\CtrlCHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\NodeSessionI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\NodeSessionManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Timer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\CallbackExecutor.h">
@@ -146,7 +155,7 @@
     <ClInclude Include="..\..\SessionI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\SessionManager.h">
+    <ClInclude Include="..\..\ConnectionManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\TopicFactoryI.h">
@@ -201,6 +210,15 @@
       <Filter>Header Files\x64\Release</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\DataStorm\CtrlCHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\NodeSessionI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\NodeSessionManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

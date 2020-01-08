@@ -128,8 +128,11 @@
     <ClCompile Include="..\..\LookupI.cpp" />
     <ClCompile Include="..\..\Node.cpp" />
     <ClCompile Include="..\..\NodeI.cpp" />
+    <ClCompile Include="..\..\NodeSessionI.cpp" />
+    <ClCompile Include="..\..\NodeSessionManager.cpp" />
     <ClCompile Include="..\..\SessionI.cpp" />
-    <ClCompile Include="..\..\SessionManager.cpp" />
+    <ClCompile Include="..\..\ConnectionManager.cpp" />
+    <ClCompile Include="..\..\Timer.cpp" />
     <ClCompile Include="..\..\TopicFactoryI.cpp" />
     <ClCompile Include="..\..\TopicI.cpp" />
     <ClCompile Include="..\..\TraceUtil.cpp" />
@@ -220,8 +223,11 @@
     <ClInclude Include="..\..\Instance.h" />
     <ClInclude Include="..\..\LookupI.h" />
     <ClInclude Include="..\..\NodeI.h" />
+    <ClInclude Include="..\..\NodeSessionI.h" />
+    <ClInclude Include="..\..\NodeSessionManager.h" />
     <ClInclude Include="..\..\SessionI.h" />
-    <ClInclude Include="..\..\SessionManager.h" />
+    <ClInclude Include="..\..\ConnectionManager.h" />
+    <ClInclude Include="..\..\Timer.h" />
     <ClInclude Include="..\..\TopicFactoryI.h" />
     <ClInclude Include="..\..\TopicI.h" />
     <ClInclude Include="..\..\TraceUtil.h" />
@@ -263,7 +269,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\..\..\msbuild\ice.sign.targets" />
-
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>

@@ -24,7 +24,7 @@ enum struct DiscardPolicy
 
     /**
      * Samples are discared based on the sample timestamp. If the received sample
-     * timestamp is older than that last received sample, the sample is discarded.
+     * timestamp is older than the last received sample, the sample is discarded.
      * This ensures that readers will eventually always end up with the same
      * view of the data if multiple writers are sending samples.
      **/

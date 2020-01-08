@@ -4,10 +4,11 @@
         <DataStormSrcRootDir>$(MSBuildThisFileDirectory)..\</DataStormSrcRootDir>
     </PropertyGroup>
 
-    <!-- Dynamic libraries and import libraries -->
+    <!-- Dynamic libraries, import libraries and executable-->
     <ItemGroup>
         <Libraries Include="$(DataStormSrcRootDir)bin\$(Platform)\$(Configuration)\*.dll"/>
         <ImportLibraries Include="$(DataStormSrcRootDir)lib\$(Platform)\$(Configuration)\*.lib"/>
+        <Executables Include="$(DataStormSrcRootDir)bin\$(Platform)\$(Configuration)\*.exe"/>
     </ItemGroup>
 
     <!-- Public C++ header and Slice files -->
@@ -25,7 +26,9 @@
 
         <Copy Condition="'$(Platform)|$(Configuration)' == 'Win32|Release'"
               SourceFiles="@(Slices)" DestinationFolder="$(PackageDirectory)\slice\%(Slices.RecursiveDir)" />
+        <Copy SourceFiles="@(Executables)" DestinationFolder="$(PackageDirectory)\build\native\bin\$(Platform)\$(Configuration)" />
         <Copy SourceFiles="@(Libraries)" DestinationFolder="$(PackageDirectory)\build\native\bin\$(Platform)\$(Configuration)" />
         <Copy SourceFiles="@(ImportLibraries)" DestinationFolder="$(PackageDirectory)\build\native\lib\$(Platform)\$(Configuration)" />
     </Target>
+
 </Project>

@@ -20,18 +20,28 @@ NodeShutdownException::what() const noexcept
     return "::DataStorm::NodeShutdownException";
 }
 
-Node::Node(std::shared_ptr<Ice::Communicator> communicator) noexcept :
+Node::Node(std::shared_ptr<Ice::Communicator> communicator) :
     _ownsCommunicator(false)
 {
     init(communicator);
 }
 
 void
-Node::init(const std::shared_ptr<Ice::Communicator>& communicator) noexcept
+Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
 {
-    _instance = make_shared<DataStormI::Instance>(communicator);
-    _instance->init();
-
+    try
+    {
+        _instance = make_shared<DataStormI::Instance>(communicator);
+        _instance->init();
+    }
+    catch(...)
+    {
+        if(_ownsCommunicator)
+        {
+            communicator->destroy();
+        }
+        throw;
+    }
     _factory = _instance->getTopicFactory();
 }
 

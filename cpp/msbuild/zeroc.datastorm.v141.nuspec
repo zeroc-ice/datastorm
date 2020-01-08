@@ -3,7 +3,7 @@
   <metadata>
     <id>zeroc.datastorm.v141</id>
     <title>ZeroC DataStorm C++ for Visual Studio 2017</title>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <authors>ZeroC</authors>
     <licenseUrl>https://raw.githubusercontent.com/zeroc-ice/datastorm/master/LICENSE</licenseUrl>
     <projectUrl>https://github.com/zeroc-ice/datastorm</projectUrl>

@@ -26,6 +26,9 @@ sequence<byte> ByteSeq;
 /** A sequence of long */
 sequence<long> LongSeq;
 
+/** A sequence of strings */
+sequence<string> StringSeq;
+
 /** A dictionary of <long, long> */
 dictionary<long, long> LongLongDict;
 
@@ -212,7 +215,7 @@ interface Session
 
     void initSamples(long topic, DataSamplesSeq samples);
 
-    void destroy();
+    void disconnected();
 }
 
 interface PublisherSession extends Session
@@ -224,24 +227,21 @@ interface SubscriberSession extends Session
     void s(long topicId, long elementId, DataSample sample);
 }
 
-exception CannotCreateSessionException
-{
-    string reason;
-};
-
 interface Node
 {
-    ["amd"] SubscriberSession* createSubscriberSession(Node* publisher, PublisherSession* session)
-        throws CannotCreateSessionException;
-
-    ["amd"] PublisherSession* createPublisherSession(Node* subscriber, SubscriberSession* session)
-        throws CannotCreateSessionException;
+    void initiateCreateSession(Node* publisher);
+    void createSession(Node* subscriber, SubscriberSession* session, bool fromRelay);
+    void confirmCreateSession(Node* publisher, PublisherSession* session);
 }
 
-interface TopicLookup
+interface Lookup
 {
     idempotent void announceTopicReader(string topic, Node* node);
     idempotent void announceTopicWriter(string topic, Node* node);
+
+    idempotent void announceTopics(StringSeq readers, StringSeq writers, Node* node);
+
+    Node* createSession(Node* node);
 }
 
 }

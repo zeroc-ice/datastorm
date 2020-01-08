@@ -49,7 +49,7 @@ public:
      * @param communicator The Ice communicator used by the topic factory for
      *                     its configuration and communications.
      */
-    Node(std::shared_ptr<Ice::Communicator> communicator) noexcept;
+    Node(std::shared_ptr<Ice::Communicator> communicator);
 
     /**
      * Construct a DataStorm node.
@@ -213,7 +213,7 @@ private:
         init(communicator);
     }
 
-    void init(const std::shared_ptr<Ice::Communicator>&) noexcept;
+    void init(const std::shared_ptr<Ice::Communicator>&);
 
     std::shared_ptr<DataStormI::Instance> _instance;
     std::shared_ptr<DataStormI::TopicFactory> _factory;

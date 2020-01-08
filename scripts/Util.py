@@ -209,6 +209,15 @@ class Component(object):
         else:
             return self.getSourceDir()
 
+    def getSupportedArgs(self):
+        return ("", [])
+
+    def usage(self):
+        pass
+
+    def parseOptions(self, options):
+        pass
+
 class Platform(object):
 
     def __init__(self):
@@ -4031,6 +4040,9 @@ def runTests(mappings=None, drivers=None):
         for mapping in mappings:
             mapping.Config.usage()
 
+        if component:
+            component.usage()
+
         print("")
 
     driver = None
@@ -4038,6 +4050,7 @@ def runTests(mappings=None, drivers=None):
         options = [Driver.getSupportedArgs(), Mapping.Config.getSupportedArgs()]
         options += [driver.getSupportedArgs() for driver in drivers]
         options += [mapping.Config.getSupportedArgs() for mapping in Mapping.getAll(includeDisabled=True)]
+        options += [component.getSupportedArgs()]
         shortOptions = "h"
         longOptions = ["help"]
         for so, lo in options:
@@ -4062,6 +4075,11 @@ def runTests(mappings=None, drivers=None):
         for mapping in Mapping.getAll():
             if mapping not in configs:
                 configs[mapping] = mapping.createConfig(opts[:])
+
+        #
+        # Parse component options
+        #
+        component.parseOptions(opts)
 
         #
         # If the user specified --languages/rlanguages, only run matching mappings.

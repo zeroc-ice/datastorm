@@ -1344,6 +1344,10 @@ Reader<Key, Value, UpdateTag>::~Reader()
 template<typename Key, typename Value, typename UpdateTag> Reader<Key, Value, UpdateTag>&
 Reader<Key, Value, UpdateTag>::operator=(Reader&& reader) noexcept
 {
+    if(_impl)
+    {
+        _impl->destroy();
+    }
     _impl = std::move(reader._impl);
     return *this;
 }
@@ -1590,13 +1594,6 @@ Writer<Key, Value, UpdateTag>::Writer(Writer&& writer) noexcept : _impl(std::mov
 {
 }
 
-template<typename Key, typename Value, typename UpdateTag> Writer<Key, Value, UpdateTag>&
-Writer<Key, Value, UpdateTag>::operator=(Writer&& writer) noexcept
-{
-    _impl = std::move(writer._impl);
-    return *this;
-}
-
 template<typename Key, typename Value, typename UpdateTag>
 Writer<Key, Value, UpdateTag>::~Writer()
 {
@@ -1604,6 +1601,17 @@ Writer<Key, Value, UpdateTag>::~Writer()
     {
         _impl->destroy();
     }
+}
+
+template<typename Key, typename Value, typename UpdateTag> Writer<Key, Value, UpdateTag>&
+Writer<Key, Value, UpdateTag>::operator=(Writer&& writer) noexcept
+{
+    if(_impl)
+    {
+        _impl->destroy();
+    }
+    _impl = std::move(writer._impl);
+    return *this;
 }
 
 template<typename Key, typename Value, typename UpdateTag> bool
@@ -1959,6 +1967,15 @@ Topic<Key, Value, UpdateTag>::~Topic()
 template<typename Key, typename Value, typename UpdateTag> Topic<Key, Value, UpdateTag>&
 Topic<Key, Value, UpdateTag>::operator=(Topic<Key, Value, UpdateTag>&& topic) noexcept
 {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if(_reader)
+    {
+        _reader->destroy();
+    }
+    if(_writer)
+    {
+        _writer->destroy();
+    }
     _name = std::move(topic._name);
     _topicFactory = std::move(topic._topicFactory);
     _keyFactory = std::move(topic._keyFactory);

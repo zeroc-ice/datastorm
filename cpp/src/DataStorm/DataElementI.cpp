@@ -73,7 +73,8 @@ DataElementI::DataElementI(TopicI* parent, const string& name, long long int id,
 void
 DataElementI::init()
 {
-    _forwarder = Ice::uncheckedCast<SessionPrx>(_parent->getInstance()->getForwarderManager()->add(shared_from_this()));
+    auto forwarder = [self=shared_from_this()](Ice::ByteSeq e, const Ice::Current& c) { self->forward(e, c); };
+    _forwarder = Ice::uncheckedCast<SessionPrx>(_parent->getInstance()->getCollocatedForwarder()->add(move(forwarder)));
 }
 
 DataElementI::~DataElementI()
@@ -93,7 +94,7 @@ DataElementI::destroy()
         destroyImpl(); // Must be called first.
     }
     disconnect();
-    _parent->getInstance()->getForwarderManager()->remove(_forwarder->ice_getIdentity());
+    _parent->getInstance()->getCollocatedForwarder()->remove(_forwarder->ice_getIdentity());
 }
 
 void

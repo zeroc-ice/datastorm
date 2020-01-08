@@ -372,7 +372,7 @@ main(int argc, char* argv[])
 
     cout << "testing topic collocated key reader and writer... " << flush;
     {
-        Topic<string, string> topic(node, "topic");
+        Topic<string, string> topic(node, "collocated");
         {
             auto writer = makeSingleKeyWriter(topic, "test");
             writer.add("add");

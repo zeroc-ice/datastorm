@@ -4,24 +4,54 @@
 //
 // **********************************************************************
 
+#include <DataStorm/Instance.h>
 #include <DataStorm/LookupI.h>
 #include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/NodeSessionManager.h>
+#include <DataStorm/NodeI.h>
 
 using namespace std;
+using namespace DataStormContract;
 using namespace DataStormI;
 
-TopicLookupI::TopicLookupI(const shared_ptr<TopicFactoryI>& factory) : _factory(factory)
+LookupI::LookupI(const shared_ptr<Instance>& instance) :
+    _nodeSessionManager(instance->getNodeSessionManager()),
+    _topicFactory(instance->getTopicFactory()),
+    _nodePrx(instance->getNode()->getProxy())
 {
 }
 
 void
-TopicLookupI::announceTopicReader(string name, shared_ptr<DataStormContract::NodePrx> proxy, const Ice::Current&)
+LookupI::announceTopicReader(string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
-    _factory->createSubscriberSession(name, proxy);
+    _nodeSessionManager->announceTopicReader(name, proxy, current.con);
+    _topicFactory->createSubscriberSession(name, proxy, current.con);
 }
 
 void
-TopicLookupI::announceTopicWriter(string name, shared_ptr<DataStormContract::NodePrx> proxy, const Ice::Current&)
+LookupI::announceTopicWriter(string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
-    _factory->createPublisherSession(name, proxy);
+    _nodeSessionManager->announceTopicWriter(name, proxy, current.con);
+    _topicFactory->createPublisherSession(name, proxy, current.con);
+}
+
+void
+LookupI::announceTopics(StringSeq readers, StringSeq writers, shared_ptr<NodePrx> proxy, const Ice::Current& current)
+{
+    _nodeSessionManager->announceTopics(readers, writers, proxy, current.con);
+    for(auto name : readers)
+    {
+        _topicFactory->createSubscriberSession(name, proxy, current.con);
+    }
+    for(auto name : writers)
+    {
+        _topicFactory->createPublisherSession(name, proxy, current.con);
+    }
+}
+
+shared_ptr<NodePrx>
+LookupI::createSession(shared_ptr<NodePrx> node, const Ice::Current& current)
+{
+    _nodeSessionManager->createOrGet(move(node), current.con, true);
+    return _nodePrx;
 }

@@ -20,10 +20,9 @@ class TopicI;
 class TopicReaderI;
 class TopicWriterI;
 class CallbackExecutor;
-
 class TraceLevels;
 
-class DataElementI : virtual public DataElement, public Forwarder, public std::enable_shared_from_this<DataElementI>
+class DataElementI : virtual public DataElement, public std::enable_shared_from_this<DataElementI>
 {
 protected:
 
@@ -249,7 +248,7 @@ protected:
 
 private:
 
-    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const override;
+    virtual void forward(const Ice::ByteSeq&, const Ice::Current&) const;
 
     const std::shared_ptr<TopicI> _parent;
     mutable size_t _waiters;

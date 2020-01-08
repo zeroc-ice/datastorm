@@ -283,10 +283,13 @@ public:
 
     virtual void initSamples(long long int, DataStormContract::DataSamplesSeq, const Ice::Current&) override;
 
+    virtual void disconnected(const Ice::Current&) override;
+
     void connected(const std::shared_ptr<DataStormContract::SessionPrx>&,
                    const std::shared_ptr<Ice::Connection>&,
                    const DataStormContract::TopicInfoSeq&);
     void disconnected(const std::shared_ptr<Ice::Connection>&, std::exception_ptr);
+    bool retry(const std::shared_ptr<DataStormContract::NodePrx>&, std::exception_ptr);
     void destroyImpl(const std::exception_ptr&);
 
     const std::string& getId() const
@@ -294,25 +297,16 @@ public:
         return _id;
     }
 
-    std::shared_ptr<Ice::Connection> getConnection() const
-    {
-        return _connection;
-    }
-
-    void addConnectedCallback(std::function<void(std::shared_ptr<DataStormContract::SessionPrx>)>,
-                              const std::shared_ptr<Ice::Connection>&);
-
+    std::shared_ptr<Ice::Connection> getConnection() const;
     std::shared_ptr<DataStormContract::SessionPrx> getSession() const;
 
-    std::shared_ptr<DataStormContract::SessionPrx> getProxy() const
+    template<typename T = DataStormContract::SessionPrx> std::shared_ptr<T> getProxy() const
     {
-        return _proxy;
+        return Ice::uncheckedCast<T>(_proxy);
     }
 
-    std::shared_ptr<DataStormContract::NodePrx> getNode() const
-    {
-        return _node;
-    }
+    std::shared_ptr<DataStormContract::NodePrx> getNode() const;
+    void setNode(std::shared_ptr<DataStormContract::NodePrx>);
 
     std::unique_lock<std::mutex>& getTopicLock()
     {
@@ -349,7 +343,8 @@ protected:
     void runWithTopic(long long int, TopicI*, std::function<void (TopicSubscriber&)>);
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const = 0;
-    virtual bool reconnect() const = 0;
+    virtual bool reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) = 0;
+    virtual void remove() = 0;
 
     const std::shared_ptr<Instance> _instance;
     std::shared_ptr<TraceLevels> _traceLevels;
@@ -357,9 +352,11 @@ protected:
     std::shared_ptr<NodeI> _parent;
     std::string _id;
     std::shared_ptr<DataStormContract::SessionPrx> _proxy;
-    const std::shared_ptr<DataStormContract::NodePrx> _node;
+    std::shared_ptr<DataStormContract::NodePrx> _node;
     bool _destroyed;
     int _sessionInstanceId;
+    int _retryCount;
+    std::function<void()> _retryCanceller;
 
     std::map<long long int, TopicSubscribers> _topics;
     std::unique_lock<std::mutex>* _topicLock;
@@ -374,14 +371,14 @@ class SubscriberSessionI : public SessionI, public DataStormContract::Subscriber
 public:
 
     SubscriberSessionI(const std::shared_ptr<NodeI>&, const std::shared_ptr<DataStormContract::NodePrx>&);
-    virtual void destroy(const Ice::Current&) override;
 
     virtual void s(long long int, long long int, DataStormContract::DataSample, const Ice::Current&) override;
 
 private:
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const override;
-    virtual bool reconnect() const override;
+    virtual bool reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) override;
+    virtual void remove() override;
 };
 
 class PublisherSessionI : public SessionI, public DataStormContract::PublisherSession
@@ -389,12 +386,12 @@ class PublisherSessionI : public SessionI, public DataStormContract::PublisherSe
 public:
 
     PublisherSessionI(const std::shared_ptr<NodeI>&, const std::shared_ptr<DataStormContract::NodePrx>&);
-    virtual void destroy(const Ice::Current&) override;
 
 private:
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const override;
-    virtual bool reconnect() const override;
+    virtual bool reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) override;
+    virtual void remove() override;
 };
 
 }
