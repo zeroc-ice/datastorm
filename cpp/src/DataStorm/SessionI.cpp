@@ -632,23 +632,26 @@ SessionI::retry(const shared_ptr<NodePrx>& node, exception_ptr exception)
 {
     lock_guard<mutex> lock(_mutex);
 
-    //
-    // Don't retry if we are shutting down.
-    //
-    try
+    if(exception)
     {
-        rethrow_exception(exception);
-    }
-    catch(const Ice::ObjectAdapterDeactivatedException&)
-    {
-        return false;
-    }
-    catch(const Ice::CommunicatorDestroyedException&)
-    {
-        return false;
-    }
-    catch(const std::exception&)
-    {
+        //
+        // Don't retry if we are shutting down.
+        //
+        try
+        {
+            rethrow_exception(exception);
+        }
+        catch(const Ice::ObjectAdapterDeactivatedException&)
+        {
+            return false;
+        }
+        catch(const Ice::CommunicatorDestroyedException&)
+        {
+            return false;
+        }
+        catch(const std::exception&)
+        {
+        }
     }
 
     if(_traceLevels->session > 0)
