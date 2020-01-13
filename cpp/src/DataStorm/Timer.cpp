@@ -22,6 +22,10 @@ function<void()>
 Timer::schedule(chrono::milliseconds duration, function<void()> callback)
 {
     lock_guard<mutex> lock(_mutex);
+    if(_destroyed)
+    {
+        return []{};
+    }
     auto scheduledAt = chrono::steady_clock::now() + duration;
     auto it = _timers.emplace(scheduledAt, callback);
     _cond.notify_one();

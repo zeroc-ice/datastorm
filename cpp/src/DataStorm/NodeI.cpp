@@ -327,11 +327,7 @@ NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
         });
         return true;
     }
-    catch(const Ice::ObjectAdapterDeactivatedException&)
-    {
-        removeSubscriberSession(publisher, session, current_exception());
-    }
-    catch(const Ice::CommunicatorDestroyedException&)
+    catch(const Ice::LocalException&)
     {
         removeSubscriberSession(publisher, session, current_exception());
     }

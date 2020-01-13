@@ -36,12 +36,17 @@ void
 ConnectionManager::remove(const shared_ptr<void>& object, const shared_ptr<Ice::Connection>& connection)
 {
     lock_guard<mutex> lock(_mutex);
-    auto& objects = _connections[connection];
+    auto p = _connections.find(connection);
+    if(p == _connections.end())
+    {
+        return;
+    }
+    auto& objects = p->second;
     objects.erase(object);
     if(objects.empty())
     {
         connection->setCloseCallback(nullptr);
-        _connections.erase(connection);
+        _connections.erase(p);
     }
 }
 
