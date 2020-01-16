@@ -60,6 +60,7 @@ protected:
             {
                 p->second.keys.insert(key);
                 p->second.sessionInstanceId = sessionInstanceId;
+                p->second.initialized = false;
             }
             else
             {
