@@ -146,15 +146,16 @@ NodeSessionManager::announceTopicReader(const string& topic,
             out << "announcing topic reader `" << topic << "' (peer = `" << node << "')";
         }
     }
+
     _exclude = connection;
     auto p = _sessions.find(node->ice_getIdentity());
-    if(p != _sessions.end())
+    auto nodePrx = p != _sessions.end() ? p->second->getPublicNode() : node;
+    _forwarder->announceTopicReader(topic, nodePrx);
+
+    auto instance = _instance.lock();
+    if(instance && (!connection || connection->type() != "udp"))
     {
-        _forwarder->announceTopicReader(topic, p->second->getPublicNode());
-    }
-    else
-    {
-        _forwarder->announceTopicReader(topic, node);
+        instance->getLookup()->announceTopicReaderAsync(topic, nodePrx);
     }
 }
 
@@ -176,15 +177,16 @@ NodeSessionManager::announceTopicWriter(const string& topic,
             out << "announcing topic writer `" << topic << "' (peer = `" << node << "')";
         }
     }
+
     _exclude = connection;
     auto p = _sessions.find(node->ice_getIdentity());
-    if(p != _sessions.end())
+    auto nodePrx = p != _sessions.end() ? p->second->getPublicNode() : node;
+    _forwarder->announceTopicWriter(topic, nodePrx);
+
+    auto instance = _instance.lock();
+    if(instance && (!connection || connection->type() != "udp"))
     {
-        _forwarder->announceTopicWriter(topic, p->second->getPublicNode());
-    }
-    else
-    {
-        _forwarder->announceTopicWriter(topic, node);
+        instance->getLookup()->announceTopicWriterAsync(topic, nodePrx);
     }
 }
 
@@ -221,15 +223,16 @@ NodeSessionManager::announceTopics(const StringSeq& readers,
             }
         }
     }
+
     _exclude = connection;
     auto p = _sessions.find(node->ice_getIdentity());
-    if(p != _sessions.end())
+    auto nodePrx = p != _sessions.end() ? p->second->getPublicNode() : node;
+    _forwarder->announceTopics(readers, writers, nodePrx);
+
+    auto instance = _instance.lock();
+    if(instance && (!connection || connection->type() != "udp"))
     {
-        _forwarder->announceTopics(readers, writers, p->second->getPublicNode());
-    }
-    else
-    {
-        _forwarder->announceTopics(readers, writers, node);
+        instance->getLookup()->announceTopics(readers, writers, nodePrx);
     }
 }
 
