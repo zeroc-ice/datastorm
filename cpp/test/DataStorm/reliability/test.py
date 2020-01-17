@@ -13,35 +13,33 @@ traceProps = {
 }
 
 clientProps = {
-    "DataStorm.Node.Multicast": 0,
-    "DataStorm.Node.Server": 0,
-    "DataStorm.Node.Server.Endpoints": "",
+    "DataStorm.Node.Multicast.Enabled": 0,
+    "DataStorm.Node.Server.Enabled": 0,
     "DataStorm.Node.ConnectTo": "tcp -p 12345"
 }
 
 client2Props = {
-    "DataStorm.Node.Multicast": 0,
-    "DataStorm.Node.Server": 0,
-    "DataStorm.Node.Server.Endpoints": "",
+    "DataStorm.Node.Multicast.Enabled": 0,
+    "DataStorm.Node.Server.Enabled": 0,
     "DataStorm.Node.ConnectTo": "tcp -p 12346"
 }
 
 serverProps = {
-    "DataStorm.Node.Multicast": 0,
-    "DataStorm.Node.Server": 1,
+    "DataStorm.Node.Multicast.Enabled": 0,
+    "DataStorm.Node.Server.Enabled": 1,
     "DataStorm.Node.Server.Endpoints": "tcp -p 12345",
     "DataStorm.Node.ConnectTo": ""
 }
 
 server2Props = {
-    "DataStorm.Node.Multicast": 0,
-    "DataStorm.Node.Server": 1,
+    "DataStorm.Node.Multicast.Enabled": 0,
+    "DataStorm.Node.Server.Enabled": 1,
     "DataStorm.Node.Server.Endpoints": "tcp -p 12346",
     "DataStorm.Node.ConnectTo": "tcp -p 12345"
 }
 
 serverAnyProps = {
-    "DataStorm.Node.Multicast": 0,
+    "DataStorm.Node.Multicast.Enabled": 0,
     "DataStorm.Node.Server.Endpoints": "tcp",
     "DataStorm.Node.ConnectTo": "tcp -p 12345",
 }

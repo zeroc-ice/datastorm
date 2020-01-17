@@ -96,9 +96,9 @@ class DataStorm(Component):
             return {}
         else:
             props = {}
-            props["DataStorm.Node.Multicast"] = 0
+            props["DataStorm.Node.Multicast.Enabled"] = 0
             if isinstance(process, Writer) :
-                props["DataStorm.Node.Server"] = 0
+                props["DataStorm.Node.Server.Enabled"] = 0
                 props["DataStorm.Node.ConnectTo"] = "tcp -p 12345"
             else:
                 props["DataStorm.Node.Server.Endpoints"] = "tcp -p 12345"
