@@ -33,7 +33,8 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
         auto props = properties->getPropertiesForPrefix(pfx);
         for(const auto& p : props)
         {
-            if(p.first != "DataStorm.Node.Server.Enabled")
+            if(p.first != "DataStorm.Node.Server.Enabled" &&
+               p.first != "DataStorm.Node.Server.ForwardDiscoveryToMulticast")
             {
                 properties->setProperty("DataStorm.Node.Adapters.Server" + p.first.substr(pfx.length()), p.second);
             }
@@ -86,10 +87,6 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
             throw invalid_argument(os.str());
         }
     }
-    else
-    {
-        _multicastAdapter = _communicator->createObjectAdapter("");
-    }
 
     _retryDelay = chrono::milliseconds(properties->getPropertyAsIntWithDefault("DataStorm.Node.RetryDelay", 500));
     _retryMultiplier = properties->getPropertyAsIntWithDefault("DataStorm.Node.RetryMultiplier", 2);
@@ -116,21 +113,29 @@ void
 Instance::init()
 {
     auto self = shared_from_this();
-    _node = make_shared<NodeI>(self);
-    _nodeSessionManager = make_shared<NodeSessionManager>(self);
-    _topicFactory = make_shared<TopicFactoryI>(self);
 
+    _node = make_shared<NodeI>(self);
     _node->init();
+
+    _nodeSessionManager = make_shared<NodeSessionManager>(self);
     _nodeSessionManager->init();
 
+    _topicFactory = make_shared<TopicFactoryI>(self);
+
     auto lookupI = make_shared<LookupI>(self);
-    auto lookup = _multicastAdapter->add(lookupI, {"Lookup", "DataStorm"});
-    _lookup = Ice::uncheckedCast<DataStormContract::LookupPrx>(lookup->ice_collocationOptimized(false));
     _adapter->add(lookupI, {"Lookup", "DataStorm"});
+    if(_multicastAdapter)
+    {
+        auto lookup = _multicastAdapter->add(lookupI, {"Lookup", "DataStorm"});
+        _lookup = Ice::uncheckedCast<DataStormContract::LookupPrx>(lookup->ice_collocationOptimized(false));
+    }
 
     _adapter->activate();
     _collocatedAdapter->activate();
-    _multicastAdapter->activate();
+    if(_multicastAdapter)
+    {
+        _multicastAdapter->activate();
+    }
 }
 
 void
@@ -179,7 +184,10 @@ Instance::destroy(bool ownsCommunicator)
     {
         _adapter->destroy();
         _collocatedAdapter->destroy();
-        _multicastAdapter->destroy();
+        if(_multicastAdapter)
+        {
+            _multicastAdapter->destroy();
+        }
     }
     _node->destroy(ownsCommunicator);
 

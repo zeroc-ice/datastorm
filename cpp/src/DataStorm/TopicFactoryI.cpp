@@ -59,7 +59,7 @@ TopicFactoryI::createTopicReader(const string& name,
         node->createSubscriberSession(nodePrx, nullptr, nullptr);
     }
     node->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
-    instance->getNodeSessionManager()->announceTopicReader(name, nodePrx);
+    instance->getNodeSessionManager()->announceTopicReader({}, name, nodePrx);
     return reader;
 }
 
@@ -102,7 +102,7 @@ TopicFactoryI::createTopicWriter(const string& name,
         node->createPublisherSession(nodePrx, nullptr, nullptr);
     }
     node->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
-    instance->getNodeSessionManager()->announceTopicWriter(name, nodePrx);
+    instance->getNodeSessionManager()->announceTopicWriter({}, name, nodePrx);
     return writer;
 }
 

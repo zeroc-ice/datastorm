@@ -20,15 +20,18 @@ public:
 
     LookupI(const std::shared_ptr<Instance>&);
 
-    virtual void announceTopicReader(std::string,
+    virtual void announceTopicReader(Ice::Identity,
+                                     std::string,
                                      std::shared_ptr<DataStormContract::NodePrx>,
                                      const Ice::Current&) override;
 
-    virtual void announceTopicWriter(std::string,
+    virtual void announceTopicWriter(Ice::Identity,
+                                     std::string,
                                      std::shared_ptr<DataStormContract::NodePrx>,
                                      const Ice::Current&) override;
 
-    virtual void announceTopics(DataStormContract::StringSeq,
+    virtual void announceTopics(Ice::Identity,
+                                DataStormContract::StringSeq,
                                 DataStormContract::StringSeq,
                                 std::shared_ptr<DataStormContract::NodePrx>,
                                 const Ice::Current&) override;

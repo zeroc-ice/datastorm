@@ -75,17 +75,9 @@ public:
         return _collocatedForwarder;
     }
 
-    std::shared_ptr<Ice::ObjectAdapter>
-    getMulticastObjectAdapter() const
-    {
-        assert(_multicastAdapter);
-        return _multicastAdapter;
-    }
-
     std::shared_ptr<DataStormContract::LookupPrx>
     getLookup() const
     {
-        assert(_lookup);
         return _lookup;
     }
 

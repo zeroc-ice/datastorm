@@ -30,15 +30,18 @@ public:
     std::shared_ptr<NodeSessionI>
     createOrGet(const std::shared_ptr<DataStormContract::NodePrx>&, const std::shared_ptr<Ice::Connection>&, bool);
 
-    void announceTopicReader(const std::string&,
+    void announceTopicReader(const Ice::Identity&,
+                             const std::string&,
                              const std::shared_ptr<DataStormContract::NodePrx>&,
                              const std::shared_ptr<Ice::Connection>& = nullptr) const;
 
-    void announceTopicWriter(const std::string&,
+    void announceTopicWriter(const Ice::Identity&,
+                             const std::string&,
                              const std::shared_ptr<DataStormContract::NodePrx>&,
                              const std::shared_ptr<Ice::Connection>& = nullptr) const;
 
-    void announceTopics(const DataStormContract::StringSeq&,
+    void announceTopics(const Ice::Identity&,
+                        const DataStormContract::StringSeq&,
                         const DataStormContract::StringSeq&,
                         const std::shared_ptr<DataStormContract::NodePrx>&,
                         const std::shared_ptr<Ice::Connection>& = nullptr) const;
@@ -73,6 +76,8 @@ private:
 
     const std::weak_ptr<Instance> _instance;
     const std::shared_ptr<TraceLevels> _traceLevels;
+    const Ice::Identity _nodeId;
+    const bool _forwardToMulticast;
 
     mutable std::mutex _mutex;
 
