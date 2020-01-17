@@ -28,6 +28,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
     {
         properties->setProperty("DataStorm.Node.Adapters.Server.ThreadPool.SizeMax", "1");
         properties->setProperty("DataStorm.Node.Adapters.Server.Endpoints", "tcp");
+        properties->setProperty("DataStorm.Node.Adapters.Server.ACM.Heartbeat", "2");
 
         const string pfx = "DataStorm.Node.Server";
         auto props = properties->getPropertiesForPrefix(pfx);
