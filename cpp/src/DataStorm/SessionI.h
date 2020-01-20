@@ -289,7 +289,8 @@ public:
     void connected(const std::shared_ptr<DataStormContract::SessionPrx>&,
                    const std::shared_ptr<Ice::Connection>&,
                    const DataStormContract::TopicInfoSeq&);
-    void disconnected(const std::shared_ptr<Ice::Connection>&, std::exception_ptr);
+    bool disconnected(const std::shared_ptr<Ice::Connection>&, std::exception_ptr);
+    void reconnectOrRemove();
     bool retry(const std::shared_ptr<DataStormContract::NodePrx>&, std::exception_ptr);
     void destroyImpl(const std::exception_ptr&);
 
@@ -300,6 +301,7 @@ public:
 
     std::shared_ptr<Ice::Connection> getConnection() const;
     std::shared_ptr<DataStormContract::SessionPrx> getSession() const;
+    bool checkSession();
 
     template<typename T = DataStormContract::SessionPrx> std::shared_ptr<T> getProxy() const
     {

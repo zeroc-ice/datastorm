@@ -51,7 +51,7 @@ private:
     bool _destroyed;
     std::shared_ptr<DataStormContract::NodePrx> _publicNode;
     std::shared_ptr<DataStormContract::LookupPrx> _lookup;
-    std::vector<std::shared_ptr<DataStormContract::SessionPrx>> _sessions;
+    std::map<Ice::Identity, std::shared_ptr<DataStormContract::SessionPrx>> _sessions;
 };
 
 }

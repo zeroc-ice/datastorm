@@ -161,7 +161,7 @@ NodeI::createSession(shared_ptr<NodePrx> subscriber,
     {
         unique_lock<mutex> lock(_mutex);
         session = createPublisherSessionServant(subscriber);
-        if(!session || session->getSession())
+        if(!session || session->checkSession())
         {
             return; // Shutting down or already connected
         }
@@ -169,7 +169,7 @@ NodeI::createSession(shared_ptr<NodePrx> subscriber,
         auto self = shared_from_this();
         s->ice_getConnectionAsync([=](auto connection) mutable
         {
-            if(session->getSession())
+            if(session->checkSession())
             {
                 return;
             }
@@ -226,7 +226,7 @@ NodeI::confirmCreateSession(shared_ptr<NodePrx> publisher,
     }
 
     auto session = p->second;
-    if(session->getSession())
+    if(session->checkSession())
     {
         return;
     }
@@ -287,16 +287,20 @@ NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
         {
             session = createSubscriberSessionServant(publisher);
         }
-        if(!session || session->getSession())
+        if(!session || session->checkSession())
         {
+            Trace out(_instance.lock()->getTraceLevels(), _instance.lock()->getTraceLevels()->sessionCat);
+            out << session->getId() << ": session still connected!";
             return true;
         }
 
         auto self = shared_from_this();
         p->ice_getConnectionAsync([=](auto connection)
         {
-            if(session->getSession())
+            if(session->checkSession())
             {
+                Trace out(_instance.lock()->getTraceLevels(), _instance.lock()->getTraceLevels()->sessionCat);
+                out << session->getId() << ": session still connected!";
                 return;
             }
 
@@ -342,7 +346,7 @@ NodeI::removeSubscriberSession(const shared_ptr<NodePrx>& node,
     if(session && !session->retry(node, ex))
     {
         unique_lock<mutex> lock(_mutex);
-        if(!session->getSession() && session->getNode() == node)
+        if(!session->checkSession() && session->getNode() == node)
         {
             auto p = _subscribers.find(session->getNode()->ice_getIdentity());
             if(p != _subscribers.end() && p->second == session)
@@ -363,7 +367,7 @@ NodeI::removePublisherSession(const shared_ptr<NodePrx>& node,
     if(session && !session->retry(node, ex))
     {
         unique_lock<mutex> lock(_mutex);
-        if(!session->getSession() && session->getNode() == node)
+        if(!session->checkSession() && session->getNode() == node)
         {
             auto p = _publishers.find(session->getNode()->ice_getIdentity());
             if(p != _publishers.end() && p->second == session)

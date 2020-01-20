@@ -495,7 +495,10 @@ SessionI::initSamples(long long int topicId, DataSamplesSeq samplesSeq, const Ic
 void
 SessionI::disconnected(const Ice::Current& current)
 {
-    disconnected(current.con, nullptr);
+    if(disconnected(current.con, nullptr))
+    {
+        reconnectOrRemove();
+    }
 }
 
 void
@@ -519,7 +522,10 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
                                                connection,
                                                [self](auto connection, auto ex)
                                                {
-                                                   self->disconnected(connection, ex);
+                                                   if(self->disconnected(connection, ex))
+                                                   {
+                                                       self->reconnectOrRemove();
+                                                   }
                                                });
     }
 
@@ -560,70 +566,78 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
     _connectedCallbacks.clear();
 }
 
-void
+bool
 SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_ptr ex)
 {
-    shared_ptr<NodePrx> node;
+    lock_guard<mutex> lock(_mutex);
+    if(_destroyed || (connection && _connection != connection) || !_session)
     {
-        lock_guard<mutex> lock(_mutex);
-        if(_destroyed || (connection && _connection != connection) || !_session)
-        {
-            return;
-        }
-
-        if(_traceLevels->session > 0)
-        {
-            try
-            {
-                if(ex)
-                {
-                    rethrow_exception(ex);
-                }
-                else
-                {
-                    throw Ice::CloseConnectionException(__FILE__, __LINE__);
-                }
-            }
-            catch(const std::exception& e)
-            {
-                Trace out(_traceLevels, _traceLevels->sessionCat);
-                out << _id << ": session `" << _session->ice_getIdentity() << "' disconnected:\n";
-                out << (_connection ? _connection->toString() : "<no connection>") << "\n";
-                out << e.what();
-            }
-        }
-
-        for(auto& t : _topics)
-        {
-            runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber)
-            {
-                topic->detach(t.first, shared_from_this());
-            });
-        }
-
-        _session = nullptr;
-        _connection = nullptr;
-        _retryCount = 0;
-        node = _node;
+        return false;
     }
+
+    if(_traceLevels->session > 0)
+    {
+        try
+        {
+            if(ex)
+            {
+                rethrow_exception(ex);
+            }
+            else
+            {
+                throw Ice::CloseConnectionException(__FILE__, __LINE__);
+            }
+        }
+        catch(const std::exception& e)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": session `" << _session->ice_getIdentity() << "' disconnected:\n";
+            out << (_connection ? _connection->toString() : "<no connection>") << "\n";
+            out << e.what();
+        }
+    }
+
+    for(auto& t : _topics)
+    {
+        runWithTopics(t.first, [&](TopicI* topic, TopicSubscriber& subscriber)
+        {
+            topic->detach(t.first, shared_from_this());
+        });
+    }
+
+    _session = nullptr;
+    _connection = nullptr;
+    _retryCount = 0;
+    return true;
+}
+
+void
+SessionI::reconnectOrRemove()
+{
+    auto node = getNode();
+    assert(node);
 
     //
     // Try re-connecting if we got disconnected.
     //
-    if(connection)
+    if(node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
     {
-        if(node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
-        {
-            _instance->getTimer()->schedule(chrono::minutes(1),
-                                            [=, self=shared_from_this()]
-                                            {
-                                                remove();
-                                            });
-        }
-        else if(!reconnect(node))
-        {
-            remove();
-        }
+        lock_guard<mutex> lock(_mutex);
+        assert(!_retryCanceller);
+
+        //
+        // Wait twice the last retry delay before reaping the session. We do this to give
+        // time to the peer for re-establishing a new session.
+        //
+        _retryCanceller = _instance->getTimer()->schedule(_instance->getRetryDelay(_instance->getRetryCount() - 1) * 2,
+                                                          [=, self=shared_from_this()]
+                                                          {
+                                                              remove();
+                                                          });
+    }
+    else if(!reconnect(node))
+    {
+        remove();
     }
 }
 
@@ -761,6 +775,46 @@ SessionI::getConnection() const
 {
     lock_guard<mutex> lock(_mutex);
     return _connection;
+}
+
+bool
+SessionI::checkSession()
+{
+    while(true)
+    {
+        unique_lock<mutex> lock(_mutex);
+        if(_session)
+        {
+            if(_connection)
+            {
+                //
+                // Make sure the connection is still established. It's possible that the connection got closed
+                // and we're not notified yet by the connection manager. Check session explicitly check for the
+                // connection to make sure that if we get a session creation request from a peer (which might
+                // detect the connection closure before), it doesn't get ignored.
+                //
+                try
+                {
+                    _connection->throwException();
+                }
+                catch(const Ice::LocalException&)
+                {
+                    auto connection = _connection;
+                    lock.unlock();
+                    if(!disconnected(connection, current_exception()))
+                    {
+                        continue;
+                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }
 
 shared_ptr<SessionPrx>

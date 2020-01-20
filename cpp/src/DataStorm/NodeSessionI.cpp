@@ -174,9 +174,9 @@ NodeSessionI::destroy()
             _instance->getObjectAdapter()->remove(_publicNode->ice_getIdentity());
         }
 
-        for(auto session : _sessions)
+        for(const auto& session : _sessions)
         {
-            session->disconnectedAsync();
+            session.second->disconnectedAsync();
         }
     }
     catch(const Ice::ObjectAdapterDeactivatedException&)
@@ -197,7 +197,7 @@ void
 NodeSessionI::addSession(shared_ptr<SessionPrx> session)
 {
     lock_guard<mutex> lock(_mutex);
-    _sessions.push_back(move(session));
+    _sessions[session->ice_getIdentity()] = move(session);
 }
 
 shared_ptr<SessionPrx>
