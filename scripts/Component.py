@@ -30,7 +30,7 @@ class Node(ProcessFromBinDir, Server):
 class NodeTestCase(ClientServerTestCase):
 
     def __init__(self, nodes=None, nodeProps=None, *args, **kargs):
-        TestCase.__init__(self, *args, **kargs)
+        ClientServerTestCase.__init__(self, *args, **kargs)
         if nodes:
             self.nodes = nodes
         elif nodeProps:
@@ -39,7 +39,7 @@ class NodeTestCase(ClientServerTestCase):
             self.nodes = None
 
     def init(self, mapping, testsuite):
-        TestCase.init(self, mapping, testsuite)
+        ClientServerTestCase.init(self, mapping, testsuite)
         if self.nodes:
             self.servers = self.nodes + self.servers
 
