@@ -395,6 +395,7 @@ NodeSessionManager::disconnected(const shared_ptr<NodePrx>& node, const shared_p
             out << "disconnected node session (peer = `" << node << "')";
         }
         _connectedTo.erase(node->ice_getIdentity());
+        lock.unlock();
         connect(lookup, _nodePrx);
     }
     else

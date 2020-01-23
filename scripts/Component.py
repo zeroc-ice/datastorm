@@ -67,6 +67,7 @@ class Ice(Component):
 class DataStorm(Component):
 
     def __init__(self):
+        Component.__init__(self)
         self.multicast = False
 
     def useBinDist(self, mapping, current):
