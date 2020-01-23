@@ -14,10 +14,12 @@
 using namespace std;
 using namespace DataStormI;
 
-TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) : _nextReaderId(0), _nextWriterId(0)
+TopicFactoryI::TopicFactoryI(const shared_ptr<Instance>& instance) :
+    _instance(instance),
+    _traceLevels(instance->getTraceLevels()),
+    _nextReaderId(0),
+    _nextWriterId(0)
 {
-    _instance = instance;
-    _traceLevels = instance->getTraceLevels();
 }
 
 shared_ptr<TopicReader>
@@ -59,7 +61,7 @@ TopicFactoryI::createTopicReader(const string& name,
         node->createSubscriberSession(nodePrx, nullptr, nullptr);
     }
     node->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
-    instance->getNodeSessionManager()->announceTopicReader({}, name, nodePrx);
+    instance->getNodeSessionManager()->announceTopicReader(name, nodePrx);
     return reader;
 }
 
@@ -102,7 +104,7 @@ TopicFactoryI::createTopicWriter(const string& name,
         node->createPublisherSession(nodePrx, nullptr, nullptr);
     }
     node->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
-    instance->getNodeSessionManager()->announceTopicWriter({}, name, nodePrx);
+    instance->getNodeSessionManager()->announceTopicWriter(name, nodePrx);
     return writer;
 }
 

@@ -54,12 +54,12 @@ private:
 
 }
 
-NodeSessionManager::NodeSessionManager(const shared_ptr<Instance>& instance) :
+NodeSessionManager::NodeSessionManager(const shared_ptr<Instance>& instance, const shared_ptr<NodeI>& node) :
     _instance(instance),
     _traceLevels(instance->getTraceLevels()),
-    _nodeId(instance->getNode()->getProxy()->ice_getIdentity()),
+    _nodePrx(node->getProxy()),
     _forwardToMulticast(instance->getCommunicator()->getProperties()->getPropertyAsInt(
-                                                           "DataStorm.Node.Server.ForwardDiscoveryToMulticast") > 0),
+        "DataStorm.Node.Server.ForwardDiscoveryToMulticast") > 0),
     _retryCount(0)
 {
 }
@@ -86,8 +86,7 @@ NodeSessionManager::init()
     auto connectTo = communicator->getProperties()->getProperty("DataStorm.Node.ConnectTo");
     if(!connectTo.empty())
     {
-        connect(Ice::uncheckedCast<LookupPrx>(communicator->stringToProxy("DataStorm/Lookup:" + connectTo)),
-                instance->getNode()->getProxy());
+        connect(Ice::uncheckedCast<LookupPrx>(communicator->stringToProxy("DataStorm/Lookup:" + connectTo)), _nodePrx);
     }
 }
 
@@ -132,15 +131,14 @@ NodeSessionManager::createOrGet(const shared_ptr<NodePrx>& node,
 }
 
 void
-NodeSessionManager::announceTopicReader(const Ice::Identity& from,
-                                        const string& topic,
+NodeSessionManager::announceTopicReader(const string& topic,
                                         const shared_ptr<NodePrx>& node,
                                         const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
-    if(from == _nodeId)
+    if(connection && node->ice_getIdentity() == _nodePrx->ice_getIdentity())
     {
-        return; // Ignore
+        return; // Ignore requests from self
     }
 
     if(_traceLevels->session > 1)
@@ -160,28 +158,27 @@ NodeSessionManager::announceTopicReader(const Ice::Identity& from,
     auto nodePrx = p != _sessions.end() ? p->second->getPublicNode() : node;
 
     _exclude = connection;
-    _forwarder->announceTopicReader(_nodeId, topic, nodePrx);
+    _forwarder->announceTopicReader(topic, nodePrx);
 
     lock.unlock();
 
-    if((from.name.empty() || _forwardToMulticast) && (!connection || connection->type() != "udp"))
+    if(!connection || (_forwardToMulticast && connection->type() != "udp"))
     {
         auto instance = _instance.lock();
         if(instance && instance->getLookup())
         {
-            instance->getLookup()->announceTopicReaderAsync(_nodeId, topic, nodePrx);
+            instance->getLookup()->announceTopicReaderAsync(topic, nodePrx);
         }
     }
 }
 
 void
-NodeSessionManager::announceTopicWriter(const Ice::Identity& from,
-                                        const string& topic,
+NodeSessionManager::announceTopicWriter(const string& topic,
                                         const shared_ptr<NodePrx>& node,
                                         const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
-    if(from == _nodeId)
+    if(node->ice_getIdentity() == _nodePrx->ice_getIdentity())
     {
         return; // Ignore
     }
@@ -202,29 +199,28 @@ NodeSessionManager::announceTopicWriter(const Ice::Identity& from,
     _exclude = connection;
     auto p = _sessions.find(node->ice_getIdentity());
     auto nodePrx = p != _sessions.end() ? p->second->getPublicNode() : node;
-    _forwarder->announceTopicWriter(_nodeId, topic, nodePrx);
+    _forwarder->announceTopicWriter(topic, nodePrx);
 
     lock.unlock();
 
-    if((from.name.empty() || _forwardToMulticast) && (!connection || connection->type() != "udp"))
+    if(!connection || (_forwardToMulticast && connection->type() != "udp"))
     {
         auto instance = _instance.lock();
         if(instance && instance->getLookup())
         {
-            instance->getLookup()->announceTopicWriterAsync(_nodeId, topic, nodePrx);
+            instance->getLookup()->announceTopicWriterAsync(topic, nodePrx);
         }
     }
 }
 
 void
-NodeSessionManager::announceTopics(const Ice::Identity& from,
-                                   const StringSeq& readers,
+NodeSessionManager::announceTopics(const StringSeq& readers,
                                    const StringSeq& writers,
                                    const shared_ptr<NodePrx>& node,
                                    const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
-    if(from == _nodeId)
+    if(node->ice_getIdentity() == _nodePrx->ice_getIdentity())
     {
         return; // Ignore
     }
@@ -232,7 +228,7 @@ NodeSessionManager::announceTopics(const Ice::Identity& from,
     if(_traceLevels->session > 1)
     {
         Trace out(_traceLevels, _traceLevels->sessionCat);
-        if(!from.name.empty())
+        if(connection)
         {
             if(!readers.empty())
             {
@@ -259,16 +255,16 @@ NodeSessionManager::announceTopics(const Ice::Identity& from,
     _exclude = connection;
     auto p = _sessions.find(node->ice_getIdentity());
     auto nodePrx = p != _sessions.end() ? p->second->getPublicNode() : node;
-    _forwarder->announceTopics(_nodeId, readers, writers, nodePrx);
+    _forwarder->announceTopics(readers, writers, nodePrx);
 
     lock.unlock();
 
-    if((from.name.empty() || _forwardToMulticast) && (!connection || connection->type() != "udp"))
+    if(!connection || (_forwardToMulticast && connection->type() != "udp"))
     {
         auto instance = _instance.lock();
         if(instance && instance->getLookup())
         {
-            instance->getLookup()->announceTopicsAsync(_nodeId, readers, writers, nodePrx);
+            instance->getLookup()->announceTopicsAsync(readers, writers, nodePrx);
         }
     }
 }
@@ -369,7 +365,7 @@ NodeSessionManager::connected(const shared_ptr<NodePrx>& node, const shared_ptr<
     {
         try
         {
-            l->announceTopicsAsync(_nodeId, readerNames, writerNames, instance->getNode()->getProxy());
+            l->announceTopicsAsync(readerNames, writerNames, _nodePrx);
         }
         catch(const Ice::ObjectAdapterDeactivatedException&)
         {
@@ -399,7 +395,7 @@ NodeSessionManager::disconnected(const shared_ptr<NodePrx>& node, const shared_p
             out << "disconnected node session (peer = `" << node << "')";
         }
         _connectedTo.erase(node->ice_getIdentity());
-        connect(lookup, instance->getNode()->getProxy());
+        connect(lookup, _nodePrx);
     }
     else
     {
@@ -409,7 +405,7 @@ NodeSessionManager::disconnected(const shared_ptr<NodePrx>& node, const shared_p
                                            auto instance = _instance.lock();
                                            if(instance)
                                            {
-                                               connect(lookup, instance->getNode()->getProxy());
+                                               connect(lookup, _nodePrx);
                                            }
                                        });
     }

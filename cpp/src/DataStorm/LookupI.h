@@ -18,20 +18,19 @@ class LookupI : public DataStormContract::Lookup
 {
 public:
 
-    LookupI(const std::shared_ptr<Instance>&);
+    LookupI(std::shared_ptr<NodeSessionManager>,
+            std::shared_ptr<TopicFactoryI>,
+            std::shared_ptr<DataStormContract::NodePrx>);
 
-    virtual void announceTopicReader(Ice::Identity,
-                                     std::string,
+    virtual void announceTopicReader(std::string,
                                      std::shared_ptr<DataStormContract::NodePrx>,
                                      const Ice::Current&) override;
 
-    virtual void announceTopicWriter(Ice::Identity,
-                                     std::string,
+    virtual void announceTopicWriter(std::string,
                                      std::shared_ptr<DataStormContract::NodePrx>,
                                      const Ice::Current&) override;
 
-    virtual void announceTopics(Ice::Identity,
-                                DataStormContract::StringSeq,
+    virtual void announceTopics(DataStormContract::StringSeq,
                                 DataStormContract::StringSeq,
                                 std::shared_ptr<DataStormContract::NodePrx>,
                                 const Ice::Current&) override;

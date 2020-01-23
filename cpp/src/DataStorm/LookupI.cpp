@@ -14,32 +14,33 @@ using namespace std;
 using namespace DataStormContract;
 using namespace DataStormI;
 
-LookupI::LookupI(const shared_ptr<Instance>& instance) :
-    _nodeSessionManager(instance->getNodeSessionManager()),
-    _topicFactory(instance->getTopicFactory()),
-    _nodePrx(instance->getNode()->getProxy())
+LookupI::LookupI(shared_ptr<NodeSessionManager> nodeSessionManager,
+                 shared_ptr<TopicFactoryI> topicFactory,
+                 shared_ptr<NodePrx> nodePrx) :
+    _nodeSessionManager(move(nodeSessionManager)),
+    _topicFactory(move(topicFactory)),
+    _nodePrx(move(nodePrx))
 {
 }
 
 void
-LookupI::announceTopicReader(Ice::Identity from, string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
+LookupI::announceTopicReader(string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
-    _nodeSessionManager->announceTopicReader(from, name, proxy, current.con);
+    _nodeSessionManager->announceTopicReader(name,proxy, current.con);
     _topicFactory->createSubscriberSession(name, proxy, current.con);
 }
 
 void
-LookupI::announceTopicWriter(Ice::Identity from, string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
+LookupI::announceTopicWriter(string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
-    _nodeSessionManager->announceTopicWriter(from, name, proxy, current.con);
+    _nodeSessionManager->announceTopicWriter(name, proxy, current.con);
     _topicFactory->createPublisherSession(name, proxy, current.con);
 }
 
 void
-LookupI::announceTopics(Ice::Identity from, StringSeq readers, StringSeq writers, shared_ptr<NodePrx> proxy,
-                        const Ice::Current& current)
+LookupI::announceTopics(StringSeq readers, StringSeq writers, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
-    _nodeSessionManager->announceTopics(from, readers, writers, proxy, current.con);
+    _nodeSessionManager->announceTopics(readers, writers, proxy, current.con);
     for(auto name : readers)
     {
         _topicFactory->createSubscriberSession(name, proxy, current.con);

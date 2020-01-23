@@ -237,10 +237,10 @@ interface Node
 
 interface Lookup
 {
-    idempotent void announceTopicReader(Ice::Identity from, string topic, Node* node);
-    idempotent void announceTopicWriter(Ice::Identity from, string topic, Node* node);
+    idempotent void announceTopicReader(string topic, Node* node);
+    idempotent void announceTopicWriter(string topic, Node* node);
 
-    idempotent void announceTopics(Ice::Identity from, StringSeq readers, StringSeq writers, Node* node);
+    idempotent void announceTopics(StringSeq readers, StringSeq writers, Node* node);
 
     Node* createSession(Node* node);
 }

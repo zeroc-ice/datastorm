@@ -18,30 +18,28 @@ class NodeSessionI;
 class CallbackExecutor;
 class Instance;
 class TraceLevels;
+class NodeI;
 
 class NodeSessionManager : public std::enable_shared_from_this<NodeSessionManager>
 {
 public:
 
-    NodeSessionManager(const std::shared_ptr<Instance>&);
+    NodeSessionManager(const std::shared_ptr<Instance>&, const std::shared_ptr<NodeI>&);
 
     void init();
 
     std::shared_ptr<NodeSessionI>
     createOrGet(const std::shared_ptr<DataStormContract::NodePrx>&, const std::shared_ptr<Ice::Connection>&, bool);
 
-    void announceTopicReader(const Ice::Identity&,
-                             const std::string&,
+    void announceTopicReader(const std::string&,
                              const std::shared_ptr<DataStormContract::NodePrx>&,
                              const std::shared_ptr<Ice::Connection>& = nullptr) const;
 
-    void announceTopicWriter(const Ice::Identity&,
-                             const std::string&,
+    void announceTopicWriter(const std::string&,
                              const std::shared_ptr<DataStormContract::NodePrx>&,
                              const std::shared_ptr<Ice::Connection>& = nullptr) const;
 
-    void announceTopics(const Ice::Identity&,
-                        const DataStormContract::StringSeq&,
+    void announceTopics(const DataStormContract::StringSeq&,
                         const DataStormContract::StringSeq&,
                         const std::shared_ptr<DataStormContract::NodePrx>&,
                         const std::shared_ptr<Ice::Connection>& = nullptr) const;
@@ -76,7 +74,7 @@ private:
 
     const std::weak_ptr<Instance> _instance;
     const std::shared_ptr<TraceLevels> _traceLevels;
-    const Ice::Identity _nodeId;
+    const std::shared_ptr<DataStormContract::NodePrx> _nodePrx;
     const bool _forwardToMulticast;
 
     mutable std::mutex _mutex;

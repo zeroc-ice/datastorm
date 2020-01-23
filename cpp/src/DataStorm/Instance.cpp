@@ -115,15 +115,15 @@ Instance::init()
 {
     auto self = shared_from_this();
 
+    _topicFactory = make_shared<TopicFactoryI>(self);
+
     _node = make_shared<NodeI>(self);
     _node->init();
 
-    _nodeSessionManager = make_shared<NodeSessionManager>(self);
+    _nodeSessionManager = make_shared<NodeSessionManager>(self, _node);
     _nodeSessionManager->init();
 
-    _topicFactory = make_shared<TopicFactoryI>(self);
-
-    auto lookupI = make_shared<LookupI>(self);
+    auto lookupI = make_shared<LookupI>(_nodeSessionManager, _topicFactory, _node->getProxy());
     _adapter->add(lookupI, {"Lookup", "DataStorm"});
     if(_multicastAdapter)
     {
