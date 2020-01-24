@@ -178,9 +178,9 @@ NodeSessionManager::announceTopicWriter(const string& topic,
                                         const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
-    if(node->ice_getIdentity() == _nodePrx->ice_getIdentity())
+    if(connection && node->ice_getIdentity() == _nodePrx->ice_getIdentity())
     {
-        return; // Ignore
+        return; // Ignore requests from self
     }
 
     if(_traceLevels->session > 1)
@@ -220,9 +220,9 @@ NodeSessionManager::announceTopics(const StringSeq& readers,
                                    const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
-    if(node->ice_getIdentity() == _nodePrx->ice_getIdentity())
+    if(connection && node->ice_getIdentity() == _nodePrx->ice_getIdentity())
     {
-        return; // Ignore
+        return; // Ignore requests from self
     }
 
     if(_traceLevels->session > 1)
