@@ -239,7 +239,7 @@ NodeI::confirmCreateSession(shared_ptr<NodePrx> publisher,
     session->connected(publisherSession, current.con, getInstance()->getTopicFactory()->getTopicReaders());
 }
 
-bool
+void
 NodeI::createSubscriberSession(shared_ptr<NodePrx> subscriber,
                                const shared_ptr<Ice::Connection>& connection,
                                const shared_ptr<PublisherSessionI>& session)
@@ -265,16 +265,14 @@ NodeI::createSubscriberSession(shared_ptr<NodePrx> subscriber,
         {
             self->removePublisherSession(subscriber, session, ex);
         });
-        return true;
     }
     catch(const Ice::LocalException&)
     {
         removePublisherSession(subscriber, session, current_exception());
     }
-    return false;
 }
 
-bool
+void
 NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
                               const shared_ptr<Ice::Connection>& con,
                               shared_ptr<SubscriberSessionI> session)
@@ -286,12 +284,10 @@ NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
         if(!session)
         {
             session = createSubscriberSessionServant(publisher);
-        }
-        if(!session || session->checkSession())
-        {
-            Trace out(_instance.lock()->getTraceLevels(), _instance.lock()->getTraceLevels()->sessionCat);
-            out << session->getId() << ": session still connected!";
-            return true;
+            if(!session)
+            {
+                return; // Shutting down.
+            }
         }
 
         auto self = shared_from_this();
@@ -299,8 +295,6 @@ NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
         {
             if(session->checkSession())
             {
-                Trace out(_instance.lock()->getTraceLevels(), _instance.lock()->getTraceLevels()->sessionCat);
-                out << session->getId() << ": session still connected!";
                 return;
             }
 
@@ -329,13 +323,11 @@ NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
         {
             self->removeSubscriberSession(publisher, session, ex);
         });
-        return true;
     }
     catch(const Ice::LocalException&)
     {
         removeSubscriberSession(publisher, session, current_exception());
     }
-    return false;
 }
 
 void
@@ -569,11 +561,9 @@ NodeI::getNodeWithExistingConnection(const shared_ptr<NodePrx>& node, const shar
         }
         return node->ice_fixed(connection);
     }
-    else
-    {
-        //
-        // Ensure that the returned proxy doesn't have a cached connection.
-        //
-        return node->ice_connectionCached(false)->ice_connectionCached(true);
-    }
+
+    //
+    // Ensure that the returned proxy doesn't have a cached connection.
+    //
+    return node->ice_connectionCached(false)->ice_connectionCached(true);
 }

@@ -12,6 +12,7 @@
 #include <Ice/Ice.h>
 
 #include <mutex>
+#include <cmath>
 
 namespace DataStorm
 {
@@ -119,7 +120,7 @@ public:
     std::chrono::milliseconds
     getRetryDelay(int count) const
     {
-        return _retryDelay * (_retryMultiplier ^ std::min(count, _retryCount));
+        return _retryDelay * static_cast<int>(std::pow(_retryMultiplier, std::min(count, _retryCount)));
     }
 
     int

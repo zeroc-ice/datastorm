@@ -908,8 +908,8 @@ TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
                      vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataReaderI>(this, name, ++_nextId, keys, sampleFilterName, move(sampleFilterCriteria),
-                                               mergeConfigs(move(config)));
+    auto element = make_shared<KeyDataReaderI>(this, name, ++_nextId, keys, sampleFilterName,
+                                               move(sampleFilterCriteria), mergeConfigs(move(config)));
     element->init();
     add(element, keys);
     return element;

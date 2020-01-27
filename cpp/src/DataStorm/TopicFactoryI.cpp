@@ -53,15 +53,28 @@ TopicFactoryI::createTopicReader(const string& name,
         hasWriters = _writers.find(name) != _writers.end();
     }
 
-    auto instance = getInstance();
-    auto node = instance->getNode();
-    auto nodePrx = node->getProxy();
-    if(hasWriters)
+    try
     {
-        node->createSubscriberSession(nodePrx, nullptr, nullptr);
+        auto instance = getInstance();
+        auto node = instance->getNode();
+        auto nodePrx = node->getProxy();
+        if(hasWriters)
+        {
+            node->createSubscriberSession(nodePrx, nullptr, nullptr);
+        }
+        node->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
+        instance->getNodeSessionManager()->announceTopicReader(name, nodePrx);
     }
-    node->getSubscriberForwarder()->announceTopics({ { name, { reader->getId() } } }, false);
-    instance->getNodeSessionManager()->announceTopicReader(name, nodePrx);
+    catch(const Ice::CommunicatorDestroyedException&)
+    {
+    }
+    catch(const Ice::ObjectAdapterDeactivatedException&)
+    {
+    }
+    catch(const std::exception&)
+    {
+        assert(false);
+    }
     return reader;
 }
 
@@ -96,15 +109,29 @@ TopicFactoryI::createTopicWriter(const string& name,
         hasReaders = _readers.find(name) != _readers.end();
     }
 
-    auto instance = getInstance();
-    auto node = instance->getNode();
-    auto nodePrx = node->getProxy();
-    if(hasReaders)
+    try
     {
-        node->createPublisherSession(nodePrx, nullptr, nullptr);
+        auto instance = getInstance();
+        auto node = instance->getNode();
+        auto nodePrx = node->getProxy();
+        if(hasReaders)
+        {
+            node->createPublisherSession(nodePrx, nullptr, nullptr);
+        }
+        node->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
+        instance->getNodeSessionManager()->announceTopicWriter(name, nodePrx);
     }
-    node->getPublisherForwarder()->announceTopics({ { name, { writer->getId() } } }, false);
-    instance->getNodeSessionManager()->announceTopicWriter(name, nodePrx);
+    catch(const Ice::CommunicatorDestroyedException&)
+    {
+    }
+    catch(const Ice::ObjectAdapterDeactivatedException&)
+    {
+    }
+    catch(const std::exception&)
+    {
+        assert(false);
+    }
+
     return writer;
 }
 

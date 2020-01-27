@@ -290,7 +290,6 @@ public:
                    const std::shared_ptr<Ice::Connection>&,
                    const DataStormContract::TopicInfoSeq&);
     bool disconnected(const std::shared_ptr<Ice::Connection>&, std::exception_ptr);
-    void reconnectOrRemove();
     bool retry(const std::shared_ptr<DataStormContract::NodePrx>&, std::exception_ptr);
     void destroyImpl(const std::exception_ptr&);
 
@@ -346,7 +345,7 @@ protected:
     void runWithTopic(long long int, TopicI*, std::function<void (TopicSubscriber&)>);
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const = 0;
-    virtual bool reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) = 0;
+    virtual void reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) = 0;
     virtual void remove() = 0;
 
     const std::shared_ptr<Instance> _instance;
@@ -380,7 +379,7 @@ public:
 private:
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const override;
-    virtual bool reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) override;
+    virtual void reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) override;
     virtual void remove() override;
 };
 
@@ -393,7 +392,7 @@ public:
 private:
 
     virtual std::vector<std::shared_ptr<TopicI>> getTopics(const std::string&) const override;
-    virtual bool reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) override;
+    virtual void reconnect(const std::shared_ptr<DataStormContract::NodePrx>&) override;
     virtual void remove() override;
 };
 

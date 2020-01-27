@@ -497,7 +497,7 @@ SessionI::disconnected(const Ice::Current& current)
 {
     if(disconnected(current.con, nullptr))
     {
-        reconnectOrRemove();
+        retry(getNode(), nullptr);
     }
 }
 
@@ -524,7 +524,7 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
                                                {
                                                    if(self->disconnected(connection, ex))
                                                    {
-                                                       self->reconnectOrRemove();
+                                                       self->retry(self->getNode(), nullptr);
                                                    }
                                                });
     }
@@ -611,36 +611,6 @@ SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_
     return true;
 }
 
-void
-SessionI::reconnectOrRemove()
-{
-    auto node = getNode();
-    assert(node);
-
-    //
-    // Try re-connecting if we got disconnected.
-    //
-    if(node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
-    {
-        lock_guard<mutex> lock(_mutex);
-        assert(!_retryCanceller);
-
-        //
-        // Wait twice the last retry delay before reaping the session. We do this to give
-        // time to the peer for re-establishing a new session.
-        //
-        _retryCanceller = _instance->getTimer()->schedule(_instance->getRetryDelay(_instance->getRetryCount() - 1) * 2,
-                                                          [=, self=shared_from_this()]
-                                                          {
-                                                              remove();
-                                                          });
-    }
-    else if(!reconnect(node))
-    {
-        remove();
-    }
-}
-
 bool
 SessionI::retry(const shared_ptr<NodePrx>& node, exception_ptr exception)
 {
@@ -668,38 +638,78 @@ SessionI::retry(const shared_ptr<NodePrx>& node, exception_ptr exception)
         }
     }
 
-    if(_traceLevels->session > 0)
+    if(node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
     {
-        Trace out(_traceLevels, _traceLevels->sessionCat);
-        out << _id << ": failed to create session with `" << node->ice_toString() << "`";
-        if(_retryCount < _instance->getRetryCount())
+        if(_retryCanceller)
         {
-            out << " (retrying " << _retryCount << '/' << _instance->getRetryCount() << ')';
+            _retryCanceller();
+            _retryCanceller = nullptr;
         }
-        if(exception)
-        {
-            try
-            {
-                rethrow_exception(exception);
-            }
-            catch(const Ice::LocalException& ex)
-            {
-                out << '\n' << ex.what();
-            }
-        }
-    }
+        _retryCount = 0;
 
-    if((node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty()) ||
-       (_retryCount == _instance->getRetryCount()))
+        //
+        // If we can't retry connecting to the node because we don't have its endpoints,
+        // we just wait for the duration of the last retry delay for the peer to reconnect.
+        // If it doesn't reconnect, we'll destroy this session after the timeout.
+        //
+        auto delay = _instance->getRetryDelay(_instance->getRetryCount()) * 2;
+
+        if(_traceLevels->session > 0)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            out << _id << ": can't retry connecting to `" << node->ice_toString() << "`, waiting " << delay.count()
+                << " (ms) for peer to reconnect";
+        }
+
+        _retryCanceller = _instance->getTimer()->schedule(delay, [=, self = shared_from_this()] {
+            remove();
+        });
+    }
+    else
     {
-        return false;
-    }
+        //
+        // If we can retry the connection attempt, we schedule a timer to retry. Always
+        // retry immediately on the first attempt.
+        //
+        auto delay = _retryCount == 0 ? 0ms : _instance->getRetryDelay(_retryCount - 1);
+        ++_retryCount;
 
-    _retryCanceller = _instance->getTimer()->schedule(_instance->getRetryDelay(_retryCount++),
-                                                      [=, self=shared_from_this()]
-                                                      {
-                                                          reconnect(node);
-                                                      });
+        if(_traceLevels->session > 0)
+        {
+            Trace out(_traceLevels, _traceLevels->sessionCat);
+            if(_retryCount <= _instance->getRetryCount())
+            {
+                out << _id << ": retrying connecting to `" << node->ice_toString() << "` in " << delay.count();
+                out << " (ms), retry " << _retryCount << '/' << _instance->getRetryCount();
+            }
+            else
+            {
+                out << _id << ": connection to `" << node->ice_toString() << "` failed and nore more retries";
+            }
+            if(exception)
+            {
+                try
+                {
+                    rethrow_exception(exception);
+                }
+                catch(const Ice::LocalException& ex)
+                {
+                    out << '\n' << ex.what();
+                }
+            }
+        }
+
+        if(_retryCount > _instance->getRetryCount())
+        {
+            return false;
+        }
+
+        _retryCanceller = _instance->getTimer()->schedule(delay,
+                                                          [=, self=shared_from_this()]
+                                                          {
+                                                              reconnect(node);
+                                                          });
+    }
     return true;
 }
 
@@ -1266,7 +1276,7 @@ SubscriberSessionI::s(long long int topicId, long long int elementId, DataSample
     });
 }
 
-bool
+void
 SubscriberSessionI::reconnect(const shared_ptr<NodePrx>& node)
 {
     if(_traceLevels->session > 0)
@@ -1274,7 +1284,7 @@ SubscriberSessionI::reconnect(const shared_ptr<NodePrx>& node)
         Trace out(_traceLevels, _traceLevels->sessionCat);
         out << _id << ": trying to reconnect session with `" << node->ice_toString() << "'";
     }
-    return _parent->createPublisherSession(node, nullptr, dynamic_pointer_cast<SubscriberSessionI>(shared_from_this()));
+    _parent->createPublisherSession(node, nullptr, dynamic_pointer_cast<SubscriberSessionI>(shared_from_this()));
 }
 
 void
@@ -1294,7 +1304,7 @@ PublisherSessionI::getTopics(const string& name) const
     return _instance->getTopicFactory()->getTopicWriters(name);
 }
 
-bool
+void
 PublisherSessionI::reconnect(const shared_ptr<NodePrx>& node)
 {
     if(_traceLevels->session > 0)
@@ -1302,7 +1312,7 @@ PublisherSessionI::reconnect(const shared_ptr<NodePrx>& node)
         Trace out(_traceLevels, _traceLevels->sessionCat);
         out << _id << ": trying to reconnect session with `" << node->ice_toString() << "'";
     }
-    return _parent->createSubscriberSession(node, nullptr, dynamic_pointer_cast<PublisherSessionI>(shared_from_this()));
+    _parent->createSubscriberSession(node, nullptr, dynamic_pointer_cast<PublisherSessionI>(shared_from_this()));
 }
 
 void

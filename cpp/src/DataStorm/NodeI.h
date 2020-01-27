@@ -45,11 +45,11 @@ public:
                                       std::shared_ptr<DataStormContract::PublisherSessionPrx>,
                                       const Ice::Current&) override;
 
-    bool createSubscriberSession(std::shared_ptr<DataStormContract::NodePrx>,
+    void createSubscriberSession(std::shared_ptr<DataStormContract::NodePrx>,
                                  const std::shared_ptr<Ice::Connection>&,
                                  const std::shared_ptr<PublisherSessionI>&);
 
-    bool createPublisherSession(const std::shared_ptr<DataStormContract::NodePrx>&,
+    void createPublisherSession(const std::shared_ptr<DataStormContract::NodePrx>&,
                                 const std::shared_ptr<Ice::Connection>&,
                                 std::shared_ptr<SubscriberSessionI>);
 

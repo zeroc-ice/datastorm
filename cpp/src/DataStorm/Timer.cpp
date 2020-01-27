@@ -68,8 +68,9 @@ Timer::runTimer()
             }
             else
             {
+                auto waitUntil = _timers.cbegin()->first;
                 _cond.wait_until(lock,
-                                 _timers.cbegin()->first,
+                                 waitUntil,
                                  [=] { return _destroyed ||
                                               _timers.empty() ||
                                               _timers.cbegin()->first <= chrono::steady_clock::now(); });
