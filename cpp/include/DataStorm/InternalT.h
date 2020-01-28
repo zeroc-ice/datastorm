@@ -164,6 +164,7 @@ template<typename K, typename V> class AbstractFactoryT : public std::enable_sha
             {
                 factory->remove(obj);
             }
+            delete obj;
         }
 
         std::weak_ptr<AbstractFactoryT<K, V>> _factory;
