@@ -140,25 +140,25 @@ NodeI::createSession(shared_ptr<NodePrx> subscriber,
                      bool fromRelay,
                      const Ice::Current& current)
 {
-    auto s = subscriber;
-    if(fromRelay)
-    {
-        //
-        // If the call is from a relay, we check if we already have a connection to this node
-        // and eventually re-use it. Otherwise, we'll try to establish a connection to the node
-        // if it has endpoints. If it doesn't, we'll re-use the current connection to send the
-        // confirmation.
-        //
-        s = getNodeWithExistingConnection(subscriber, current.con);
-    }
-    else if(current.con)
-    {
-        s = subscriber->ice_fixed(current.con);
-    }
-
     shared_ptr<PublisherSessionI> session;
     try
     {
+        auto s = subscriber;
+        if(fromRelay)
+        {
+            //
+            // If the call is from a relay, we check if we already have a connection to this node
+            // and eventually re-use it. Otherwise, we'll try to establish a connection to the node
+            // if it has endpoints. If it doesn't, we'll re-use the current connection to send the
+            // confirmation.
+            //
+            s = getNodeWithExistingConnection(subscriber, current.con);
+        }
+        else if(current.con)
+        {
+            s = subscriber->ice_fixed(current.con);
+        }
+
         unique_lock<mutex> lock(_mutex);
         session = createPublisherSessionServant(subscriber);
         if(!session || session->checkSession())
@@ -244,9 +244,10 @@ NodeI::createSubscriberSession(shared_ptr<NodePrx> subscriber,
                                const shared_ptr<Ice::Connection>& connection,
                                const shared_ptr<PublisherSessionI>& session)
 {
-    subscriber = getNodeWithExistingConnection(subscriber, connection);
     try
     {
+        subscriber = getNodeWithExistingConnection(subscriber, connection);
+
         auto self = shared_from_this();
         subscriber->ice_getConnectionAsync([=](auto connection)
         {
@@ -277,9 +278,10 @@ NodeI::createPublisherSession(const shared_ptr<NodePrx>& publisher,
                               const shared_ptr<Ice::Connection>& con,
                               shared_ptr<SubscriberSessionI> session)
 {
-    auto p = getNodeWithExistingConnection(publisher, con);
     try
     {
+        auto p = getNodeWithExistingConnection(publisher, con);
+
         unique_lock<mutex> lock(_mutex);
         if(!session)
         {

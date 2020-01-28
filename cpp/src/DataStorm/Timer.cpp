@@ -5,6 +5,7 @@
 // **********************************************************************
 
 #include <vector>
+#include <iostream>
 #include <assert.h>
 
 #include <DataStorm/Timer.h>
@@ -96,9 +97,11 @@ Timer::runTimer()
                 {
                     t();
                 }
-                catch(...)
+                catch(const std::exception& ex)
                 {
+                    cerr << ex.what() << endl;
                     assert(false);
+                    throw;
                 }
             }
         }
