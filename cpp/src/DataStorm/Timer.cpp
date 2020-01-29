@@ -32,7 +32,7 @@ Timer::schedule(chrono::milliseconds duration, function<void()> callback)
     _cond.notify_one();
     return [=, self=shared_from_this()]() {
         lock_guard<mutex> lock(_mutex);
-        if(scheduledAt > chrono::steady_clock::now())
+        if(!_destroyed && scheduledAt > chrono::steady_clock::now())
         {
             _timers.erase(it);
         }
