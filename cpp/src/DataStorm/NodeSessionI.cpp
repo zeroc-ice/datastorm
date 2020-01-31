@@ -206,5 +206,5 @@ NodeSessionI::forwarder(const std::shared_ptr<SessionPrx>& session) const
     auto id = session->ice_getIdentity();
     auto proxy = _instance->getObjectAdapter()->createProxy({ id.name + '-' + _node->ice_getIdentity().name,
                                                               id.category + 'f' });
-    return Ice::uncheckedCast<SessionPrx>(proxy);
+    return Ice::uncheckedCast<SessionPrx>(proxy->ice_oneway());
 }

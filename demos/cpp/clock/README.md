@@ -22,3 +22,7 @@ writers and readers.
 
 Stopping the DataStorm node shouldn't prevent data to be exchanged but new
 readers or writers won't be discovered until the DataStorm node is restarted.
+
+You can also try disabling the writer or reader server endpoints by editing
+the config.writer and config.reader files. If disabled, the writer or reader
+will receive data through the connection established with the node.
