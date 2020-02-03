@@ -8,11 +8,40 @@
 
 using namespace std;
 
+void
+usage(const string& n)
+{
+    cerr << "Usage: " << n << " [options]\n";
+    cerr <<
+        "Options:\n"
+        "-h, --help               Show this message.\n"
+        "-v, --version            Display the DataStorm version.\n"
+        ;
+}
+
 int
 main(int argc, char* argv[])
 {
     try
     {
+        //
+        // Parse arguments.
+        //
+        for(int i = 0; i < argc; ++i)
+        {
+            string arg = argv[i];
+            if(arg == "-v" || arg == "--version")
+            {
+                cout << DATASTORM_STRING_VERSION << endl;
+                return 0;
+            }
+            else if(arg == "-h" || arg == "--help")
+            {
+                usage(argv[0]);
+                return 0;
+            }
+        }
+
         //
         // CtrlCHandler::maskSignals() must be called before the node is created or any other threads are started.
         //
@@ -23,6 +52,12 @@ main(int argc, char* argv[])
         //
         DataStorm::Node node(argc, argv);
 
+        if(argc > 1)
+        {
+            cerr << "unrecognized arguments" << endl;
+            usage(argv[0]);
+            return 1;
+        }
         //
         // Shutdown the node on Ctrl-C.
         //
