@@ -24,5 +24,13 @@ Stopping the DataStorm node shouldn't prevent data to be exchanged but new
 readers or writers won't be discovered until the DataStorm node is restarted.
 
 You can also try disabling the writer or reader server endpoints by editing
-the config.writer and config.reader files. If disabled, the writer or reader
-will receive data through the connection established with the node.
+the config.writer or config.reader file.
+
+If disabled either on the writer or the reader, a connection between the
+writer and reader will be established from the process with the endpoint
+disabled to the process with the endpoint still enabled.
+
+If disabled on both the reader and server, the reader and writer will exchange
+data through the connection established to the DataStorm node which won't only
+be used anymore to discover topics but will also relay the data for the reader
+and writer.
