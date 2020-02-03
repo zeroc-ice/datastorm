@@ -208,7 +208,7 @@ private:
     {
         auto communicator = Ice::initialize(argc, argv, std::forward<T>(iceArgs)...);
         auto args = Ice::argsToStringSeq(argc, argv);
-        communicator->getProperties()->parseCommandLineOptions("DataStorm", args);
+        args = communicator->getProperties()->parseCommandLineOptions("DataStorm", args);
         Ice::stringSeqToArgs(args, argc, argv);
         init(communicator);
     }
