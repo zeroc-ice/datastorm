@@ -27,9 +27,6 @@ source is usually unnecessary.
 DataStorm was extensively tested using the operating systems and compiler
 versions listed on [supported platforms][2].
 
-On Windows, the build requires a recent version of Visual Studio, and the
-Windows 10 SDK (10.0.14393.0) component when building with Visual Studio 2017.
-
 ### Dependencies
 
 DataStorm depends on the Ice for C++11 library. ZeroC supplies Ice binary
@@ -88,11 +85,11 @@ make CONFIGS=all PLATFORMS=all -j8
 
 ## Building DataStorm on Windows
 
-Open a Visual Studio command prompt. For example, with Visual Studio 2015, you
+Open a Visual Studio command prompt. For example, with Visual Studio 2019, you
 can open one of:
 
-- VS2015 x86 Native Tools Command Prompt
-- VS2015 x64 Native Tools Command Prompt
+- VS2019 x86 Native Tools Command Prompt
+- VS2019 x64 Native Tools Command Prompt
 
 Using the first Command Prompt produces `Win32` binaries by default, while
 the second Command Promt produces `x64` binaries by default.
@@ -181,9 +178,7 @@ You can create a NuGet package with the following command:
 msbuild msbuild\datastorm.proj /t:NuGetPack /p:BuildAllConfigurations=yes
 ```
 
-This creates `zeroc.datastorm.v140\zeroc.datastorm.v140.nupkg` or
-`zeroc.datastorm.v141\zeroc.datastorm.v141.nupkg`
-depending on the compiler you are using.
+This creates `zeroc.datastorm.v142\zeroc.datastorm.v142.nupkg`.
 
 ## Cleaning the source build on macOS or Linux
 
@@ -218,5 +213,5 @@ If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
 [1]: https://zeroc.com/downloads/datastorm
-[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-0-1
+[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-0-2
 [3]: https://doc.zeroc.com/ice/3.7/release-notes/using-the-linux-binary-distributions#id-.UsingtheLinuxBinaryDistributionsv3.7-InstallingtheLinuxDistributions

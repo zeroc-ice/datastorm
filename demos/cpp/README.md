@@ -58,20 +58,6 @@ Refer to the README.md file in each demo directory for usage instructions.
 
 ## Building and Running the Demos on Windows
 
-### Prerequisites
-
-Visual Studio 2017 users need to either:
- - install the Windows 10 SDK (10.0.14393.0) component using the Visual Studio 2017
-   installer, or
- - retarget the solution to a version of the Windows 10 SDK already installed
-   (using `Project > Retarget solution`)
-
-Failure to perform this step results in error MSB8036 when building any project:
-```
-The Windows SDK version 8.1 was not found. Install the required version of Windows SDK
-or change the SDK version in the project property pages or by right-clicking the solution and selecting "Retarget solution".
-```
-
 ### Building the Demos
 
 Open the solution file `DataStorm C++ demos.sln` to build the sample programs.
@@ -95,13 +81,13 @@ the demos.
 If you are building Debug, add the Debug `bin` directories with a command similar
 to:
 ```
-set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v140.0.2.0\build\native\bin\x64\Debug;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v140.3.7.3\build\native\bin\x64\Debug;%PATH%
+set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v142.0.2.0\build\native\bin\x64\Debug;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v142.3.7.3\build\native\bin\x64\Debug;%PATH%
 ```
 
 If you are building Release, add the Release `bin` directories with a command
 similar to:
 ```
-set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v140.0.2.0\build\native\bin\x64\Release;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.icev140.3.7.3\build\native\bin\x64\Release;%PATH%
+set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v142.0.2.0\build\native\bin\x64\Release;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v142.3.7.3\build\native\bin\x64\Release;%PATH%
 ```
 
 Then refer to the README.md file in each demo directory for usage instructions.
