@@ -250,11 +250,14 @@ protected:
 
     void remove(V* v)
     {
+        // Make sure to declare the variable outside the synchronization in case the element needs
+        // to be deleted if it's not the same.
+        std::shared_ptr<V> e;
         std::lock_guard<std::mutex> lock(_mutex);
         auto p = _elements.find(v->get());
         if(p != _elements.end())
         {
-            auto e = p->second.lock();
+            e = p->second.lock();
             if(e && e.get() == v)
             {
                 _elements.erase(p);
