@@ -1,10 +1,7 @@
 
-// **********************************************************************
 //
-// Copyright (c) 2018-present ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// **********************************************************************
-
 #pragma once
 
 #define DATASTORM_VERSION 0,2,0,0

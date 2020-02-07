@@ -1,9 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2018-present ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// **********************************************************************
-
 //
 // This file replaces Ice/Comparable.h for Visual Studio 2017. It works around a compiler crash by using
 // is_member_function_pointer_v<T> instead of is_member_function_pointer<T>::value.

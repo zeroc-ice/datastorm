@@ -1,9 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2018-present ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// **********************************************************************
-
 #ifndef DATASTORM_CTRL_C_HANDLER_H
 #define DATASTORM_CTRL_C_HANDLER_H
 
