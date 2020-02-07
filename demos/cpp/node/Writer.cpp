@@ -42,7 +42,8 @@ main(int argc, char* argv[])
         DataStorm::Topic<int, string> topic(node, "time");
 
         //
-        // Instantiate a writer to writer the time from the given city.
+        // Instantiate a writer to write the local time. The writer key is a random
+        // integer value that identifies the writer.
         //
         auto writer = DataStorm::makeSingleKeyWriter(topic, id(generator));
 

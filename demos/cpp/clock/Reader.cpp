@@ -25,7 +25,8 @@ namespace DataStorm
         {
             //
             // Decode the number of seconds since epoch. The value is encoded in a way which
-            // doesn't depend on the platform endianess.
+            // doesn't depend on the platform endianess (little endian with variable number
+            // of bytes).
             //
             long long int value = 0;
             for(auto p = data.rbegin(); p != data.rend(); ++p)

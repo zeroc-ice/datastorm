@@ -16,7 +16,8 @@ namespace DataStorm
         {
             //
             // Encode the number of seconds since epoch. The value is encoded in a way which
-            // doesn't depend on the platform endianess.
+            // doesn't depend on the platform endianess (little endian with variable number
+            // of bytes).
             //
             vector<unsigned char> data;
             auto value = chrono::time_point_cast<chrono::seconds>(time).time_since_epoch().count();
@@ -73,7 +74,7 @@ main(int argc, char* argv[])
         DataStorm::Topic<string, chrono::system_clock::time_point> topic(node, "time");
 
         //
-        // Instantiate a writer to writer the time from the given city.
+        // Instantiate a writer to write the time from the given city.
         //
         auto writer = DataStorm::makeSingleKeyWriter(topic, city);
 

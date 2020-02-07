@@ -1,7 +1,8 @@
 This demo illustrates the use of a DataStorm node to discover writers and
-readers without using UDP multicast. It also demonstrates how readers
-and writers can exchange data through the DataStorm node when if don't
-enable server endpoints.
+readers without using UDP multicast.
+
+It also demonstrates how readers and writers can exchange data through the
+DataStorm node when the writer and reader server endpoints are disabled.
 
 To run the demo, start a DataStorm node:
 ```
@@ -25,7 +26,7 @@ Stopping the DataStorm node shouldn't prevent data to be exchanged but new
 readers or writers won't be discovered until the DataStorm node is restarted.
 
 You can also try disabling the writer or reader server endpoints by editing
-the config.writer or config.reader file.
+the `config.writer` or `config.reader` file.
 
 If disabled either on the writer or the reader, a connection between the
 writer and reader will be established from the process with the endpoint

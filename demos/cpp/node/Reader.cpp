@@ -32,7 +32,7 @@ main(int argc, char* argv[])
         DataStorm::Topic<int, string> topic(node, "time");
 
         //
-        // Instantiate a reader to read the time from all the topic cities.
+        // Instantiate a reader to read the time from all the topic writers.
         //
         auto reader = DataStorm::makeAnyKeyReader(topic);
 
