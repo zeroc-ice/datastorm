@@ -14,10 +14,16 @@ DataStorm.Node.ConnectTo=tcp -p 10000
 DataStorm.Node.Multicast.Enabled=0
 
 #
-# Uncomment the following property to disable the server and
-# instead receive data through the connection with the node
+# Disable the server endpoints. The reader won't accept any connections
+# from writers. If the writer accepts connections, the reader will
+# establish a connection to the writer to exchange data. Otherwise,
+# it will exchange data through the connection established with the
+# DataStorm node.
 #
-#DataStorm.Node.Server.Enabled=0
+# You can comment out this property to allow readers to connect to the
+# writer directly.
+#
+DataStorm.Node.Server.Enabled=0
 
 #
 # DataStorm Tracing

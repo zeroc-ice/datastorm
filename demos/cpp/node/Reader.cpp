@@ -37,11 +37,6 @@ main(int argc, char* argv[])
         auto reader = DataStorm::makeAnyKeyReader(topic);
 
         //
-        // Wait for at least on writer to connect.
-        //
-        reader.waitForWriters();
-
-        //
         // Prints out the received samples.
         //
         reader.onSamples(nullptr, [](const DataStorm::Sample<int, string>& sample)
