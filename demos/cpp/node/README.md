@@ -21,9 +21,9 @@ reader
 ```
 
 You can start multiple readers and writers. The readers print the time sent by
-the writers.  Stopping the DataStorm node prevents prevents communications
-between readers and writers and the discovery of new readers and writers.
-Restarting the node resumes data exchange and discovery.
+the writers. Stopping the DataStorm node prevents communications between
+readers and writers and the discovery of new readers and writers. Restarting
+the node resumes data exchange and discovery.
 
 You can enable the reader or the writer's server endpoints by editing the
 `config.writer` or `config.reader` file. When server endpoints are enabled
