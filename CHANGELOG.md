@@ -15,8 +15,8 @@ These are the changes since DataStorm 0.1.
 - Added support for new `DataStorm.Node.Multicast.Enabled` and
   `DataStorm.Node.Server.Enabled` properties to allow disabling the multicast or
   server endpoint. The endpoints are enabled by default. The property can be set
-  to 0 to matching endpoint.
+  to 0 to disable the endpoints.
 
 - Added support for new `DataStorm.Node.ConnectTo` property to allow node
-  discovery through TCP. Nodes connected with TCP will exchange discovery
-  information for topics.
+  discovery through registration with another node. All the connected nodes
+  will exchange discovery information for topics.
