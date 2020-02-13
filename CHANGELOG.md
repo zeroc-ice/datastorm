@@ -18,6 +18,8 @@ These are the changes since DataStorm 0.1.
   endpoints are enabled. Set the property to 0 to disable the corresponding
   endpoints.
 
-- Added support for new `DataStorm.Node.ConnectTo` property to allow node
-  discovery through registration with another node. All the connected nodes
-  will exchange discovery information for topics.
+- Added ability for a node to communicate with other nodes without UDP
+  multicast discovery. A node can now connect directly to another node
+  using the new `DataStorm.Node.ConnectTo` property. This connected-to node
+  then relays discovery and (if needed) communications with other nodes it
+  is itself connected with.
