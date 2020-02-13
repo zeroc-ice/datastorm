@@ -12,10 +12,11 @@ particular aspect of DataStorm.
 
 These are the changes since DataStorm 0.1.
 
-- Added support for new `DataStorm.Node.Multicast.Enabled` and
-  `DataStorm.Node.Server.Enabled` properties to allow disabling the multicast or
-  server endpoint. The endpoints are enabled by default. The property can be set
-  to 0 to disable the endpoints.
+- Added two new properties, `DataStorm.Node.Multicast.Enabled` and
+  `DataStorm.Node.Server.Enabled`, to enable or disable the multicast and
+  server endpoints. The default value for these properties is 1, meaning the
+  endpoints are enabled. Set the property to 0 to disable the corresponding
+  endpoints.
 
 - Added support for new `DataStorm.Node.ConnectTo` property to allow node
   discovery through registration with another node. All the connected nodes
