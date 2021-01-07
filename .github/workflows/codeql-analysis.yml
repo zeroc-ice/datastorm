@@ -12,7 +12,7 @@ on:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
@@ -37,6 +37,8 @@ jobs:
     # 📚 https://git.io/JvXDl
 
     - run: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv B6391CB2CFBA643D
+        sudo apt-add-repository "deb http://zeroc.com/download/ice/3.7/ubuntu20.04 stable main"
         sudo apt-get update && sudo apt-get install libzeroc-ice-dev
         make LANGUAGES=cpp OPTIMIZE=no V=1 -j8
     - name: Perform CodeQL Analysis
