@@ -473,7 +473,7 @@ NodeI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
     lock_guard<mutex> lock(_mutex);
     if(current.id == _subscriberForwarder->ice_getIdentity())
     {
-        for(const auto s : _subscribers)
+        for(const auto& s : _subscribers)
         {
             shared_ptr<SessionPrx> session = s.second->getSession();
             if(session)
@@ -484,7 +484,7 @@ NodeI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
     }
     else
     {
-        for(const auto s : _publishers)
+        for(const auto& s : _publishers)
         {
             shared_ptr<SessionPrx> session = s.second->getSession();
             if(session)
