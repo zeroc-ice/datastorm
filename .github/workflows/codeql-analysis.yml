@@ -43,4 +43,3 @@ jobs:
         make LANGUAGES=cpp OPTIMIZE=no V=1 -j8
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
-      
