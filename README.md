@@ -34,8 +34,7 @@ topic. These subscribers are regular Ice objects that you implement, and they
 receive the message sent by the publisher just like any other Ice request
 dispatch.
 
-DataStorm is a brand-new library-based pub/sub service. It is currently in alpha
-and should not be used for production. At this time, it provides only a C++ API.
+DataStorm is a brand-new library-based pub/sub service.
 
 DataStorm is all about distributing data. When one of your applications needs
 data produced by another application, DataStorm helps you publish, filter and
@@ -54,8 +53,11 @@ mapping.
 
 ## Branches
 
-- `master`
+- `main`
   Primary development branch (unstable, frequently updated)
+
+- `1.0`
+  DataStorm 1.0.x plus various patches (stable, frequently updated)
 
 ## Copyright and License
 
