@@ -131,7 +131,7 @@ private:
  * @param sampleType The sample type to add to the stream
  * @return The output stream
  */
-std::ostream&
+inline std::ostream&
 operator<<(std::ostream& os, SampleEvent sampleType)
 {
     switch(sampleType)
@@ -162,7 +162,7 @@ operator<<(std::ostream& os, SampleEvent sampleType)
  * @param types The sample type vector to add to the stream
  * @return The output stream
  */
-std::ostream&
+inline std::ostream&
 operator<<(std::ostream& os, const std::vector<SampleEvent>& types)
 {
     os << "[";

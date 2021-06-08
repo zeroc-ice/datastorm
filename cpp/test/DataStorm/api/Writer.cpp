@@ -302,6 +302,10 @@ main(int argc, char* argv[])
         test(skw.getLast().getValue() == "");
         test(skw.getLast().getUpdateTag() == "partialupdate");
         test(skw.getLast().getEvent() == SampleEvent::PartialUpdate);
+
+        ostringstream os;
+        os << skw.getLast();
+        os << skw.getLast().getEvent();
     }
     cout << "ok" << endl;
 
