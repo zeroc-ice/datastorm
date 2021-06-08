@@ -54,9 +54,6 @@ mapping.
 ## Branches
 
 - `main`
-  Primary development branch (unstable, frequently updated)
-
-- `1.0`
   DataStorm 1.0.x plus various patches (stable, frequently updated)
 
 ## Copyright and License
