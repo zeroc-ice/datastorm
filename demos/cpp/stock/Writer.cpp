@@ -73,7 +73,7 @@ main(int argc, char* argv[])
         DataStorm::Topic<string, Stock> topic(node, "stocks");
 
         //
-        // Setup partial update updaters. The updater is responsiable for updating the
+        // Setup partial update updaters. The updater is responsible for updating the
         // element value when a partial update is received. Updaters must be set on
         // both the topic reader and writer.
         //
@@ -86,10 +86,10 @@ main(int argc, char* argv[])
         cout << "Available stocks: " << endl;
         map<string, Stock> stocks {
             { "GOOG", Stock("Google", 1040.61, 1035, 1043.178, 723018024728, 1035.96, 536996) },
-            { "AAPL", Stock("Apple", 174.74, 174.44, 175.50, 898350570640, 174.96, 14026673)},
-            { "FB", Stock("Facebook", 182.78, 180.29, 183.15,  531123722959, 180.87, 9426283)},
-            { "AMZN", Stock("Amazon", 1186.41, 1160.70, 1186.84, 571697967142, 1156.16, 3442959)},
-            { "MSFT", Stock("Microsoft", 83.27, 82.78, 83.43, 642393925538, 83.11, 6056186)}
+            { "AAPL", Stock("Apple", 174.74, 174.44, 175.50, 898350570640, 174.96, 14026673) },
+            { "FB", Stock("Facebook", 182.78, 180.29, 183.15,  531123722959, 180.87, 9426283) },
+            { "AMZN", Stock("Amazon", 1186.41, 1160.70, 1186.84, 571697967142, 1156.16, 3442959) },
+            { "MSFT", Stock("Microsoft", 83.27, 82.78, 83.43, 642393925538, 83.11, 6056186) }
         };
         for(const auto& stock : stocks)
         {
