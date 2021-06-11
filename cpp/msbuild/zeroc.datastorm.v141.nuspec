@@ -3,7 +3,7 @@
   <metadata>
     <id>zeroc.datastorm.v141</id>
     <title>ZeroC DataStorm C++ for Visual Studio 2017</title>
-    <version>0.2.0</version>
+    <version>1.0.0</version>
     <authors>ZeroC</authors>
     <licenseUrl>https://raw.githubusercontent.com/zeroc-ice/datastorm/master/LICENSE</licenseUrl>
     <projectUrl>https://github.com/zeroc-ice/datastorm</projectUrl>
@@ -13,7 +13,7 @@
     <releaseNotes>https://doc.zeroc.com/datastorm/latest/release-notes</releaseNotes>
     <tags>datastorm ice native dds v141 zeroc</tags>
     <dependencies>
-      <dependency id="zeroc.ice.v141" version="[3.7.3]"/>
+      <dependency id="zeroc.ice.v141" version="[3.7.5]"/>
     </dependencies>
   </metadata>
 </package>
