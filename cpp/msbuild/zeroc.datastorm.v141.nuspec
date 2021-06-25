@@ -13,7 +13,7 @@
     <releaseNotes>https://doc.zeroc.com/datastorm/latest/release-notes</releaseNotes>
     <tags>datastorm ice native dds v141 zeroc</tags>
     <dependencies>
-      <dependency id="zeroc.ice.v141" version="[3.7.5]"/>
+      <dependency id="zeroc.ice.v141" version="[3.7.6]"/>
     </dependencies>
   </metadata>
 </package>
