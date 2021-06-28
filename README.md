@@ -43,7 +43,7 @@ connections or making remote calls.
 
 ## Languages
 
-DataStorm currently supports only the C++ programming language.
+DataStorm supports only the C++ programming language.
 
 ## Platforms
 
@@ -60,9 +60,23 @@ mapping.
 
 Copyright &copy; ZeroC, Inc. All rights reserved.
 
-DataStorm is licensed under [GPLv2](http://opensource.org/licenses/GPL-2.0), a
-popular open-source license with strong
-[copyleft](http://en.wikipedia.org/wiki/Copyleft) conditions.
+As copyright owner, ZeroC can license DataStorm under different license terms, and
+offers the following licenses for DataStorm:
+- GPL v2, a popular open-source license with strong
+[copyleft](https://en.wikipedia.org/wiki/Copyleft) conditions (the default
+license)
+- Commercial or closed-source licenses
+
+If you license DataStorm under GPL v2, there is no license fee or signed license
+agreement: you just need to comply with the GPL v2 terms and conditions. See
+[LICENSE](./LICENSE) for further information.
+
+If you purchase a commercial or closed-source license DataStorm, you must comply
+with the terms and conditions listed in the associated license agreement; the
+GPL v2 terms and conditions do not apply.
+
+The DataStorm software itself remains the same: the only difference between an open-source
+DataStorm and a commercial DataStorm are the license terms.
 
 ## Documentation
 
