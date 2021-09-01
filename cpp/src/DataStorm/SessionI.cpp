@@ -494,7 +494,10 @@ SessionI::disconnected(const Ice::Current& current)
 {
     if(disconnected(current.con, nullptr))
     {
-        retry(getNode(), nullptr);
+        if(!retry(getNode(), nullptr))
+        {
+            remove();
+        }
     }
 }
 
@@ -521,7 +524,10 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
                                                {
                                                    if(self->disconnected(connection, ex))
                                                    {
-                                                       self->retry(self->getNode(), nullptr);
+                                                       if(self->retry(self->getNode(), nullptr))
+                                                       {
+                                                           self->remove();
+                                                       }
                                                    }
                                                });
     }
