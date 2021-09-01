@@ -524,7 +524,7 @@ SessionI::connected(const shared_ptr<SessionPrx>& session,
                                                {
                                                    if(self->disconnected(connection, ex))
                                                    {
-                                                       if(self->retry(self->getNode(), nullptr))
+                                                       if(!self->retry(self->getNode(), nullptr))
                                                        {
                                                            self->remove();
                                                        }
