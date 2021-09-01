@@ -8,6 +8,13 @@ We recommend that you use the release notes as a guide for migrating your
 applications to this release, and the manual for complete details on a
 particular aspect of DataStorm.
 
+# Changes in DataStorm 1.0.1
+
+These are the changes since DataStorm 1.0.
+
+- Fixed a memory leak where reader/writer sessions wouldn't be destroyed if
+  connection establishment on retry didn't immediately fail.
+
 # Changes in DataStorm 1.0
 
 These are the changes since DataStorm 0.2.
