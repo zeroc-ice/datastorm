@@ -126,6 +126,11 @@ NodeI::destroy(bool ownsCommunicator)
 void
 NodeI::initiateCreateSession(shared_ptr<NodePrx> publisher, const Ice::Current& current)
 {
+    if (publisher == nullptr)
+    {
+        return;
+    }
+
     //
     // Create a session with the given publisher.
     //
@@ -138,6 +143,11 @@ NodeI::createSession(shared_ptr<NodePrx> subscriber,
                      bool fromRelay,
                      const Ice::Current& current)
 {
+    if (subscriber == nullptr || subscriberSession == nullptr)
+    {
+        return;
+    }
+
     shared_ptr<PublisherSessionI> session;
     try
     {
@@ -216,6 +226,11 @@ NodeI::confirmCreateSession(shared_ptr<NodePrx> publisher,
                             shared_ptr<PublisherSessionPrx> publisherSession,
                             const Ice::Current& current)
 {
+    if (publisher == nullptr || publisherSession == nullptr)
+    {
+        return;
+    }
+
     unique_lock<mutex> lock(_mutex);
     auto p = _subscribers.find(publisher->ice_getIdentity());
     if(p == _subscribers.end())
@@ -338,9 +353,13 @@ NodeI::removeSubscriberSession(const shared_ptr<NodePrx>& node,
     if(session && !session->retry(node, ex))
     {
         unique_lock<mutex> lock(_mutex);
-        if(!session->checkSession() && session->getNode() == node)
+        auto sessionNode = session->getNode();
+        if (!session->checkSession() &&
+            node != nullptr &&
+            sessionNode != nullptr &&
+            node->ice_getIdentity() == sessionNode->ice_getIdentity())
         {
-            auto p = _subscribers.find(session->getNode()->ice_getIdentity());
+            auto p = _subscribers.find(sessionNode->ice_getIdentity());
             if(p != _subscribers.end() && p->second == session)
             {
                 _subscribers.erase(p);
@@ -359,9 +378,13 @@ NodeI::removePublisherSession(const shared_ptr<NodePrx>& node,
     if(session && !session->retry(node, ex))
     {
         unique_lock<mutex> lock(_mutex);
-        if(!session->checkSession() && session->getNode() == node)
+        auto sessionNode = session->getNode();
+        if (!session->checkSession() &&
+            node != nullptr &&
+            sessionNode != nullptr &&
+            node->ice_getIdentity() == sessionNode->ice_getIdentity())
         {
-            auto p = _publishers.find(session->getNode()->ice_getIdentity());
+            auto p = _publishers.find(sessionNode->ice_getIdentity());
             if(p != _publishers.end() && p->second == session)
             {
                 _publishers.erase(p);

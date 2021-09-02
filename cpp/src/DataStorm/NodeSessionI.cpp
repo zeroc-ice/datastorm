@@ -29,6 +29,11 @@ public:
 
     virtual void initiateCreateSession(shared_ptr<NodePrx> publisher, const Ice::Current& current) override
     {
+        if(publisher == nullptr)
+        {
+            return;
+        }
+
         auto session = _session.lock();
         if(!session)
         {
@@ -54,6 +59,11 @@ public:
                                bool /* fromRelay */,
                                const Ice::Current& current) override
     {
+        if(subscriber == nullptr || subscriberSession == nullptr)
+        {
+            return;
+        }
+
         auto session = _session.lock();
         if(!session)
         {
@@ -78,6 +88,11 @@ public:
                                       shared_ptr<PublisherSessionPrx> publisherSession,
                                       const Ice::Current& current) override
     {
+        if (publisher == nullptr || publisherSession == nullptr)
+        {
+            return;
+        }
+
         auto session = _session.lock();
         if(!session)
         {
@@ -103,6 +118,7 @@ private:
                                                         shared_ptr<T>& session,
                                                         const Ice::Current& current)
     {
+        assert(node != nullptr);
         if(node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
         {
             auto peerSession = _nodeSessionManager->createOrGet(node, current.con, false);

@@ -23,6 +23,10 @@ LookupI::LookupI(shared_ptr<NodeSessionManager> nodeSessionManager,
 void
 LookupI::announceTopicReader(string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
+    if (proxy == nullptr)
+    {
+        return;
+    }
     _nodeSessionManager->announceTopicReader(name,proxy, current.con);
     _topicFactory->createSubscriberSession(name, proxy, current.con);
 }
@@ -30,6 +34,10 @@ LookupI::announceTopicReader(string name, shared_ptr<NodePrx> proxy, const Ice::
 void
 LookupI::announceTopicWriter(string name, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
+    if (proxy == nullptr)
+    {
+        return;
+    }
     _nodeSessionManager->announceTopicWriter(name, proxy, current.con);
     _topicFactory->createPublisherSession(name, proxy, current.con);
 }
@@ -37,6 +45,10 @@ LookupI::announceTopicWriter(string name, shared_ptr<NodePrx> proxy, const Ice::
 void
 LookupI::announceTopics(StringSeq readers, StringSeq writers, shared_ptr<NodePrx> proxy, const Ice::Current& current)
 {
+    if (proxy == nullptr)
+    {
+        return;
+    }
     _nodeSessionManager->announceTopics(readers, writers, proxy, current.con);
     for(auto name : readers)
     {
@@ -51,6 +63,10 @@ LookupI::announceTopics(StringSeq readers, StringSeq writers, shared_ptr<NodePrx
 shared_ptr<NodePrx>
 LookupI::createSession(shared_ptr<NodePrx> node, const Ice::Current& current)
 {
+    if (node == nullptr)
+    {
+        return nullptr;
+    }
     _nodeSessionManager->createOrGet(move(node), current.con, true);
     return _nodePrx;
 }
