@@ -13,7 +13,7 @@
       <SymbolServer Condition="'$(SymbolServer)' == ''">$(TEMP)\SymbolCache*https://symbols.zeroc.com</SymbolServer>
       <NugetExe>$(MSBuildThisFileDirectory)NuGet.exe</NugetExe>
       <NugetURL>https://dist.nuget.org/win-x86-commandline/v5.6.0/nuget.exe</NugetURL>
-      <DataStormJSONVersion>1.0.0</DataStormJSONVersion>
+      <DataStormJSONVersion>1.1.0</DataStormJSONVersion>
     </PropertyGroup>
 
     <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
