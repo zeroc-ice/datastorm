@@ -1,6 +1,9 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
+
+#include <thread>
+
 #include <DataStorm/DataStorm.h>
 
 #include <TestCommon.h>
