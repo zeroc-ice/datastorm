@@ -2,8 +2,10 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#include <DataStorm/DataStorm.h>
+#include <thread>
 #include <string>
+
+#include <DataStorm/DataStorm.h>
 
 using namespace std;
 

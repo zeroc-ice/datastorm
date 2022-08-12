@@ -1,11 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
+
+#include <random>
+
 #include <DataStorm/DataStorm.h>
 
 #include <Stock.h>
-
-#include <random>
 
 using namespace std;
 using namespace Demo;
