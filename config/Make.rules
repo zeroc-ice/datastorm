@@ -64,8 +64,8 @@ soversion               = 11
 
 #
 # The compatversion is the lowest patch release with the same API.
-# For example, if 1.0.1 introduces no new API compared to 1.1.0, we
-# would set version to 1.0.1 and compatversion to 1.1.0.
+# For example, if 1.0.1 introduces no new API compared to 1.0.0, we
+# would set version to 1.0.1 and compatversion to 1.0.0.
 # Used for OS X libraries.
 #
 compatversion           = $(version)
