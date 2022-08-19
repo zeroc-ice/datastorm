@@ -178,7 +178,7 @@ You can create a NuGet package with the following command:
 msbuild msbuild\datastorm.proj /t:NuGetPack /p:BuildAllConfigurations=yes
 ```
 
-This creates `zeroc.datastorm.v142\zeroc.datastorm.v142.nupkg`.
+This creates `zeroc.datastorm.v143\zeroc.datastorm.v143.nupkg`.
 
 ## Cleaning the source build on macOS or Linux
 

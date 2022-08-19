@@ -59,8 +59,8 @@ include $(top_srcdir)/config/Make.rules.$(os)
 include $(top_srcdir)/config/Make.project.rules
 include $(top_srcdir)/config/Make.tests.rules
 
-version                 = 1.0.0
-soversion               = 0
+version                 = 1.1.0
+soversion               = 11
 
 #
 # The compatversion is the lowest patch release with the same API.

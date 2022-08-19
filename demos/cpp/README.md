@@ -81,13 +81,13 @@ the demos.
 If you are building Debug, add the Debug `bin` directories with a command similar
 to:
 ```
-set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v142.1.0.0\build\native\bin\x64\Debug;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v142.3.7.6\build\native\bin\x64\Debug;%PATH%
+set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v143.1.1.0\build\native\bin\x64\Debug;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v143.3.7.8\build\native\bin\x64\Debug;%PATH%
 ```
 
 If you are building Release, add the Release `bin` directories with a command
 similar to:
 ```
-set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v142.1.0.0\build\native\bin\x64\Release;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v142.3.7.6\build\native\bin\x64\Release;%PATH%
+set PATH=%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.datastorm.v143.1.1.0\build\native\bin\x64\Release;%USERPROFILE%\datastorm\demos\cpp\packages\zeroc.ice.v143.3.7.8\build\native\bin\x64\Release;%PATH%
 ```
 
 Then refer to the README.md file in each demo directory for usage instructions.
