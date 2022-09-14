@@ -1,3 +1,10 @@
+- [DataStorm](#datastorm)
+  * [DataStorm vs IceStorm](#datastorm-vs-icestorm)
+  * [Languages](#languages)
+  * [Platforms](#platforms)
+  * [Branches](#branches)
+  * [Copyright and License](#copyright-and-license)
+
 # DataStorm - Data Centric Pub/Sub Framework
 
 DataStorm is a new high-performance brokerless data centric [pub/sub
@@ -13,13 +20,6 @@ You can also use DataStorm without Ice, in particular:
  * you can distribute data with more complex types using DataStorm by providing
    your own serialization/deserialization functions (for Ice types, DataStorm
    uses automatically the Ice-generated marshaling and unmarshaling code)
-
-- [DataStorm](#datastorm)
- * [DataStorm vs IceStorm](#datastorm-vs-icestorm)
- * [Languages](#languages)
- * [Platforms](#platforms)
- * [Branches](#branches)
- * [Copyright and License](#copyright-and-license)
 
 ## DataStorm vs IceStorm
 
