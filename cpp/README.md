@@ -83,13 +83,13 @@ To build all the supported configurations and platforms:
 make CONFIGS=all PLATFORMS=all -j8
 ```
 
-## Building DataStorm on Windows
+## Building DataStorm for Windows
 
-Open a Visual Studio command prompt. For example, with Visual Studio 2019, you
+Open a Visual Studio command prompt. For example, with Visual Studio 2012, you
 can open one of:
 
-- VS2019 x86 Native Tools Command Prompt
-- VS2019 x64 Native Tools Command Prompt
+- x86 Native Tools Command Prompt for VS2022
+- x64 Native Tools Command Prompt for VS2022
 
 Using the first Command Prompt produces `Win32` binaries by default, while
 the second Command Promt produces `x64` binaries by default.
@@ -136,6 +136,7 @@ following environment variables:
 
  - `SIGN_CERTIFICATE` to your Authenticode certificate
  - `SIGN_PASSWORD` to the certificate password
+ - `SIGN_SHA1` the SHA1 hash of the signing certificate
 
 ## Installing a C++ Source Build on Linux or macOS
 
@@ -178,7 +179,7 @@ You can create a NuGet package with the following command:
 msbuild msbuild\datastorm.proj /t:NuGetPack /p:BuildAllConfigurations=yes
 ```
 
-This creates `zeroc.datastorm.v143\zeroc.datastorm.v143.nupkg`.
+This creates `msbuild\zeroc.datastorm.v143\zeroc.datastorm.v143.1.1.0.nupkg`.
 
 ## Cleaning the source build on macOS or Linux
 
@@ -213,5 +214,5 @@ If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
 [1]: https://zeroc.com/downloads/datastorm
-[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-0-2
+[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-1.1.0
 [3]: https://doc.zeroc.com/ice/3.7/release-notes/using-the-linux-binary-distributions#id-.UsingtheLinuxBinaryDistributionsv3.7-InstallingtheLinuxDistributions
