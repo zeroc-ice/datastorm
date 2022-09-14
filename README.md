@@ -1,5 +1,3 @@
-[![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/datastorm.svg)](https://gitter.im/zeroc-ice/datastorm?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 # DataStorm - Data Centric Pub/Sub Framework
 
 DataStorm is a new high-performance brokerless data centric [pub/sub
@@ -16,7 +14,12 @@ You can also use DataStorm without Ice, in particular:
    your own serialization/deserialization functions (for Ice types, DataStorm
    uses automatically the Ice-generated marshaling and unmarshaling code)
 
-DataStorm is currently in alpha and we welcome your feedback!
+- [DataStorm](#datastorm)
+ * [DataStorm vs IceStorm](#datastorm-vs-icestorm)
+ * [Languages](#languages)
+ * [Platforms](#platforms)
+ * [Branches](#branches)
+ * [Copyright and License](#copyright-and-license)
 
 ## DataStorm vs IceStorm
 
@@ -48,13 +51,12 @@ DataStorm supports only the C++ programming language.
 ## Platforms
 
 You should be able to build DataStorm on the same platforms and with the same
-C++ compilers as Ice. DataStorm relies on C++11 features and the Ice C++11
-mapping.
+C++ compilers as Ice. DataStorm relies on C++11 features and the Ice C++11 mapping.
 
 ## Branches
 
 - `main`
-  DataStorm 1.0.x plus various patches (stable, frequently updated)
+  DataStorm 1.1.x plus various patches (stable, frequently updated)
 
 ## Copyright and License
 
