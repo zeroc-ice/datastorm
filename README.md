@@ -1,10 +1,3 @@
-- [DataStorm](#datastorm)
-  * [DataStorm vs IceStorm](#datastorm-vs-icestorm)
-  * [Languages](#languages)
-  * [Platforms](#platforms)
-  * [Branches](#branches)
-  * [Copyright and License](#copyright-and-license)
-
 # DataStorm - Data Centric Pub/Sub Framework
 
 DataStorm is a new high-performance brokerless data centric [pub/sub
@@ -20,6 +13,13 @@ You can also use DataStorm without Ice, in particular:
  * you can distribute data with more complex types using DataStorm by providing
    your own serialization/deserialization functions (for Ice types, DataStorm
    uses automatically the Ice-generated marshaling and unmarshaling code)
+
+- [DataStorm vs IceStorm](#datastorm-vs-icestorm)
+- [Languages](#languages)
+- [Platforms](#platforms)
+- [Branches](#branches)
+- [Documentation](#documentation)
+- [Copyright and License](#copyright-and-license)
 
 ## DataStorm vs IceStorm
 
@@ -58,6 +58,11 @@ C++ compilers as Ice. DataStorm relies on C++11 features and the Ice C++11 mappi
 - `main`
   DataStorm 1.1.x plus various patches (stable, frequently updated)
 
+## Documentation
+
+- [DataStorm Release Notes](https://doc.zeroc.com/datastorm/latest/release-notes)
+- [DataStorm Manual](https://doc.zeroc.com/datastorm/latest)
+
 ## Copyright and License
 
 Copyright &copy; ZeroC, Inc. All rights reserved.
@@ -79,8 +84,3 @@ GPL v2 terms and conditions do not apply.
 
 The DataStorm software itself remains the same: the only difference between an open-source
 DataStorm and a commercial DataStorm are the license terms.
-
-## Documentation
-
-- [DataStorm Release Notes](https://doc.zeroc.com/datastorm/latest/release-notes)
-- [DataStorm Manual](https://doc.zeroc.com/datastorm/latest)
