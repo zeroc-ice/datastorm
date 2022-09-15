@@ -8,7 +8,7 @@ We recommend that you use the release notes as a guide for migrating your
 applications to this release, and the manual for complete details on a
 particular aspect of DataStorm.
 
-# Changes in DataStorm 1.0.1
+# Changes in DataStorm 1.1
 
 These are the changes since DataStorm 1.0.
 
