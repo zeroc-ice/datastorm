@@ -179,7 +179,7 @@ You can create a NuGet package with the following command:
 msbuild msbuild\datastorm.proj /t:NuGetPack /p:BuildAllConfigurations=yes
 ```
 
-This creates `msbuild\zeroc.datastorm.v143\zeroc.datastorm.v143.1.1.0.nupkg`.
+This creates `msbuild\zeroc.datastorm.v143\zeroc.datastorm.v143.1.1.1.nupkg`.
 
 ## Cleaning the source build on macOS or Linux
 
@@ -214,5 +214,5 @@ If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
 [1]: https://zeroc.com/downloads/datastorm
-[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-1.1.0
+[2]: https://doc.zeroc.com/datastorm/latest/release-notes/supported-platforms-for-datastorm-1.1.1
 [3]: https://doc.zeroc.com/ice/3.7/release-notes/using-the-linux-binary-distributions#id-.UsingtheLinuxBinaryDistributionsv3.7-InstallingtheLinuxDistributions

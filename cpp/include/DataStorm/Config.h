@@ -4,8 +4,8 @@
 //
 #pragma once
 
-#define DATASTORM_VERSION 1,1,0,0
-#define DATASTORM_STRING_VERSION "1.1.0"
+#define DATASTORM_VERSION 1,1,1,0
+#define DATASTORM_STRING_VERSION "1.1.1"
 #define DATASTORM_SO_VERSION "11"
 
 #if defined(_DEBUG)
