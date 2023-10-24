@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zeroc-ice/datastorm/main/.github/assets/ice-banner.svg" height="150" width="150" />
+</p>
+
+
 # DataStorm - Data Centric Pub/Sub Framework
 
 DataStorm is a new high-performance brokerless data centric [pub/sub
