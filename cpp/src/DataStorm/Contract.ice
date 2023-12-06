@@ -177,7 +177,7 @@ sequence<ElementDataAck> ElementDataAckSeq;
 
 struct ElementSpecAck
 {
-    /** The readers or writers assocatied with the key or filter. */
+    /** The readers or writers associated with the key or filter. */
     ElementDataAckSeq elements;
 
     /** The id of the key or filter. */

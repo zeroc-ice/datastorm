@@ -34,7 +34,7 @@ main(int argc, char* argv[])
         DataStorm::Topic<string, Demo::Stock> topic(node, "stocks");
 
         //
-        // Setup partial update updaters. The updater is responsiable for updating the
+        // Setup partial update updaters. The updater is responsible for updating the
         // element value when a partial update is received. Updaters must be set on
         // the topic from both the reader and writer.
         //
