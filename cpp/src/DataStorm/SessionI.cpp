@@ -687,7 +687,7 @@ SessionI::retry(const shared_ptr<NodePrx>& node, exception_ptr exception)
             }
             else
             {
-                out << _id << ": connection to `" << node->ice_toString() << "` failed and nore more retries";
+                out << _id << ": connection to `" << node->ice_toString() << "` failed and the retry limit has been reached";
             }
             if(exception)
             {

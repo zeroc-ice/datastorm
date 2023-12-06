@@ -18,7 +18,7 @@ Ice.Default.Host=localhost
 #
 #DataStorm.Trace.Topic=1
 #DataStorm.Trace.Data=1
-#DataStorm.Trace.Sesssion=1
+#DataStorm.Trace.Session=1
 
 #
 # Ice tracing

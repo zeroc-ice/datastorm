@@ -288,7 +288,7 @@ public:
     bool hasUnread() const noexcept;
 
     /**
-     * Returns the next unread sample.  The node  shutdown will cause this method to raise
+     * Returns the next unread sample. The node shutdown will cause this method to raise
      * NodeShutdownException.
      *
      * @return The unread sample.
@@ -1076,7 +1076,7 @@ public:
     void update(const Value& value) noexcept;
 
     /**
-     * Get a partial udpate generator function for the given partial update tag. When called, the returned
+     * Get a partial update generator function for the given partial update tag. When called, the returned
      * function generates a {@link PartialUpdate} sample with the given partial update value.
      *
      * The UpdateValue template parameter must match the UpdateValue type used to register the updater with
@@ -1152,7 +1152,7 @@ public:
     void update(const Key& key, const Value& value) noexcept;
 
     /**
-     * Get a partial udpate generator function for the given partial update tag. When called, the returned
+     * Get a partial update generator function for the given partial update tag. When called, the returned
      * function generates a {@link PartialUpdate} sample with the given partial update value.
      *
      * The UpdateValue template parameter must match the UpdateValue type used to register the updater with

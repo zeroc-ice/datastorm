@@ -11,7 +11,7 @@ module DataStorm
  *
  * The sample event matches the operation used by the DataWriter to update
  * the data element. It also provides information on what to expect from
- * the sample. A sample with the Add or Udpate event always provide a value
+ * the sample. A sample with the Add or Update event always provide a value
  * while a sample with the Remove type doesn't.
  *
  */
