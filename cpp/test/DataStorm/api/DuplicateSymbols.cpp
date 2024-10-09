@@ -6,7 +6,8 @@
 using namespace DataStorm;
 using namespace std;
 
-void testDuplicateSymbols()
+void
+testDuplicateSymbols()
 {
     // Make sure these don't cause duplicate symbols errors on link
     ostringstream os;

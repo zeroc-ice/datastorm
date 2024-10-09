@@ -37,18 +37,18 @@ main(int argc, char* argv[])
     {
         Topic<string, int> topic(node, "int");
         auto reader = makeSingleKeyReader(topic, "element", "", config);
-        for(int i = 0; i < 1000; ++i)
+        for (int i = 0; i < 1000; ++i)
         {
             auto sample = reader.getNextUnread();
-            if(sample.getValue() != i)
+            if (sample.getValue() != i)
             {
                 cerr << "unexpected sample: " << sample.getValue() << " expected:" << i << endl;
                 test(false);
             }
-            if((i % 50) == 0)
+            if ((i % 50) == 0)
             {
                 auto connection = node.getSessionConnection(sample.getSession());
-                while(!connection)
+                while (!connection)
                 {
                     this_thread::sleep_for(chrono::milliseconds(200));
                     connection = node.getSessionConnection(sample.getSession());

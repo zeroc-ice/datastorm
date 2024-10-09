@@ -3,20 +3,21 @@
 //
 #include <DataStorm/Instance.h>
 #include <DataStorm/LookupI.h>
-#include <DataStorm/TopicFactoryI.h>
-#include <DataStorm/NodeSessionManager.h>
 #include <DataStorm/NodeI.h>
+#include <DataStorm/NodeSessionManager.h>
+#include <DataStorm/TopicFactoryI.h>
 
 using namespace std;
 using namespace DataStormContract;
 using namespace DataStormI;
 
-LookupI::LookupI(shared_ptr<NodeSessionManager> nodeSessionManager,
-                 shared_ptr<TopicFactoryI> topicFactory,
-                 shared_ptr<NodePrx> nodePrx) :
-    _nodeSessionManager(move(nodeSessionManager)),
-    _topicFactory(move(topicFactory)),
-    _nodePrx(move(nodePrx))
+LookupI::LookupI(
+    shared_ptr<NodeSessionManager> nodeSessionManager,
+    shared_ptr<TopicFactoryI> topicFactory,
+    shared_ptr<NodePrx> nodePrx)
+    : _nodeSessionManager(move(nodeSessionManager)),
+      _topicFactory(move(topicFactory)),
+      _nodePrx(move(nodePrx))
 {
 }
 
@@ -27,7 +28,7 @@ LookupI::announceTopicReader(string name, shared_ptr<NodePrx> proxy, const Ice::
     {
         return;
     }
-    _nodeSessionManager->announceTopicReader(name,proxy, current.con);
+    _nodeSessionManager->announceTopicReader(name, proxy, current.con);
     _topicFactory->createSubscriberSession(name, proxy, current.con);
 }
 
@@ -50,11 +51,11 @@ LookupI::announceTopics(StringSeq readers, StringSeq writers, shared_ptr<NodePrx
         return;
     }
     _nodeSessionManager->announceTopics(readers, writers, proxy, current.con);
-    for(auto name : readers)
+    for (auto name : readers)
     {
         _topicFactory->createSubscriberSession(name, proxy, current.con);
     }
-    for(auto name : writers)
+    for (auto name : writers)
     {
         _topicFactory->createPublisherSession(name, proxy, current.con);
     }

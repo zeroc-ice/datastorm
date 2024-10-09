@@ -17,7 +17,7 @@ main(int argc, char* argv[])
     Topic<string, bool> controller(node, "controller");
 
     auto readers = makeSingleKeyWriter(controller, "readers");
-    auto writers = makeSingleKeyReader(controller, "writers", "", { -1, 0, ClearHistoryPolicy::Never });
+    auto writers = makeSingleKeyReader(controller, "writers", "", {-1, 0, ClearHistoryPolicy::Never});
 
     writers.waitForWriters();
 
@@ -32,7 +32,8 @@ main(int argc, char* argv[])
     {
         auto read = [&topic, &writers, &readers](int count)
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
 
             readers.update(false);
 
@@ -57,7 +58,8 @@ main(int argc, char* argv[])
     {
         auto read = [&topic, &writers, &readers](int count, ReaderConfig config)
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
 
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", "", config);
@@ -95,7 +97,8 @@ main(int argc, char* argv[])
 
     // Writer sample lifetime
     {
-        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+        while (!writers.getNextUnread().getValue())
+            ; // Wait for writer to write the samples before reading
 
         // Writer keeps 3ms worth of samples
         readers.update(false);
@@ -110,7 +113,8 @@ main(int argc, char* argv[])
 
     // Reader sample lifetime
     {
-        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+        while (!writers.getNextUnread().getValue())
+            ; // Wait for writer to write the samples before reading
 
         ReaderConfig config;
         config.sampleLifetime = 390;
@@ -128,7 +132,7 @@ main(int argc, char* argv[])
         test(samples[2].getEvent() == SampleEvent::Remove);
         readers.update(true); // Reader is done
 
-        for(const auto& s : samples)
+        for (const auto& s : samples)
         {
             test(s.getTimeStamp() >= (now - chrono::milliseconds(150)));
         }
@@ -141,7 +145,8 @@ main(int argc, char* argv[])
         config.clearHistory = ClearHistoryPolicy::Never;
 
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(22);
@@ -149,7 +154,8 @@ main(int argc, char* argv[])
         }
 
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(2);
@@ -159,7 +165,8 @@ main(int argc, char* argv[])
         }
 
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(3);
@@ -170,7 +177,8 @@ main(int argc, char* argv[])
         }
 
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(1);
@@ -179,7 +187,8 @@ main(int argc, char* argv[])
         }
 
         {
-            while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+            while (!writers.getNextUnread().getValue())
+                ; // Wait for writer to write the samples before reading
             readers.update(false);
             auto reader = makeSingleKeyReader(topic, "elem1", "", config);
             reader.waitForUnread(4);
@@ -196,7 +205,8 @@ main(int argc, char* argv[])
 
     // Reader clearHistory
     {
-        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+        while (!writers.getNextUnread().getValue())
+            ; // Wait for writer to write the samples before reading
         readers.update(false);
 
         {
@@ -269,10 +279,11 @@ main(int argc, char* argv[])
 
     // Reader sending discard policy
     {
-        while(!writers.getNextUnread().getValue()); // Wait for writer to write the samples before reading
+        while (!writers.getNextUnread().getValue())
+            ; // Wait for writer to write the samples before reading
 
         readers.update(false);
-        while(true)
+        while (true)
         {
             auto lastUnread = chrono::time_point<chrono::system_clock>::min();
             Topic<string, int> topic(node, "sendTimeTopic");
@@ -282,18 +293,18 @@ main(int argc, char* argv[])
             auto reader = makeSingleKeyReader(topic, "elem", "", config);
             int writerCount = 10;
             int sampleCount = 0;
-            while(true)
+            while (true)
             {
                 auto sample = reader.getNextUnread();
                 test(sample.getTimeStamp() > lastUnread);
                 lastUnread = sample.getTimeStamp();
                 ++sampleCount;
-                if(sample.getValue() == (writerCount - 1))
+                if (sample.getValue() == (writerCount - 1))
                 {
                     break;
                 }
             }
-            if(sampleCount < writerCount)
+            if (sampleCount < writerCount)
             {
                 test(!reader.hasUnread());
                 break;

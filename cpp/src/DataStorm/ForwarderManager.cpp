@@ -6,8 +6,10 @@
 using namespace std;
 using namespace DataStormI;
 
-ForwarderManager::ForwarderManager(const shared_ptr<Ice::ObjectAdapter>& adapter, const string& category) :
-    _adapter(adapter), _category(category), _nextId(0)
+ForwarderManager::ForwarderManager(const shared_ptr<Ice::ObjectAdapter>& adapter, const string& category)
+    : _adapter(adapter),
+      _category(category),
+      _nextId(0)
 {
 }
 
@@ -20,9 +22,9 @@ ForwarderManager::add(function<void(Ice::ByteSeq, Response, Exception, const Ice
     _forwarders.emplace(os.str(), move(forwarder));
     try
     {
-        return _adapter->createProxy({ os.str(), _category});
+        return _adapter->createProxy({os.str(), _category});
     }
-    catch(const Ice::ObjectAdapterDeactivatedException&)
+    catch (const Ice::ObjectAdapterDeactivatedException&)
     {
         return nullptr;
     }
@@ -31,18 +33,19 @@ ForwarderManager::add(function<void(Ice::ByteSeq, Response, Exception, const Ice
 shared_ptr<Ice::ObjectPrx>
 ForwarderManager::add(function<void(Ice::ByteSeq, const Ice::Current&)> forwarder)
 {
-    return add([forwarder=move(forwarder)](auto inEncaps, auto response, auto exception, auto current)
-    {
-        try
+    return add(
+        [forwarder = move(forwarder)](auto inEncaps, auto response, auto exception, auto current)
         {
-            forwarder(inEncaps, current);
-            response(true, Ice::ByteSeq());
-        }
-        catch(...)
-        {
-            exception(current_exception());
-        }
-    });
+            try
+            {
+                forwarder(inEncaps, current);
+                response(true, Ice::ByteSeq());
+            }
+            catch (...)
+            {
+                exception(current_exception());
+            }
+        });
 }
 
 void
@@ -60,16 +63,17 @@ ForwarderManager::destroy()
 }
 
 void
-ForwarderManager::ice_invokeAsync(Ice::ByteSeq inEncaps,
-                                  function<void(bool, const vector<Ice::Byte>&)> response,
-                                  function<void(exception_ptr)> exception,
-                                  const Ice::Current& current)
+ForwarderManager::ice_invokeAsync(
+    Ice::ByteSeq inEncaps,
+    function<void(bool, const vector<Ice::Byte>&)> response,
+    function<void(exception_ptr)> exception,
+    const Ice::Current& current)
 {
     std::function<void(Ice::ByteSeq, Response, Exception, const Ice::Current&)> forwarder;
     {
         lock_guard<mutex> lock(_mutex);
         auto p = _forwarders.find(current.id.name);
-        if(p == _forwarders.end())
+        if (p == _forwarders.end())
         {
             throw Ice::ObjectNotExistException(__FILE__, __LINE__, current.id, current.facet, current.operation);
         }
