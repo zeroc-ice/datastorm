@@ -20,7 +20,7 @@ main(int argc, char* argv[])
     Topic<string, bool> controller(node, "controller");
 
     auto writers = makeSingleKeyWriter(controller, "writers");
-    auto readers = makeSingleKeyReader(controller, "readers", "", { -1, 0, ClearHistoryPolicy::Never });
+    auto readers = makeSingleKeyReader(controller, "readers", "", {-1, 0, ClearHistoryPolicy::Never});
 
     {
         WriterConfig config;
@@ -32,7 +32,8 @@ main(int argc, char* argv[])
     {
         auto writer = makeSingleKeyWriter(topic, "key1", "writername1");
         writer.update("update");
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     cout << "ok" << endl;
 
@@ -50,7 +51,8 @@ main(int argc, char* argv[])
             writer.remove();
             writers.update(true); // Ready
 
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         };
 
         // Keep all the samples in the history.
@@ -90,7 +92,8 @@ main(int argc, char* argv[])
             writer.remove();
             writers.update(true); // Ready
 
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         };
 
         write(); // Reader keeps all the samples in the history.
@@ -117,7 +120,8 @@ main(int argc, char* argv[])
         writer.update("value4");
         writer.remove();
 
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     cout << "ok" << endl;
 
@@ -134,7 +138,8 @@ main(int argc, char* argv[])
         writer.remove();
         writers.update(true); // Ready
 
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     cout << "ok" << endl;
 
@@ -148,14 +153,15 @@ main(int argc, char* argv[])
             config.clearHistory = ClearHistoryPolicy::Never;
             auto writer = makeSingleKeyWriter(topic, "elem1", "", config);
             writer.add("value1");
-            for(int i = 0; i < 20; ++i)
+            for (int i = 0; i < 20; ++i)
             {
                 writer.update("value2");
             }
             writer.remove();
             test(writer.getAll().size() == 22);
             writers.update(true); // Ready
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         }
 
         {
@@ -170,7 +176,8 @@ main(int argc, char* argv[])
             writer.update("value4");
             test(writer.getAll().size() == 2);
             writers.update(true); // Ready
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         }
 
         {
@@ -185,7 +192,8 @@ main(int argc, char* argv[])
             writer.update("value4");
             test(writer.getAll().size() == 3);
             writers.update(true); // Ready
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         }
 
         {
@@ -200,7 +208,8 @@ main(int argc, char* argv[])
             writer.update("value4");
             test(writer.getAll().size() == 1);
             writers.update(true); // Ready
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         }
 
         {
@@ -220,7 +229,8 @@ main(int argc, char* argv[])
             test(writer.getAll().size() == 4);
             test(writer.getAll()[1].getValue() == "value1");
             writers.update(true); // Ready
-            while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+            while (!readers.getNextUnread().getValue())
+                ; // Wait for reader to be done
         }
     }
     cout << "ok" << endl;
@@ -242,7 +252,8 @@ main(int argc, char* argv[])
         writer.partialUpdate<string>("concat")("3");
         writers.update(true); // Ready
 
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     cout << "ok" << endl;
 
@@ -264,7 +275,8 @@ main(int argc, char* argv[])
         writer2.partialUpdate<string>("concat")("no1");
         writer2.remove();
 
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     {
         WriterConfig config;
@@ -285,7 +297,8 @@ main(int argc, char* argv[])
         writer2.partialUpdate<string>("concat")("1");
         writer2.remove();
 
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     cout << "ok" << endl;
 
@@ -294,7 +307,7 @@ main(int argc, char* argv[])
         writers.update(false); // Not ready
         vector<tuple<Ice::CommunicatorHolder, Node, Topic<string, int>, SingleKeyWriter<string, int>>> w;
         int writerCount = 10;
-        for(int i = 0; i < writerCount; ++i)
+        for (int i = 0; i < writerCount; ++i)
         {
             Ice::InitializationData initData;
             initData.properties = node.getCommunicator()->getProperties()->clone();
@@ -303,14 +316,15 @@ main(int argc, char* argv[])
             Topic<string, int> topic(node, "sendTimeTopic");
             w.emplace_back(move(holder), move(node), move(topic), makeSingleKeyWriter(topic, "elem"));
         }
-        for(int i = 0; i < writerCount; ++i)
+        for (int i = 0; i < writerCount; ++i)
         {
             this_thread::sleep_for(chrono::microseconds(200));
             get<3>(w[i]).update(i);
         }
         writers.update(true); // Ready
 
-        while(!readers.getNextUnread().getValue()); // Wait for reader to be done
+        while (!readers.getNextUnread().getValue())
+            ; // Wait for reader to be done
     }
     cout << "ok" << endl;
 

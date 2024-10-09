@@ -3,36 +3,34 @@
 //
 #pragma once
 
-#include <vector>
+#include <condition_variable>
+#include <functional>
 #include <memory>
 #include <mutex>
-#include <functional>
 #include <thread>
-#include <condition_variable>
+#include <vector>
 
 namespace DataStormI
 {
 
-class DataElementI;
+    class DataElementI;
 
-class CallbackExecutor
-{
-public:
+    class CallbackExecutor
+    {
+    public:
+        CallbackExecutor();
 
-    CallbackExecutor();
+        void queue(const std::shared_ptr<DataElementI>&, std::function<void()>, bool = false);
+        void flush();
+        void destroy();
 
-    void queue(const std::shared_ptr<DataElementI>&, std::function<void()>, bool = false);
-    void flush();
-    void destroy();
-
-private:
-
-    std::mutex _mutex;
-    std::thread _thread;
-    std::condition_variable _cond;
-    bool _flush;
-    bool _destroyed;
-    std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _queue;
-};
+    private:
+        std::mutex _mutex;
+        std::thread _thread;
+        std::condition_variable _cond;
+        bool _flush;
+        bool _destroyed;
+        std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _queue;
+    };
 
 }

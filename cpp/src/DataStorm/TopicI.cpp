@@ -1,10 +1,10 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/TopicI.h>
-#include <DataStorm/TopicFactoryI.h>
-#include <DataStorm/SessionI.h>
 #include <DataStorm/NodeI.h>
+#include <DataStorm/SessionI.h>
+#include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/TopicI.h>
 #include <DataStorm/TraceUtil.h>
 
 using namespace std;
@@ -14,105 +14,91 @@ using namespace DataStormContract;
 namespace
 {
 
-template<typename K, typename V> vector<V>
-toSeq(const map<K, V>& map)
-{
-    vector<V> seq;
-    seq.reserve(map.size());
-    for(const auto& p : map)
+    template<typename K, typename V> vector<V> toSeq(const map<K, V>& map)
     {
-        seq.push_back(p.second);
-    }
-    return seq;
-}
-
-int
-toInt(const string& v, int value = 0)
-{
-    istringstream is(v);
-    is >> value;
-    return value;
-}
-
-static Topic::Updater noOpUpdater = [](const shared_ptr<Sample>& previous,
-                                       const shared_ptr<Sample>& next,
-                                       const shared_ptr<Ice::Communicator>&)
-{
-    next->setValue(previous);
-};
-
-// The always match filter always matches the value, it's used by the any key reader/writer.
-class AlwaysMatchFilter : public Filter
-{
-public:
-
-    virtual string toString() const
-    {
-        return "f1:alwaysmatch";
+        vector<V> seq;
+        seq.reserve(map.size());
+        for (const auto& p : map)
+        {
+            seq.push_back(p.second);
+        }
+        return seq;
     }
 
-    virtual const string& getName() const
+    int toInt(const string& v, int value = 0)
     {
-        static string alwaysmatch("alwaysmatch");
-        return alwaysmatch;
+        istringstream is(v);
+        is >> value;
+        return value;
     }
 
-    virtual vector<unsigned char> encode(const shared_ptr<Ice::Communicator>&) const
-    {
-        return vector<unsigned char>();
-    }
+    static Topic::Updater noOpUpdater =
+        [](const shared_ptr<Sample>& previous, const shared_ptr<Sample>& next, const shared_ptr<Ice::Communicator>&)
+    { next->setValue(previous); };
 
-    virtual long long int getId() const
+    // The always match filter always matches the value, it's used by the any key reader/writer.
+    class AlwaysMatchFilter : public Filter
     {
-        return 1; // 1 is reserved for the match all filter.
-    }
+    public:
+        virtual string toString() const { return "f1:alwaysmatch"; }
 
-    virtual bool match(const shared_ptr<Filterable>&) const
-    {
-        return true;
-    }
-};
-const auto alwaysMatchFilter = make_shared<AlwaysMatchFilter>();
+        virtual const string& getName() const
+        {
+            static string alwaysmatch("alwaysmatch");
+            return alwaysmatch;
+        }
+
+        virtual vector<unsigned char> encode(const shared_ptr<Ice::Communicator>&) const
+        {
+            return vector<unsigned char>();
+        }
+
+        virtual long long int getId() const
+        {
+            return 1; // 1 is reserved for the match all filter.
+        }
+
+        virtual bool match(const shared_ptr<Filterable>&) const { return true; }
+    };
+    const auto alwaysMatchFilter = make_shared<AlwaysMatchFilter>();
 
 }
 
-TopicI::TopicI(const weak_ptr<TopicFactoryI>& factory,
-               const shared_ptr<KeyFactory>& keyFactory,
-               const shared_ptr<TagFactory>& tagFactory,
-               const shared_ptr<SampleFactory>& sampleFactory,
-               const shared_ptr<FilterManager>& keyFilterFactories,
-               const shared_ptr<FilterManager>& sampleFilterFactories,
-               const string& name,
-               long long int id) :
-    _factory(factory),
-    _keyFactory(keyFactory),
-    _tagFactory(tagFactory),
-    _sampleFactory(move(sampleFactory)),
-    _keyFilterFactories(keyFilterFactories),
-    _sampleFilterFactories(sampleFilterFactories),
-    _name(name),
-    _instance(factory.lock()->getInstance()),
-    _traceLevels(_instance->getTraceLevels()),
-    _id(id),
-    _destroyed(false),
-    _listenerCount(0),
-    _waiters(0),
-    _notified(0),
-    _nextId(0),
-    _nextFilteredId(0),
-    _nextSampleId(0)
+TopicI::TopicI(
+    const weak_ptr<TopicFactoryI>& factory,
+    const shared_ptr<KeyFactory>& keyFactory,
+    const shared_ptr<TagFactory>& tagFactory,
+    const shared_ptr<SampleFactory>& sampleFactory,
+    const shared_ptr<FilterManager>& keyFilterFactories,
+    const shared_ptr<FilterManager>& sampleFilterFactories,
+    const string& name,
+    long long int id)
+    : _factory(factory),
+      _keyFactory(keyFactory),
+      _tagFactory(tagFactory),
+      _sampleFactory(move(sampleFactory)),
+      _keyFilterFactories(keyFilterFactories),
+      _sampleFilterFactories(sampleFilterFactories),
+      _name(name),
+      _instance(factory.lock()->getInstance()),
+      _traceLevels(_instance->getTraceLevels()),
+      _id(id),
+      _destroyed(false),
+      _listenerCount(0),
+      _waiters(0),
+      _notified(0),
+      _nextId(0),
+      _nextFilteredId(0),
+      _nextSampleId(0)
 {
 }
 
-TopicI::~TopicI()
-{
-    assert(_destroyed);
-}
+TopicI::~TopicI() { assert(_destroyed); }
 
 void
 TopicI::init()
 {
-    auto forwarder = [self=shared_from_this()](Ice::ByteSeq e, const Ice::Current& c) { self->forward(e, c); };
+    auto forwarder = [self = shared_from_this()](Ice::ByteSeq e, const Ice::Current& c) { self->forward(e, c); };
     _forwarder = Ice::uncheckedCast<SessionPrx>(_instance->getCollocatedForwarder()->add(forwarder));
 }
 
@@ -135,7 +121,7 @@ TopicI::destroy()
         {
             _forwarder->detachTopic(_id); // Must be called before disconnect()
         }
-        catch(const std::exception&)
+        catch (const std::exception&)
         {
             forwarderException();
         }
@@ -160,13 +146,13 @@ TopicI::getTopicSpec() const
     spec.id = _id;
     spec.name = _name;
     spec.elements.reserve(_keyElements.size() + _filteredElements.size());
-    for(auto k : _keyElements)
+    for (auto k : _keyElements)
     {
-        spec.elements.push_back({ k.first->getId(), "", k.first->encode(_instance->getCommunicator()) });
+        spec.elements.push_back({k.first->getId(), "", k.first->encode(_instance->getCommunicator())});
     }
-    for(auto f : _filteredElements)
+    for (auto f : _filteredElements)
     {
-        spec.elements.push_back({ -f.first->getId(), f.first->getName(), f.first->encode(_instance->getCommunicator()) });
+        spec.elements.push_back({-f.first->getId(), f.first->getName(), f.first->encode(_instance->getCommunicator())});
     }
     spec.tags = getTags();
     return spec;
@@ -177,9 +163,9 @@ TopicI::getTags() const
 {
     ElementInfoSeq tags;
     tags.reserve(_updaters.size());
-    for(auto u : _updaters)
+    for (auto u : _updaters)
     {
-        tags.push_back({ u.first->getId(), "", u.first->encode(_instance->getCommunicator()) });
+        tags.push_back({u.first->getId(), "", u.first->encode(_instance->getCommunicator())});
     }
     return tags;
 }
@@ -188,42 +174,43 @@ ElementSpecSeq
 TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, const shared_ptr<SessionI>& session)
 {
     ElementSpecSeq specs;
-    for(const auto& info : infos)
+    for (const auto& info : infos)
     {
-        if(info.id > 0) // Key
+        if (info.id > 0) // Key
         {
             auto key = _keyFactory->decode(_instance->getCommunicator(), info.value);
             auto p = _keyElements.find(key);
-            if(p != _keyElements.end())
+            if (p != _keyElements.end())
             {
                 ElementDataSeq elements;
-                for(auto k : p->second)
+                for (auto k : p->second)
                 {
-                    elements.push_back({ k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k) });
+                    elements.push_back({k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k)});
                 }
-                specs.push_back({ move(elements), key->getId(), "", {}, info.id });
+                specs.push_back({move(elements), key->getId(), "", {}, info.id});
             }
-            for(auto e : _filteredElements)
+            for (auto e : _filteredElements)
             {
-                if(e.first->match(key))
+                if (e.first->match(key))
                 {
                     ElementDataSeq elements;
-                    for(auto f : e.second)
+                    for (auto f : e.second)
                     {
-                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                        elements.push_back({f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f)});
                     }
-                    specs.push_back({ move(elements),
-                                      -e.first->getId(),
-                                      e.first->getName(),
-                                      e.first->encode(_instance->getCommunicator()),
-                                      info.id });
+                    specs.push_back(
+                        {move(elements),
+                         -e.first->getId(),
+                         e.first->getName(),
+                         e.first->encode(_instance->getCommunicator()),
+                         info.id});
                 }
             }
         }
         else
         {
             shared_ptr<Filter> filter;
-            if(info.value.empty())
+            if (info.value.empty())
             {
                 filter = alwaysMatchFilter;
             }
@@ -232,57 +219,60 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                 filter = _keyFilterFactories->decode(_instance->getCommunicator(), info.name, info.value);
             }
 
-            for(auto e : _keyElements)
+            for (auto e : _keyElements)
             {
-                if(filter->match(e.first))
+                if (filter->match(e.first))
                 {
                     ElementDataSeq elements;
-                    for(auto k : e.second)
+                    for (auto k : e.second)
                     {
-                        elements.push_back({ k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k) });
+                        elements.push_back({k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k)});
                     }
-                    specs.push_back({ move(elements),
-                                      e.first->getId(),
-                                      "",
-                                      e.first->encode(_instance->getCommunicator()),
-                                      info.id,
-                                      info.name });
+                    specs.push_back(
+                        {move(elements),
+                         e.first->getId(),
+                         "",
+                         e.first->encode(_instance->getCommunicator()),
+                         info.id,
+                         info.name});
                 }
             }
 
-            if(filter == alwaysMatchFilter)
+            if (filter == alwaysMatchFilter)
             {
-                for(auto e : _filteredElements)
+                for (auto e : _filteredElements)
                 {
                     ElementDataSeq elements;
-                    for(auto f : e.second)
+                    for (auto f : e.second)
                     {
-                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                        elements.push_back({f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f)});
                     }
-                    specs.push_back({ move(elements),
-                                      -e.first->getId(),
-                                      e.first->getName(),
-                                      e.first->encode(_instance->getCommunicator()),
-                                      info.id,
-                                      info.name });
+                    specs.push_back(
+                        {move(elements),
+                         -e.first->getId(),
+                         e.first->getName(),
+                         e.first->encode(_instance->getCommunicator()),
+                         info.id,
+                         info.name});
                 }
             }
             else
             {
                 auto p = _filteredElements.find(alwaysMatchFilter);
-                if(p != _filteredElements.end())
+                if (p != _filteredElements.end())
                 {
                     ElementDataSeq elements;
-                    for(auto f : p->second)
+                    for (auto f : p->second)
                     {
-                        elements.push_back({ f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f) });
+                        elements.push_back({f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f)});
                     }
-                    specs.push_back({ move(elements),
-                                      -alwaysMatchFilter->getId(),
-                                      alwaysMatchFilter->getName(),
-                                      alwaysMatchFilter->encode(_instance->getCommunicator()),
-                                      info.id,
-                                      info.name });
+                    specs.push_back(
+                        {move(elements),
+                         -alwaysMatchFilter->getId(),
+                         alwaysMatchFilter->getName(),
+                         alwaysMatchFilter->encode(_instance->getCommunicator()),
+                         info.id,
+                         info.name});
                 }
             }
         }
@@ -293,13 +283,13 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
 void
 TopicI::attach(long long id, const shared_ptr<SessionI>& session, const shared_ptr<SessionPrx>& prx)
 {
-    auto p = _listeners.find({ session });
-    if(p == _listeners.end())
+    auto p = _listeners.find({session});
+    if (p == _listeners.end())
     {
-        p = _listeners.emplace(ListenerKey { session }, Listener(prx)).first;
+        p = _listeners.emplace(ListenerKey{session}, Listener(prx)).first;
     }
 
-    if(p->second.topics.insert(id).second)
+    if (p->second.topics.insert(id).second)
     {
         session->subscribe(id, this);
     }
@@ -308,11 +298,11 @@ TopicI::attach(long long id, const shared_ptr<SessionI>& session, const shared_p
 void
 TopicI::detach(long long id, const shared_ptr<SessionI>& session)
 {
-    auto p = _listeners.find({ session });
-    if(p != _listeners.end() && p->second.topics.erase(id))
+    auto p = _listeners.find({session});
+    if (p != _listeners.end() && p->second.topics.erase(id))
     {
         session->unsubscribe(id, this);
-        if(p->second.topics.empty())
+        if (p->second.topics.empty())
         {
             _listeners.erase(p);
         }
@@ -320,25 +310,26 @@ TopicI::detach(long long id, const shared_ptr<SessionI>& session)
 }
 
 ElementSpecAckSeq
-TopicI::attachElements(long long int topicId,
-                       const ElementSpecSeq& elements,
-                       const shared_ptr<SessionI>& session,
-                       const shared_ptr<SessionPrx>& prx,
-                       const chrono::time_point<chrono::system_clock>& now)
+TopicI::attachElements(
+    long long int topicId,
+    const ElementSpecSeq& elements,
+    const shared_ptr<SessionI>& session,
+    const shared_ptr<SessionPrx>& prx,
+    const chrono::time_point<chrono::system_clock>& now)
 {
     ElementSpecAckSeq specs;
-    for(const auto& spec : elements)
+    for (const auto& spec : elements)
     {
-        if(spec.peerId > 0) // Key
+        if (spec.peerId > 0) // Key
         {
             auto key = _keyFactory->get(spec.peerId);
             auto p = _keyElements.find(key);
-            if(p != _keyElements.end())
+            if (p != _keyElements.end())
             {
                 shared_ptr<Filter> filter;
-                if(spec.id < 0) // Filter
+                if (spec.id < 0) // Filter
                 {
-                    if(spec.value.empty())
+                    if (spec.value.empty())
                     {
                         filter = alwaysMatchFilter;
                     }
@@ -347,28 +338,29 @@ TopicI::attachElements(long long int topicId,
                         filter = _keyFilterFactories->decode(_instance->getCommunicator(), spec.name, spec.value);
                     }
                 }
-                for(auto e : p->second)
+                for (auto e : p->second)
                 {
                     ElementDataAckSeq acks;
-                    for(const auto& data : spec.elements)
+                    for (const auto& data : spec.elements)
                     {
-                        if(spec.id > 0) // Key
+                        if (spec.id > 0) // Key
                         {
                             e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, acks);
                         }
-                        else if(filter->match(key))
+                        else if (filter->match(key))
                         {
                             e->attach(topicId, spec.id, key, filter, session, prx, data, now, acks);
                         }
                     }
-                    if(!acks.empty())
+                    if (!acks.empty())
                     {
-                        specs.push_back({ move(acks),
-                                          key->getId(),
-                                          "",
-                                          spec.id < 0 ? key->encode(_instance->getCommunicator()) : ByteSeq(),
-                                          spec.id,
-                                          spec.name });
+                        specs.push_back(
+                            {move(acks),
+                             key->getId(),
+                             "",
+                             spec.id < 0 ? key->encode(_instance->getCommunicator()) : ByteSeq(),
+                             spec.id,
+                             spec.name});
                     }
                 }
             }
@@ -376,7 +368,7 @@ TopicI::attachElements(long long int topicId,
         else
         {
             shared_ptr<Filter> filter;
-            if(spec.peerId == -1)
+            if (spec.peerId == -1)
             {
                 filter = alwaysMatchFilter;
             }
@@ -386,36 +378,37 @@ TopicI::attachElements(long long int topicId,
             }
 
             auto p = _filteredElements.find(filter);
-            if(p != _filteredElements.end())
+            if (p != _filteredElements.end())
             {
                 shared_ptr<Key> key;
-                if(spec.id > 0) // Key
+                if (spec.id > 0) // Key
                 {
                     key = _keyFactory->decode(_instance->getCommunicator(), spec.value);
                 }
 
-                for(auto e : p->second)
+                for (auto e : p->second)
                 {
                     ElementDataAckSeq acks;
-                    for(const auto& data : spec.elements)
+                    for (const auto& data : spec.elements)
                     {
-                        if(spec.id < 0) // Filter
+                        if (spec.id < 0) // Filter
                         {
                             e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, acks);
                         }
-                        else if(filter->match(key))
+                        else if (filter->match(key))
                         {
                             e->attach(topicId, spec.id, key, filter, session, prx, data, now, acks);
                         }
                     }
-                    if(!acks.empty())
+                    if (!acks.empty())
                     {
-                        specs.push_back({ move(acks),
-                                          -filter->getId(),
-                                          filter->getName(),
-                                          spec.id > 0 ? filter->encode(_instance->getCommunicator()) : ByteSeq(),
-                                          spec.id,
-                                          spec.name });
+                        specs.push_back(
+                            {move(acks),
+                             -filter->getId(),
+                             filter->getName(),
+                             spec.id > 0 ? filter->encode(_instance->getCommunicator()) : ByteSeq(),
+                             spec.id,
+                             spec.name});
                     }
                 }
             }
@@ -425,27 +418,28 @@ TopicI::attachElements(long long int topicId,
 }
 
 DataSamplesSeq
-TopicI::attachElementsAck(long long int topicId,
-                          const ElementSpecAckSeq& elements,
-                          const shared_ptr<SessionI>& session,
-                          const shared_ptr<SessionPrx>& prx,
-                          const chrono::time_point<chrono::system_clock>& now,
-                          LongSeq& removedIds)
+TopicI::attachElementsAck(
+    long long int topicId,
+    const ElementSpecAckSeq& elements,
+    const shared_ptr<SessionI>& session,
+    const shared_ptr<SessionPrx>& prx,
+    const chrono::time_point<chrono::system_clock>& now,
+    LongSeq& removedIds)
 {
     DataSamplesSeq samples;
     vector<function<void()>> initCallbacks;
-    for(const auto& spec : elements)
+    for (const auto& spec : elements)
     {
-        if(spec.peerId > 0) // Key
+        if (spec.peerId > 0) // Key
         {
             auto key = _keyFactory->get(spec.peerId);
             auto p = _keyElements.find(key);
-            if(p != _keyElements.end())
+            if (p != _keyElements.end())
             {
                 shared_ptr<Filter> filter;
-                if(spec.id < 0)
+                if (spec.id < 0)
                 {
-                    if(spec.value.empty())
+                    if (spec.value.empty())
                     {
                         filter = alwaysMatchFilter;
                     }
@@ -456,23 +450,23 @@ TopicI::attachElementsAck(long long int topicId,
                 }
 
                 vector<shared_ptr<Sample>> samplesI;
-                for(const auto& data : spec.elements)
+                for (const auto& data : spec.elements)
                 {
                     bool found = false;
-                    for(auto e : p->second)
+                    for (auto e : p->second)
                     {
-                        if(data.peerId == e->getId())
+                        if (data.peerId == e->getId())
                         {
                             function<void()> initCb;
-                            if(spec.id > 0) // Key
+                            if (spec.id > 0) // Key
                             {
                                 initCb = e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
-                            else if(filter->match(key)) // Filter
+                            else if (filter->match(key)) // Filter
                             {
                                 initCb = e->attach(topicId, spec.id, key, filter, session, prx, data, now, samples);
                             }
-                            if(initCb)
+                            if (initCb)
                             {
                                 initCallbacks.push_back(initCb);
                             }
@@ -480,7 +474,7 @@ TopicI::attachElementsAck(long long int topicId,
                             break;
                         }
                     }
-                    if(!found)
+                    if (!found)
                     {
                         removedIds.push_back(data.peerId);
                     }
@@ -488,7 +482,7 @@ TopicI::attachElementsAck(long long int topicId,
             }
             else
             {
-                for(const auto& data : spec.elements)
+                for (const auto& data : spec.elements)
                 {
                     removedIds.push_back(data.peerId);
                 }
@@ -497,7 +491,7 @@ TopicI::attachElementsAck(long long int topicId,
         else // Filter
         {
             shared_ptr<Filter> filter;
-            if(spec.peerId == -1)
+            if (spec.peerId == -1)
             {
                 filter = alwaysMatchFilter;
             }
@@ -507,31 +501,31 @@ TopicI::attachElementsAck(long long int topicId,
             }
 
             auto p = _filteredElements.find(filter);
-            if(p != _filteredElements.end())
+            if (p != _filteredElements.end())
             {
                 shared_ptr<Key> key;
-                if(spec.id > 0) // Key
+                if (spec.id > 0) // Key
                 {
                     key = _keyFactory->decode(_instance->getCommunicator(), spec.value);
                 }
 
-                for(const auto& data : spec.elements)
+                for (const auto& data : spec.elements)
                 {
                     bool found = false;
-                    for(auto e : p->second)
+                    for (auto e : p->second)
                     {
-                        if(data.peerId == e->getId())
+                        if (data.peerId == e->getId())
                         {
                             function<void()> initCb;
-                            if(spec.id < 0) // Filter
+                            if (spec.id < 0) // Filter
                             {
                                 initCb = e->attach(topicId, spec.id, nullptr, filter, session, prx, data, now, samples);
                             }
-                            else if(filter->match(key))
+                            else if (filter->match(key))
                             {
                                 initCb = e->attach(topicId, spec.id, key, nullptr, session, prx, data, now, samples);
                             }
-                            if(initCb)
+                            if (initCb)
                             {
                                 initCallbacks.push_back(initCb);
                             }
@@ -539,7 +533,7 @@ TopicI::attachElementsAck(long long int topicId,
                             break;
                         }
                     }
-                    if(!found)
+                    if (!found)
                     {
                         removedIds.push_back(-data.peerId);
                     }
@@ -547,7 +541,7 @@ TopicI::attachElementsAck(long long int topicId,
             }
             else
             {
-                for(const auto& data : spec.elements)
+                for (const auto& data : spec.elements)
                 {
                     removedIds.push_back(-data.peerId);
                 }
@@ -560,7 +554,7 @@ TopicI::attachElementsAck(long long int topicId,
     // important for the priority configuration in case 2 writers with different priorities are
     // attached from the same session.
     //
-    for(auto initCb : initCallbacks)
+    for (auto initCb : initCallbacks)
     {
         initCb();
     }
@@ -571,14 +565,14 @@ void
 TopicI::setUpdater(const shared_ptr<Tag>& tag, Updater updater)
 {
     unique_lock<mutex> lock(_mutex);
-    if(updater)
+    if (updater)
     {
         _updaters[tag] = updater;
         try
         {
-            _forwarder->attachTags(_id, { { tag->getId(), "", tag->encode(_instance->getCommunicator()) } }, false);
+            _forwarder->attachTags(_id, {{tag->getId(), "", tag->encode(_instance->getCommunicator())}}, false);
         }
-        catch(const std::exception&)
+        catch (const std::exception&)
         {
             forwarderException();
         }
@@ -588,9 +582,9 @@ TopicI::setUpdater(const shared_ptr<Tag>& tag, Updater updater)
         _updaters.erase(tag);
         try
         {
-            _forwarder->detachTags(_id, { tag->getId() });
+            _forwarder->detachTags(_id, {tag->getId()});
         }
-        catch(const std::exception&)
+        catch (const std::exception&)
         {
             forwarderException();
         }
@@ -602,7 +596,7 @@ TopicI::getUpdater(const shared_ptr<Tag>& tag) const
 {
     // Called with mutex locked
     auto p = _updaters.find(tag);
-    if(p != _updaters.end())
+    if (p != _updaters.end())
     {
         return p->second;
     }
@@ -647,10 +641,10 @@ void
 TopicI::removeFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Filter>& filter)
 {
     auto p = _filteredElements.find(filter);
-    if(p != _filteredElements.end())
+    if (p != _filteredElements.end())
     {
         p->second.erase(element);
-        if(p->second.empty())
+        if (p->second.empty())
         {
             _filteredElements.erase(p);
         }
@@ -660,19 +654,19 @@ TopicI::removeFiltered(const shared_ptr<DataElementI>& element, const shared_ptr
 void
 TopicI::remove(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key>>& keys)
 {
-    if(keys.empty())
+    if (keys.empty())
     {
         removeFiltered(element, alwaysMatchFilter);
         return;
     }
 
-    for(auto key : keys)
+    for (auto key : keys)
     {
         auto p = _keyElements.find(key);
-        if(p != _keyElements.end())
+        if (p != _keyElements.end())
         {
             p->second.erase(element);
-            if(p->second.empty())
+            if (p->second.empty())
             {
                 _keyElements.erase(p);
             }
@@ -685,15 +679,15 @@ TopicI::waitForListeners(int count) const
 {
     unique_lock<mutex> lock(_mutex);
     ++_waiters;
-    while(true)
+    while (true)
     {
         _instance->checkShutdown();
-        if(count < 0 && _listenerCount == 0)
+        if (count < 0 && _listenerCount == 0)
         {
             --_waiters;
             return;
         }
-        else if(count >= 0 && _listenerCount >= static_cast<size_t>(count))
+        else if (count >= 0 && _listenerCount >= static_cast<size_t>(count))
         {
             --_waiters;
             return;
@@ -713,7 +707,7 @@ TopicI::hasListeners() const
 void
 TopicI::notifyListenerWaiters(unique_lock<mutex>& lock) const
 {
-    if(_waiters > 0)
+    if (_waiters > 0)
     {
         _notified = 0;
         _cond.notify_all();
@@ -729,9 +723,9 @@ TopicI::disconnect()
         unique_lock<mutex> lock(_mutex);
         listeners.swap(_listeners);
     }
-    for(auto s : listeners)
+    for (auto s : listeners)
     {
-        for(auto t : s.second.topics)
+        for (auto t : s.second.topics)
         {
             s.first.session->disconnect(t, this);
         }
@@ -749,7 +743,7 @@ void
 TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 {
     // Forwarder proxy must be called with the mutex locked!
-    for(auto listener : _listeners)
+    for (auto listener : _listeners)
     {
         listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
     }
@@ -762,11 +756,11 @@ TopicI::forwarderException() const
     {
         rethrow_exception(current_exception());
     }
-    catch(const Ice::CommunicatorDestroyedException&)
+    catch (const Ice::CommunicatorDestroyedException&)
     {
         // Ignore
     }
-    catch(const Ice::ObjectAdapterDeactivatedException&)
+    catch (const Ice::ObjectAdapterDeactivatedException&)
     {
         // Ignore
     }
@@ -775,31 +769,31 @@ TopicI::forwarderException() const
 void
 TopicI::add(const shared_ptr<DataElementI>& element, const vector<shared_ptr<Key>>& keys)
 {
-    if(keys.empty())
+    if (keys.empty())
     {
         addFiltered(element, alwaysMatchFilter);
         return;
     }
 
     ElementInfoSeq infos;
-    for(const auto& key : keys)
+    for (const auto& key : keys)
     {
         auto p = _keyElements.find(key);
-        if(p == _keyElements.end())
+        if (p == _keyElements.end())
         {
             p = _keyElements.emplace(key, set<shared_ptr<DataElementI>>()).first;
         }
         assert(element);
-        infos.push_back({ key->getId(), "", key->encode(_instance->getCommunicator()) });
+        infos.push_back({key->getId(), "", key->encode(_instance->getCommunicator())});
         p->second.insert(element);
     }
-    if(!infos.empty())
+    if (!infos.empty())
     {
         try
         {
             _forwarder->announceElements(_id, infos);
         }
-        catch(const std::exception&)
+        catch (const std::exception&)
         {
             forwarderException();
         }
@@ -810,7 +804,7 @@ void
 TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Filter>& filter)
 {
     auto p = _filteredElements.find(filter);
-    if(p == _filteredElements.end())
+    if (p == _filteredElements.end())
     {
         p = _filteredElements.emplace(filter, set<shared_ptr<DataElementI>>()).first;
     }
@@ -818,11 +812,11 @@ TopicI::addFiltered(const shared_ptr<DataElementI>& element, const shared_ptr<Fi
     p->second.insert(element);
     try
     {
-        _forwarder->announceElements(_id, { { -filter->getId(),
-                                              filter->getName(),
-                                              filter->encode(_instance->getCommunicator()) } });
+        _forwarder->announceElements(
+            _id,
+            {{-filter->getId(), filter->getName(), filter->encode(_instance->getCommunicator())}});
     }
-    catch(const std::exception&)
+    catch (const std::exception&)
     {
         forwarderException();
     }
@@ -833,80 +827,95 @@ TopicI::parseConfigImpl(const Ice::PropertyDict& properties, const string& prefi
 {
     // Override defaults with properties
     auto p = properties.find(prefix + ".SampleLifetime");
-    if(p != properties.end())
+    if (p != properties.end())
     {
         config.sampleLifetime = toInt(p->second);
     }
     p = properties.find(prefix + ".SampleCount");
-    if(p != properties.end())
+    if (p != properties.end())
     {
         config.sampleCount = toInt(p->second);
     }
     p = properties.find(prefix + ".ClearHistory");
-    if(p != properties.end())
+    if (p != properties.end())
     {
-        if(p->second == "OnAdd")
+        if (p->second == "OnAdd")
         {
             config.clearHistory = DataStorm::ClearHistoryPolicy::OnAdd;
         }
-        else if(p->second == "OnRemove")
+        else if (p->second == "OnRemove")
         {
             config.clearHistory = DataStorm::ClearHistoryPolicy::OnRemove;
         }
-        else if(p->second == "OnAll")
+        else if (p->second == "OnAll")
         {
             config.clearHistory = DataStorm::ClearHistoryPolicy::OnAll;
         }
-        else if(p->second == "OnAllExceptPartialUpdate")
+        else if (p->second == "OnAllExceptPartialUpdate")
         {
             config.clearHistory = DataStorm::ClearHistoryPolicy::OnAllExceptPartialUpdate;
         }
-        else if(p->second == "Never")
+        else if (p->second == "Never")
         {
             config.clearHistory = DataStorm::ClearHistoryPolicy::Never;
         }
     }
 }
 
-TopicReaderI::TopicReaderI(const shared_ptr<TopicFactoryI>& factory,
-                           const shared_ptr<KeyFactory>& keyFactory,
-                           const shared_ptr<TagFactory>& tagFactory,
-                           const shared_ptr<SampleFactory>& sampleFactory,
-                           const shared_ptr<FilterManager>& keyFilterFactories,
-                           const shared_ptr<FilterManager>& sampleFilterFactories,
-                           const string& name,
-                           long long int id) :
-    TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
+TopicReaderI::TopicReaderI(
+    const shared_ptr<TopicFactoryI>& factory,
+    const shared_ptr<KeyFactory>& keyFactory,
+    const shared_ptr<TagFactory>& tagFactory,
+    const shared_ptr<SampleFactory>& sampleFactory,
+    const shared_ptr<FilterManager>& keyFilterFactories,
+    const shared_ptr<FilterManager>& sampleFilterFactories,
+    const string& name,
+    long long int id)
+    : TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
 {
-    _defaultConfig = { -1, 0, DataStorm::ClearHistoryPolicy::OnAll, DataStorm::DiscardPolicy::None };
+    _defaultConfig = {-1, 0, DataStorm::ClearHistoryPolicy::OnAll, DataStorm::DiscardPolicy::None};
     _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic"));
 }
 
 shared_ptr<DataReader>
-TopicReaderI::createFiltered(const shared_ptr<Filter>& filter,
-                             const string& name,
-                             DataStorm::ReaderConfig config,
-                             const string& sampleFilterName,
-                             vector<unsigned char> sampleFilterCriteria)
+TopicReaderI::createFiltered(
+    const shared_ptr<Filter>& filter,
+    const string& name,
+    DataStorm::ReaderConfig config,
+    const string& sampleFilterName,
+    vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<FilteredDataReaderI>(this, name, ++_nextFilteredId, filter, sampleFilterName,
-                                                    move(sampleFilterCriteria), mergeConfigs(move(config)));
+    auto element = make_shared<FilteredDataReaderI>(
+        this,
+        name,
+        ++_nextFilteredId,
+        filter,
+        sampleFilterName,
+        move(sampleFilterCriteria),
+        mergeConfigs(move(config)));
     element->init();
     addFiltered(element, filter);
     return element;
 }
 
 shared_ptr<DataReader>
-TopicReaderI::create(const vector<shared_ptr<Key>>& keys,
-                     const string& name,
-                     DataStorm::ReaderConfig config,
-                     const string& sampleFilterName,
-                     vector<unsigned char> sampleFilterCriteria)
+TopicReaderI::create(
+    const vector<shared_ptr<Key>>& keys,
+    const string& name,
+    DataStorm::ReaderConfig config,
+    const string& sampleFilterName,
+    vector<unsigned char> sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataReaderI>(this, name, ++_nextId, keys, sampleFilterName,
-                                               move(sampleFilterCriteria), mergeConfigs(move(config)));
+    auto element = make_shared<KeyDataReaderI>(
+        this,
+        name,
+        ++_nextId,
+        keys,
+        sampleFilterName,
+        move(sampleFilterCriteria),
+        mergeConfigs(move(config)));
     element->init();
     add(element, keys);
     return element;
@@ -937,7 +946,7 @@ TopicReaderI::destroy()
     TopicI::destroy();
 
     auto factory = _factory.lock();
-    if(factory)
+    if (factory)
     {
         factory->removeTopicReader(_name, shared_from_this());
     }
@@ -950,17 +959,17 @@ TopicReaderI::parseConfig(const string& prefix) const
     auto properties = _instance->getCommunicator()->getProperties()->getPropertiesForPrefix(prefix);
     parseConfigImpl(properties, prefix, config);
     auto p = properties.find(prefix + ".DiscardPolicy");
-    if(p != properties.end())
+    if (p != properties.end())
     {
-        if(p->second == "None")
+        if (p->second == "None")
         {
             config.discardPolicy = DataStorm::DiscardPolicy::None;
         }
-        else if(p->second == "SendTime")
+        else if (p->second == "SendTime")
         {
             config.discardPolicy = DataStorm::DiscardPolicy::SendTime;
         }
-        else if(p->second == "SendTime")
+        else if (p->second == "SendTime")
         {
             config.discardPolicy = DataStorm::DiscardPolicy::Priority;
         }
@@ -971,43 +980,42 @@ TopicReaderI::parseConfig(const string& prefix) const
 DataStorm::ReaderConfig
 TopicReaderI::mergeConfigs(DataStorm::ReaderConfig config) const
 {
-    if(!config.sampleCount && _defaultConfig.sampleCount)
+    if (!config.sampleCount && _defaultConfig.sampleCount)
     {
         config.sampleCount = _defaultConfig.sampleCount;
     }
-    if(!config.sampleLifetime && _defaultConfig.sampleLifetime)
+    if (!config.sampleLifetime && _defaultConfig.sampleLifetime)
     {
         config.sampleLifetime = _defaultConfig.sampleLifetime;
     }
-    if(!config.clearHistory && _defaultConfig.clearHistory)
+    if (!config.clearHistory && _defaultConfig.clearHistory)
     {
         config.clearHistory = _defaultConfig.clearHistory;
     }
-    if(!config.discardPolicy && _defaultConfig.discardPolicy)
+    if (!config.discardPolicy && _defaultConfig.discardPolicy)
     {
         config.discardPolicy = _defaultConfig.discardPolicy;
     }
     return config;
 }
 
-TopicWriterI::TopicWriterI(const shared_ptr<TopicFactoryI>& factory,
-                           const shared_ptr<KeyFactory>& keyFactory,
-                           const shared_ptr<TagFactory>& tagFactory,
-                           const shared_ptr<SampleFactory>& sampleFactory,
-                           const shared_ptr<FilterManager>& keyFilterFactories,
-                           const shared_ptr<FilterManager>& sampleFilterFactories,
-                           const string& name,
-                           long long int id) :
-    TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
+TopicWriterI::TopicWriterI(
+    const shared_ptr<TopicFactoryI>& factory,
+    const shared_ptr<KeyFactory>& keyFactory,
+    const shared_ptr<TagFactory>& tagFactory,
+    const shared_ptr<SampleFactory>& sampleFactory,
+    const shared_ptr<FilterManager>& keyFilterFactories,
+    const shared_ptr<FilterManager>& sampleFilterFactories,
+    const string& name,
+    long long int id)
+    : TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
 {
-    _defaultConfig = { -1, 0, DataStorm::ClearHistoryPolicy::OnAll };
+    _defaultConfig = {-1, 0, DataStorm::ClearHistoryPolicy::OnAll};
     _defaultConfig = mergeConfigs(parseConfig("DataStorm.Topic"));
 }
 
 shared_ptr<DataWriter>
-TopicWriterI::create(const vector<shared_ptr<Key>>& keys,
-                     const string& name,
-                     DataStorm::WriterConfig config)
+TopicWriterI::create(const vector<shared_ptr<Key>>& keys, const string& name, DataStorm::WriterConfig config)
 {
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<KeyDataWriterI>(this, name, ++_nextId, keys, mergeConfigs(move(config)));
@@ -1041,7 +1049,7 @@ TopicWriterI::destroy()
     TopicI::destroy();
 
     auto factory = _factory.lock();
-    if(factory)
+    if (factory)
     {
         factory->removeTopicWriter(_name, shared_from_this());
     }
@@ -1054,7 +1062,7 @@ TopicWriterI::parseConfig(const string& prefix) const
     auto properties = _instance->getCommunicator()->getProperties()->getPropertiesForPrefix(prefix);
     parseConfigImpl(properties, prefix, config);
     auto p = properties.find(prefix + ".Priority");
-    if(p != properties.end())
+    if (p != properties.end())
     {
         istringstream is(p->second);
         int priority;
@@ -1067,19 +1075,19 @@ TopicWriterI::parseConfig(const string& prefix) const
 DataStorm::WriterConfig
 TopicWriterI::mergeConfigs(DataStorm::WriterConfig config) const
 {
-    if(!config.sampleCount && _defaultConfig.sampleCount)
+    if (!config.sampleCount && _defaultConfig.sampleCount)
     {
         config.sampleCount = _defaultConfig.sampleCount;
     }
-    if(!config.sampleLifetime && _defaultConfig.sampleLifetime)
+    if (!config.sampleLifetime && _defaultConfig.sampleLifetime)
     {
         config.sampleLifetime = _defaultConfig.sampleLifetime;
     }
-    if(!config.clearHistory && _defaultConfig.clearHistory)
+    if (!config.clearHistory && _defaultConfig.clearHistory)
     {
         config.clearHistory = _defaultConfig.clearHistory;
     }
-    if(!config.priority && _defaultConfig.priority)
+    if (!config.priority && _defaultConfig.priority)
     {
         config.priority = _defaultConfig.priority;
     }

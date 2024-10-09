@@ -43,7 +43,7 @@ main(int argc, char* argv[])
         Topic<string, int> topic(node, "int");
         auto writer = makeSingleKeyWriter(topic, "element", "", config);
         writer.waitForReaders();
-        for(int i = 0; i < 1000; ++i)
+        for (int i = 0; i < 1000; ++i)
         {
             writer.update(i);
         }

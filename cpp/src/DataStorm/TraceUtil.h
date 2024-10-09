@@ -3,9 +3,9 @@
 //
 #pragma once
 
+#include <DataStorm/DataElementI.h>
 #include <DataStorm/InternalI.h>
 #include <DataStorm/SessionI.h>
-#include <DataStorm/DataElementI.h>
 #include <DataStorm/TopicI.h>
 
 #include <Ice/CommunicatorF.h>
@@ -15,261 +15,241 @@
 namespace std
 {
 
-template<typename T>
-inline std::ostream&
-operator<<(std::ostream& os, const std::vector<T>& p)
-{
-    if(!p.empty())
+    template<typename T> inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& p)
     {
-        for(auto q = p.begin(); q != p.end(); ++q)
+        if (!p.empty())
         {
-            if(q != p.begin())
+            for (auto q = p.begin(); q != p.end(); ++q)
             {
-                os << ", ";
+                if (q != p.begin())
+                {
+                    os << ", ";
+                }
+                os << *q;
             }
-            os << *q;
         }
+        return os;
     }
-    return os;
-}
 
-template<typename K, typename V>
-inline std::ostream&
-operator<<(std::ostream& os, const std::map<K, V>& p)
-{
-    if(!p.empty())
+    template<typename K, typename V> inline std::ostream& operator<<(std::ostream& os, const std::map<K, V>& p)
     {
-        for(auto q = p.begin(); q != p.end(); ++q)
+        if (!p.empty())
         {
-            if(q != p.begin())
+            for (auto q = p.begin(); q != p.end(); ++q)
             {
-                os << ", ";
+                if (q != p.begin())
+                {
+                    os << ", ";
+                }
+                os << q->first << "=" << q->second;
             }
-            os << q->first << "=" << q->second;
         }
+        return os;
     }
-    return os;
-}
 
 }
 
 namespace Ice
 {
 
-inline std::ostream&
-operator<<(std::ostream& os, const Ice::Identity& id)
-{
-    return os << (id.category.empty() ? "" : id.category + "/") << id.name;
-}
+    inline std::ostream& operator<<(std::ostream& os, const Ice::Identity& id)
+    {
+        return os << (id.category.empty() ? "" : id.category + "/") << id.name;
+    }
 
 }
 
 namespace DataStormContract
 {
 
-inline std::string
-valueIdToString(long long int valueId)
-{
-    std::ostringstream os;
-    if(valueId < 0)
+    inline std::string valueIdToString(long long int valueId)
     {
-        os << "f" << -valueId;
-    }
-    else
-    {
-        os << "k" << valueId;
-    }
-    return os.str();
-}
-
-inline std::ostream&
-operator<<(std::ostream& os, const ElementInfo& info)
-{
-    os << valueIdToString(info.id);
-    return os;
-}
-
-inline std::ostream&
-operator<<(std::ostream& os, const ElementData& data)
-{
-    os << 'e' << data.id;
-    if(data.config && data.config->facet)
-    {
-        os << ':' << *data.config->facet;
-    }
-    return os;
-}
-
-inline std::ostream&
-operator<<(std::ostream& os, const ElementSpec& spec)
-{
-    for(auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
-    {
-        if(q != spec.elements.begin())
+        std::ostringstream os;
+        if (valueId < 0)
         {
-            os << ',';
+            os << "f" << -valueId;
         }
-        os << *q << ':' << valueIdToString(spec.id) << ":pv" << valueIdToString(spec.peerId);
-    }
-    return os;
-}
-
-inline std::ostream&
-operator<<(std::ostream& os, const ElementDataAck& data)
-{
-    os << 'e' << data.id << ":pe" << data.peerId;
-    if(data.config && data.config->facet)
-    {
-        os << ':' << *data.config->facet;
-    }
-    os << ":sz" << data.samples.size();
-    return os;
-}
-
-inline std::ostream&
-operator<<(std::ostream& os, const ElementSpecAck& spec)
-{
-    for(auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
-    {
-        if(q != spec.elements.begin())
+        else
         {
-            os << ',';
+            os << "k" << valueId;
         }
-        os << *q << ':' << valueIdToString(spec.id) << ":pv" << valueIdToString(spec.peerId);
+        return os.str();
     }
-    return os;
-}
 
-inline std::ostream&
-operator<<(std::ostream& os, const TopicInfo& info)
-{
-    os << "[" << info.ids << "]:" << info.name;
-    return os;
-}
+    inline std::ostream& operator<<(std::ostream& os, const ElementInfo& info)
+    {
+        os << valueIdToString(info.id);
+        return os;
+    }
 
-inline std::ostream&
-operator<<(std::ostream& os, const TopicSpec& info)
-{
-    os << info.id << ':' << info.name << ":[" << info.elements << "]";
-    return os;
-}
+    inline std::ostream& operator<<(std::ostream& os, const ElementData& data)
+    {
+        os << 'e' << data.id;
+        if (data.config && data.config->facet)
+        {
+            os << ':' << *data.config->facet;
+        }
+        return os;
+    }
 
-inline std::ostream&
-operator<<(std::ostream& os, const DataSamples& samples)
-{
-    os << 'e' << samples.id << ":sz" << samples.samples.size();
-    return os;
-}
+    inline std::ostream& operator<<(std::ostream& os, const ElementSpec& spec)
+    {
+        for (auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
+        {
+            if (q != spec.elements.begin())
+            {
+                os << ',';
+            }
+            os << *q << ':' << valueIdToString(spec.id) << ":pv" << valueIdToString(spec.peerId);
+        }
+        return os;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, const ElementDataAck& data)
+    {
+        os << 'e' << data.id << ":pe" << data.peerId;
+        if (data.config && data.config->facet)
+        {
+            os << ':' << *data.config->facet;
+        }
+        os << ":sz" << data.samples.size();
+        return os;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, const ElementSpecAck& spec)
+    {
+        for (auto q = spec.elements.begin(); q != spec.elements.end(); ++q)
+        {
+            if (q != spec.elements.begin())
+            {
+                os << ',';
+            }
+            os << *q << ':' << valueIdToString(spec.id) << ":pv" << valueIdToString(spec.peerId);
+        }
+        return os;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, const TopicInfo& info)
+    {
+        os << "[" << info.ids << "]:" << info.name;
+        return os;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, const TopicSpec& info)
+    {
+        os << info.id << ':' << info.name << ":[" << info.elements << "]";
+        return os;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, const DataSamples& samples)
+    {
+        os << 'e' << samples.id << ":sz" << samples.samples.size();
+        return os;
+    }
 
 }
 
 namespace DataStormI
 {
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Element, T>::value>::type* = nullptr>
-inline std::ostream&
-operator<<(std::ostream& os, const std::shared_ptr<T>& p)
-{
-    os << (p ? p->toString() : "");
-    return os;
-}
-
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
-inline std::ostream&
-operator<<(std::ostream& os, T* element)
-{
-    os << (element ? element->toString() : "<null>");
-    return os;
-}
-
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
-inline std::ostream&
-operator<<(std::ostream& os, const std::shared_ptr<T>& element)
-{
-    os << element.get();
-    return os;
-}
-
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::SessionI, T>::value>::type* = nullptr>
-inline std::ostream&
-operator<<(std::ostream& os, T* session)
-{
-    if(session)
+    template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::Element, T>::value>::type* = nullptr>
+    inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<T>& p)
     {
-        Ice::Identity id = session->getNode()->ice_getIdentity();
-        os << id.name;
-        if(!id.category.empty())
+        os << (p ? p->toString() : "");
+        return os;
+    }
+
+    template<
+        typename T,
+        typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
+    inline std::ostream& operator<<(std::ostream& os, T* element)
+    {
+        os << (element ? element->toString() : "<null>");
+        return os;
+    }
+
+    template<
+        typename T,
+        typename ::std::enable_if<::std::is_base_of<DataStormI::DataElementI, T>::value>::type* = nullptr>
+    inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<T>& element)
+    {
+        os << element.get();
+        return os;
+    }
+
+    template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::SessionI, T>::value>::type* = nullptr>
+    inline std::ostream& operator<<(std::ostream& os, T* session)
+    {
+        if (session)
         {
-            os << '/' << id.category;
+            Ice::Identity id = session->getNode()->ice_getIdentity();
+            os << id.name;
+            if (!id.category.empty())
+            {
+                os << '/' << id.category;
+            }
         }
+        else
+        {
+            os << "<null>";
+        }
+        return os;
     }
-    else
+
+    template<
+        typename T,
+        typename ::std::enable_if<
+            ::std::is_base_of<DataStormI::TopicI, typename std::remove_pointer<T>::type>::value>::type* = nullptr>
+    inline std::ostream& operator<<(std::ostream& os, T topic)
     {
-        os << "<null>";
+        if (topic)
+        {
+            os << topic->getId() << ":" << topic->getName();
+        }
+        else
+        {
+            os << "<null>";
+        }
+        return os;
     }
-    return os;
-}
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::TopicI,
-                                               typename std::remove_pointer<T>::type>::value>::type* = nullptr>
-inline std::ostream&
-operator<<(std::ostream& os, T topic)
-{
-    if(topic)
+    template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::TopicI, T>::value>::type* = nullptr>
+    inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<T>& topic)
     {
-        os << topic->getId() << ":" << topic->getName();
+        os << topic.get();
+        return os;
     }
-    else
+
+    class TraceLevels
     {
-        os << "<null>";
-    }
-    return os;
-}
+    public:
+        TraceLevels(std::shared_ptr<Ice::Communicator>);
 
-template<typename T, typename ::std::enable_if<::std::is_base_of<DataStormI::TopicI, T>::value>::type* = nullptr>
-inline std::ostream&
-operator<<(std::ostream& os, const std::shared_ptr<T>& topic)
-{
-    os << topic.get();
-    return os;
-}
+        const int topic;
+        const char* topicCat;
 
-class TraceLevels
-{
-public:
+        const int data;
+        const char* dataCat;
 
-    TraceLevels(std::shared_ptr<Ice::Communicator>);
+        const int session;
+        const char* sessionCat;
 
-    const int topic;
-    const char* topicCat;
+        const std::shared_ptr<Ice::Logger> logger;
+    };
 
-    const int data;
-    const char* dataCat;
-
-    const int session;
-    const char* sessionCat;
-
-    const std::shared_ptr<Ice::Logger> logger;
-};
-
-class Trace : public Ice::Trace
-{
-public:
-
-    Trace(std::shared_ptr<TraceLevels> traceLevels, const std::string& category) :
-        Ice::Trace(traceLevels->logger, category)
+    class Trace : public Ice::Trace
     {
-    }
-};
+    public:
+        Trace(std::shared_ptr<TraceLevels> traceLevels, const std::string& category)
+            : Ice::Trace(traceLevels->logger, category)
+        {
+        }
+    };
 
-class Warning : public Ice::Warning
-{
-public:
-
-    Warning(std::shared_ptr<TraceLevels> traceLevels) :
-        Ice::Warning(traceLevels->logger)
+    class Warning : public Ice::Warning
     {
-    }
-};
+    public:
+        Warning(std::shared_ptr<TraceLevels> traceLevels) : Ice::Warning(traceLevels->logger) {}
+    };
 
 }

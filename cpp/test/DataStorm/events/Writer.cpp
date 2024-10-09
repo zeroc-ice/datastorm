@@ -234,13 +234,13 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered1");
 
-        topic.setKeyFilter<string>("startswith", [](const string& prefix)
-        {
-            return [prefix](const string& key)
+        topic.setKeyFilter<string>(
+            "startswith",
+            [](const string& prefix)
             {
-                return key.size() >= prefix.size() && key.compare(0, prefix.size(), prefix) == 0;
-            };
-        });
+                return [prefix](const string& key)
+                { return key.size() >= prefix.size() && key.compare(0, prefix.size(), prefix) == 0; };
+            });
 
         {
             auto writer5 = makeSingleKeyWriter(topic, "elem5", "", config);
@@ -284,7 +284,7 @@ main(int argc, char* argv[])
     {
         Topic<string, shared_ptr<Test::Base>> topic(node, "filtered2");
 
-        auto writer = makeMultiKeyWriter(topic, { "elem1", "elem2", "elem3", "elem4", "elem5" }, "", config);
+        auto writer = makeMultiKeyWriter(topic, {"elem1", "elem2", "elem3", "elem4", "elem5"}, "", config);
         writer.waitForReaders(1);
 
         writer.add("elem5", make_shared<Test::Base>("value1"));
@@ -333,14 +333,16 @@ main(int argc, char* argv[])
     cout << "testing filtered sample reader... " << flush;
     {
         Topic<string, string> topic(node, "filtered reader key/value filter");
-        topic.setSampleFilter<string>("startswith", [](const string& prefix)
-        {
-            return [prefix](const Sample<string, string>& sample)
+        topic.setSampleFilter<string>(
+            "startswith",
+            [](const string& prefix)
             {
-                auto value = sample.getValue();
-                return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
-            };
-        });
+                return [prefix](const Sample<string, string>& sample)
+                {
+                    auto value = sample.getValue();
+                    return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+                };
+            });
 
         auto writer1 = makeSingleKeyWriter(topic, "elem1", "", config);
         writer1.waitForReaders(3);

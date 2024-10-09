@@ -2,14 +2,14 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 #include <DataStorm/CtrlCHandler.h>
-#include <mutex>
 #include <cassert>
+#include <mutex>
 
 #ifdef _WIN32
-#   include <condition_variable>
-#   include <windows.h>
+#    include <condition_variable>
+#    include <windows.h>
 #else
-#   include <signal.h>
+#    include <signal.h>
 #endif
 
 using namespace DataStorm;
@@ -17,10 +17,10 @@ using namespace DataStorm;
 namespace
 {
 
-std::mutex _mutex;
-CtrlCHandlerCallback _callback;
-CtrlCHandler* _handler = nullptr;
-bool _signalsMasked = false;
+    std::mutex _mutex;
+    CtrlCHandlerCallback _callback;
+    CtrlCHandler* _handler = nullptr;
+    bool _signalsMasked = false;
 
 }
 
@@ -45,17 +45,18 @@ CtrlCHandler::getCallback() const noexcept
 namespace
 {
 
-int _inProgress = 0;
-std::condition_variable* _cond = nullptr;
+    int _inProgress = 0;
+    std::condition_variable* _cond = nullptr;
 
 }
 
-static BOOL WINAPI handlerRoutine(DWORD dwCtrlType)
+static BOOL WINAPI
+handlerRoutine(DWORD dwCtrlType)
 {
     CtrlCHandlerCallback callback;
     {
         std::lock_guard<std::mutex> lg(_mutex);
-        if(!_callback) // No callback set
+        if (!_callback) // No callback set
         {
             return TRUE;
         }
@@ -67,7 +68,7 @@ static BOOL WINAPI handlerRoutine(DWORD dwCtrlType)
     {
         std::lock_guard<std::mutex> lg(_mutex);
         --_inProgress;
-        if(_inProgress == 0 && _cond)
+        if (_inProgress == 0 && _cond)
         {
             _cond->notify_one();
         }
@@ -79,7 +80,7 @@ void
 CtrlCHandler::maskSignals() noexcept
 {
     std::lock_guard<std::mutex> lg(_mutex);
-    if(!_signalsMasked)
+    if (!_signalsMasked)
     {
         SetConsoleCtrlHandler(handlerRoutine, TRUE);
         _signalsMasked = true;
@@ -91,7 +92,7 @@ CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
     maskSignals();
 
     std::lock_guard<std::mutex> lg(_mutex);
-    if(_handler)
+    if (_handler)
     {
         throw std::logic_error("you cannot create more than one CtrlCHandler at a time");
     }
@@ -105,11 +106,11 @@ CtrlCHandler::~CtrlCHandler()
     std::unique_lock<std::mutex> lk(_mutex);
     _handler = nullptr;
     _callback = nullptr;
-    if(_inProgress > 0)
+    if (_inProgress > 0)
     {
         std::condition_variable cond;
         _cond = &cond;
-        cond.wait(lk, []{ return _inProgress == 0; });
+        cond.wait(lk, [] { return _inProgress == 0; });
     }
 }
 
@@ -117,57 +118,54 @@ CtrlCHandler::~CtrlCHandler()
 
 extern "C"
 {
-
-static void*
-sigwaitThread(void*)
-{
-    sigset_t ctrlCLikeSignals;
-    sigemptyset(&ctrlCLikeSignals);
-    sigaddset(&ctrlCLikeSignals, SIGHUP);
-    sigaddset(&ctrlCLikeSignals, SIGINT);
-    sigaddset(&ctrlCLikeSignals, SIGTERM);
-
-    //
-    // Run until the handler is destroyed (_handler == nullptr)
-    //
-    for(;;)
+    static void* sigwaitThread(void*)
     {
-        int signal = 0;
-        int rc = sigwait(&ctrlCLikeSignals, &signal);
-        if(rc == EINTR)
-        {
-            //
-            // Some sigwait() implementations incorrectly return EINTR
-            // when interrupted by an unblocked caught signal
-            //
-            continue;
-        }
-        assert(rc == 0);
+        sigset_t ctrlCLikeSignals;
+        sigemptyset(&ctrlCLikeSignals);
+        sigaddset(&ctrlCLikeSignals, SIGHUP);
+        sigaddset(&ctrlCLikeSignals, SIGINT);
+        sigaddset(&ctrlCLikeSignals, SIGTERM);
 
-        CtrlCHandlerCallback callback;
+        //
+        // Run until the handler is destroyed (_handler == nullptr)
+        //
+        for (;;)
         {
-            std::lock_guard<std::mutex> lg(_mutex);
-            if(!_handler) // The handler is destroyed.
+            int signal = 0;
+            int rc = sigwait(&ctrlCLikeSignals, &signal);
+            if (rc == EINTR)
             {
-                break;
+                //
+                // Some sigwait() implementations incorrectly return EINTR
+                // when interrupted by an unblocked caught signal
+                //
+                continue;
             }
-            callback = _callback;
-        }
+            assert(rc == 0);
 
-        if(callback)
-        {
-            callback(signal);
+            CtrlCHandlerCallback callback;
+            {
+                std::lock_guard<std::mutex> lg(_mutex);
+                if (!_handler) // The handler is destroyed.
+                {
+                    break;
+                }
+                callback = _callback;
+            }
+
+            if (callback)
+            {
+                callback(signal);
+            }
         }
+        return 0;
     }
-    return 0;
-}
-
 }
 
 namespace
 {
 
-pthread_t _tid;
+    pthread_t _tid;
 
 }
 
@@ -175,7 +173,7 @@ void
 CtrlCHandler::maskSignals() noexcept
 {
     std::lock_guard<std::mutex> lg(_mutex);
-    if(!_signalsMasked)
+    if (!_signalsMasked)
     {
         //
         // We block these CTRL+C like signals in the main thread, and by default all other
@@ -187,12 +185,12 @@ CtrlCHandler::maskSignals() noexcept
         sigaddset(&ctrlCLikeSignals, SIGINT);
         sigaddset(&ctrlCLikeSignals, SIGTERM);
 
-#ifndef NDEBUG
+#    ifndef NDEBUG
         int rc = pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
         assert(rc == 0);
-#else
+#    else
         pthread_sigmask(SIG_BLOCK, &ctrlCLikeSignals, 0);
-#endif
+#    endif
         _signalsMasked = true;
     }
 }
@@ -203,7 +201,7 @@ CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
 
     {
         std::lock_guard<std::mutex> lg(_mutex);
-        if(_handler)
+        if (_handler)
         {
             throw std::logic_error("you cannot create more than one CtrlCHandler at a time");
         }
@@ -212,12 +210,12 @@ CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
     }
 
     // Joinable thread
-#ifndef NDEBUG
+#    ifndef NDEBUG
     int rc = pthread_create(&_tid, 0, sigwaitThread, 0);
     assert(rc == 0);
-#else
+#    else
     pthread_create(&_tid, 0, sigwaitThread, 0);
-#endif
+#    endif
 }
 
 CtrlCHandler::~CtrlCHandler()
@@ -235,15 +233,15 @@ CtrlCHandler::~CtrlCHandler()
     // Signal the sigwaitThread and join it.
     //
     void* status = nullptr;
-#ifndef NDEBUG
+#    ifndef NDEBUG
     int rc = pthread_kill(_tid, SIGTERM);
     assert(rc == 0);
     rc = pthread_join(_tid, &status);
     assert(rc == 0);
-#else
+#    else
     pthread_kill(_tid, SIGTERM);
     pthread_join(_tid, &status);
-#endif
+#    endif
 }
 
 #endif

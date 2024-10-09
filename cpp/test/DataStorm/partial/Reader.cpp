@@ -3,8 +3,8 @@
 //
 #include <DataStorm/DataStorm.h>
 
-#include <TestCommon.h>
 #include <Test.h>
+#include <TestCommon.h>
 
 using namespace DataStorm;
 using namespace std;
@@ -22,10 +22,7 @@ main(int argc, char* argv[])
     config.clearHistory = ClearHistoryPolicy::Never;
     topic.setReaderDefaultConfig(config);
 
-    topic.setUpdater<float>("price", [](Stock& stock, float price)
-                            {
-                                stock.price = price;
-                            });
+    topic.setUpdater<float>("price", [](Stock& stock, float price) { stock.price = price; });
 
     {
         auto reader = makeSingleKeyReader(topic, "AAPL");

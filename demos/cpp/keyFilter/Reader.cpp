@@ -24,7 +24,7 @@ main(int argc, char* argv[])
         // Configure readers to never clear the history. We want to receive all the
         // samples written by the writers.
         //
-        topic.setReaderDefaultConfig({ Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never });
+        topic.setReaderDefaultConfig({Ice::nullopt, Ice::nullopt, DataStorm::ClearHistoryPolicy::Never});
 
         //
         // Instantiate a filtered reader for keys matching the foo[ace] regular expression.
@@ -43,7 +43,7 @@ main(int argc, char* argv[])
         sample = reader.getNextUnread();
         cout << sample.getKey() << " says " << sample.getValue() << "!" << endl;
     }
-    catch(const std::exception& ex)
+    catch (const std::exception& ex)
     {
         cerr << ex.what() << endl;
         return 1;

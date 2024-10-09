@@ -1,16 +1,16 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/Instance.h>
+#include <DataStorm/CallbackExecutor.h>
 #include <DataStorm/ConnectionManager.h>
+#include <DataStorm/Instance.h>
 #include <DataStorm/LookupI.h>
-#include <DataStorm/TraceUtil.h>
-#include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/Node.h>
 #include <DataStorm/NodeI.h>
 #include <DataStorm/NodeSessionManager.h>
-#include <DataStorm/Node.h>
-#include <DataStorm/CallbackExecutor.h>
 #include <DataStorm/Timer.h>
+#include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/TraceUtil.h>
 
 #include <IceUtil/UUID.h>
 
@@ -21,7 +21,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
 {
     shared_ptr<Ice::Properties> properties = _communicator->getProperties();
 
-    if(properties->getPropertyAsIntWithDefault("DataStorm.Node.Server.Enabled", 1) > 0)
+    if (properties->getPropertyAsIntWithDefault("DataStorm.Node.Server.Enabled", 1) > 0)
     {
         properties->setProperty("DataStorm.Node.Adapters.Server.ThreadPool.SizeMax", "1");
         properties->setProperty("DataStorm.Node.Adapters.Server.Endpoints", "tcp");
@@ -29,10 +29,10 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
 
         const string pfx = "DataStorm.Node.Server";
         auto props = properties->getPropertiesForPrefix(pfx);
-        for(const auto& p : props)
+        for (const auto& p : props)
         {
-            if(p.first != "DataStorm.Node.Server.Enabled" &&
-               p.first != "DataStorm.Node.Server.ForwardDiscoveryToMulticast")
+            if (p.first != "DataStorm.Node.Server.Enabled" &&
+                p.first != "DataStorm.Node.Server.ForwardDiscoveryToMulticast")
             {
                 properties->setProperty("DataStorm.Node.Adapters.Server" + p.first.substr(pfx.length()), p.second);
             }
@@ -42,7 +42,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
         {
             _adapter = _communicator->createObjectAdapter("DataStorm.Node.Adapters.Server");
         }
-        catch(const Ice::LocalException& ex)
+        catch (const Ice::LocalException& ex)
         {
             ostringstream os;
             os << "failed to listen on server endpoints `";
@@ -56,7 +56,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
         _adapter = _communicator->createObjectAdapter("");
     }
 
-    if(properties->getPropertyAsIntWithDefault("DataStorm.Node.Multicast.Enabled", 1) > 0)
+    if (properties->getPropertyAsIntWithDefault("DataStorm.Node.Multicast.Enabled", 1) > 0)
     {
         properties->setProperty("DataStorm.Node.Adapters.Multicast.Endpoints", "udp -h 239.255.0.1 -p 10000");
         properties->setProperty("DataStorm.Node.Adapters.Multicast.ProxyOptions", "-d");
@@ -64,9 +64,9 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
 
         const string pfx = "DataStorm.Node.Multicast";
         auto props = properties->getPropertiesForPrefix(pfx);
-        for(const auto& p : props)
+        for (const auto& p : props)
         {
-            if(p.first != "DataStorm.Node.Multicast.Enabled")
+            if (p.first != "DataStorm.Node.Multicast.Enabled")
             {
                 properties->setProperty("DataStorm.Node.Adapters.Multicast" + p.first.substr(pfx.length()), p.second);
             }
@@ -76,7 +76,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
         {
             _multicastAdapter = _communicator->createObjectAdapter("DataStorm.Node.Adapters.Multicast");
         }
-        catch(const Ice::LocalException& ex)
+        catch (const Ice::LocalException& ex)
         {
             ostringstream os;
             os << "failed to listen on multicast endpoints `";
@@ -122,7 +122,7 @@ Instance::init()
 
     auto lookupI = make_shared<LookupI>(_nodeSessionManager, _topicFactory, _node->getProxy());
     _adapter->add(lookupI, {"Lookup", "DataStorm"});
-    if(_multicastAdapter)
+    if (_multicastAdapter)
     {
         auto lookup = _multicastAdapter->add(lookupI, {"Lookup", "DataStorm"});
         _lookup = Ice::uncheckedCast<DataStormContract::LookupPrx>(lookup->ice_collocationOptimized(false));
@@ -130,7 +130,7 @@ Instance::init()
 
     _adapter->activate();
     _collocatedAdapter->activate();
-    if(_multicastAdapter)
+    if (_multicastAdapter)
     {
         _multicastAdapter->activate();
     }
@@ -156,7 +156,7 @@ void
 Instance::checkShutdown() const
 {
     unique_lock<mutex> lock(_mutex);
-    if(_shutdown)
+    if (_shutdown)
     {
         throw DataStorm::NodeShutdownException();
     }
@@ -174,7 +174,7 @@ Instance::destroy(bool ownsCommunicator)
 {
     _timer->destroy();
 
-    if(ownsCommunicator)
+    if (ownsCommunicator)
     {
         _communicator->destroy();
     }
@@ -182,7 +182,7 @@ Instance::destroy(bool ownsCommunicator)
     {
         _adapter->destroy();
         _collocatedAdapter->destroy();
-        if(_multicastAdapter)
+        if (_multicastAdapter)
         {
             _multicastAdapter->destroy();
         }

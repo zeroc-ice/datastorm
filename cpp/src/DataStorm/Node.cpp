@@ -3,10 +3,10 @@
 //
 #include <Ice/Initialize.h>
 
-#include <DataStorm/Node.h>
 #include <DataStorm/Instance.h>
-#include <DataStorm/TopicFactoryI.h>
+#include <DataStorm/Node.h>
 #include <DataStorm/NodeI.h>
+#include <DataStorm/TopicFactoryI.h>
 
 using namespace std;
 using namespace DataStorm;
@@ -17,11 +17,7 @@ NodeShutdownException::what() const noexcept
     return "::DataStorm::NodeShutdownException";
 }
 
-Node::Node(std::shared_ptr<Ice::Communicator> communicator) :
-    _ownsCommunicator(false)
-{
-    init(communicator);
-}
+Node::Node(std::shared_ptr<Ice::Communicator> communicator) : _ownsCommunicator(false) { init(communicator); }
 
 void
 Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
@@ -31,9 +27,9 @@ Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
         _instance = make_shared<DataStormI::Instance>(communicator);
         _instance->init();
     }
-    catch(...)
+    catch (...)
     {
-        if(_ownsCommunicator)
+        if (_ownsCommunicator)
         {
             communicator->destroy();
         }
@@ -51,7 +47,7 @@ Node::Node(Node&& node) noexcept
 
 Node::~Node()
 {
-    if(_instance)
+    if (_instance)
     {
         _instance->destroy(_ownsCommunicator);
     }
