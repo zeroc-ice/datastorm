@@ -128,7 +128,7 @@ NodeSessionManager::createOrGet(
     instance->getConnectionManager()->add(
         make_shared<NodePrx>(*node),
         connection,
-        [=, self = shared_from_this()](auto _, auto ex) { self->destroySession(std::move(node)); });
+        [self = shared_from_this(), node](auto _, auto ex) { self->destroySession(std::move(node)); });
 
     return session;
 }
@@ -394,7 +394,7 @@ NodeSessionManager::disconnected(optional<NodePrx> node, optional<LookupPrx> loo
         return;
     }
 
-    if (node != nullopt)
+    if (node)
     {
         _retryCount = 0;
         if (_traceLevels->session > 0)

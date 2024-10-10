@@ -29,8 +29,7 @@ main(int argc, char* argv[])
             string arg = argv[i];
             if (arg == "-v" || arg == "--version")
             {
-                // TODO use ICE_VERSION
-                cout << "x.x.x" << endl;
+                cout << DATASTORM_STRING_VERSION << endl;
                 return 0;
             }
             else if (arg == "-h" || arg == "--help")
@@ -41,8 +40,7 @@ main(int argc, char* argv[])
         }
 
         //
-        // CtrlCHandler must be created before the node is created or any other
-        // threads are started.
+        // CtrlCHandler must be created before the node is created or any other threads are started.
         //
         Ice::CtrlCHandler ctrlCHandler;
 

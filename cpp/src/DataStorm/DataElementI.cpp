@@ -1075,8 +1075,8 @@ KeyDataReaderI::KeyDataReaderI(
     }
 
     //
-    // If sample filtering is enabled, ensure the updates are received using a
-    // session facet specific to this reader.
+    // If sample filtering is enabled, ensure the updates are received using a session
+    // facet specific to this reader.
     //
     if (_config->sampleFilter)
     {
@@ -1323,8 +1323,7 @@ KeyDataWriterI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& curren
 {
     for (const auto& listener : _listeners)
     {
-        // If there's at least one subscriber interested in the update (check the
-        // key if any writer)
+        // If there's at least one subscriber interested in the update (check the key if any writer)
         if (!_sample || listener.second.matchOne(_sample, _keys.empty()))
         {
             // TODO do we need to check the result?
@@ -1351,8 +1350,8 @@ FilteredDataReaderI::FilteredDataReaderI(
     }
 
     //
-    // If sample filtering is enabled, ensure the updates are received using a
-    // session facet specific to this reader.
+    // If sample filtering is enabled, ensure the updates are received using a session
+    // facet specific to this reader.
     //
     if (_config->sampleFilter)
     {

@@ -90,8 +90,8 @@ Instance::Instance(const Ice::CommunicatorPtr& communicator) : _communicator(com
     _retryCount = properties->getPropertyAsIntWithDefault("DataStorm.Node.RetryCount", 6);
 
     //
-    // Create a collocated object adapter with a random name to prevent user
-    // configuration of the adapter.
+    // Create a collocated object adapter with a random name to prevent user configuration
+    // of the adapter.
     //
     auto collocated = Ice::generateUUID();
     properties->setProperty(collocated + ".AdapterId", collocated);

@@ -163,10 +163,10 @@ NodeI::createSession(
         if (fromRelay)
         {
             //
-            // If the call is from a relay, we check if we already have a connection
-            // to this node and eventually re-use it. Otherwise, we'll try to
-            // establish a connection to the node if it has endpoints. If it doesn't,
-            // we'll re-use the current connection to send the confirmation.
+            // If the call is from a relay, we check if we already have a connection to this node
+            // and eventually re-use it. Otherwise, we'll try to establish a connection to the node
+            // if it has endpoints. If it doesn't, we'll re-use the current connection to send the
+            // confirmation.
             //
             s = getNodeWithExistingConnection(subscriber, current.con);
         }
@@ -527,8 +527,8 @@ NodeI::getNodeWithExistingConnection(optional<NodePrx> node, const Ice::Connecti
     Ice::ConnectionPtr connection;
 
     //
-    // If the node has a session with this node, use a bi-dir proxy associated
-    // with node session's connection.
+    // If the node has a session with this node, use a bi-dir proxy associated with
+    // node session's connection.
     //
     auto instance = _instance.lock();
     if (instance)
@@ -541,8 +541,8 @@ NodeI::getNodeWithExistingConnection(optional<NodePrx> node, const Ice::Connecti
     }
 
     //
-    // Otherwise, check if the node already has a session established and use the
-    // connection from the session.
+    // Otherwise, check if the node already has a session established and use the connection
+    // from the session.
     //
     {
         lock_guard<mutex> lock(_mutex);

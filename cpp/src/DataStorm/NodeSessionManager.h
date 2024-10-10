@@ -10,12 +10,6 @@
 
 #include <Ice/Ice.h>
 
-// TODO temporary for unused parameter warnings
-#if defined(__clang__)
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wunused-parameter"
-#endif
-
 namespace DataStormI
 {
 
