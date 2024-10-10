@@ -132,6 +132,8 @@ NodeSessionManager::createOrGet(
     session->init();
     _sessions.emplace(node->ice_getIdentity(), session);
 
+    // TODO we should review this code, to avoid using the proxy shared_ptr as a map key.
+    // Specially the connection manager doesn't use this proxy for lookup.
     instance->getConnectionManager()->add(
         make_shared<NodePrx>(*node),
         connection,

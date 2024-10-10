@@ -18,6 +18,7 @@ using namespace DataStormContract;
 namespace
 {
 
+    // TODO convert to a middleware
     class DispatchInterceptorI : public Ice::Object
     {
     public:
