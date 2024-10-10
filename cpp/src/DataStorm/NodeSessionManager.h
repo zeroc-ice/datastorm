@@ -88,5 +88,5 @@ namespace DataStormI
         std::optional<DataStormContract::LookupPrx> _forwarder;
     };
 
-} // namespace DataStormI
+}
 #endif

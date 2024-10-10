@@ -42,5 +42,5 @@ namespace DataStormI
         std::optional<DataStormContract::NodePrx> _nodePrx;
     };
 
-} // namespace DataStormI
+}
 #endif

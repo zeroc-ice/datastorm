@@ -48,7 +48,7 @@ namespace std
         return os;
     }
 
-} // namespace std
+}
 
 namespace Ice
 {
@@ -58,7 +58,7 @@ namespace Ice
         return os << (id.category.empty() ? "" : id.category + "/") << id.name;
     }
 
-} // namespace Ice
+}
 
 namespace DataStormContract
 {
@@ -148,7 +148,7 @@ namespace DataStormContract
         return os;
     }
 
-} // namespace DataStormContract
+}
 
 namespace DataStormI
 {
@@ -253,5 +253,5 @@ namespace DataStormI
         Warning(std::shared_ptr<TraceLevels> traceLevels) : Ice::Warning(traceLevels->logger) {}
     };
 
-} // namespace DataStormI
+}
 #endif

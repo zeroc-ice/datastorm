@@ -36,6 +36,6 @@ namespace DataStormI
         std::shared_ptr<CallbackExecutor> _executor;
     };
 
-} // namespace DataStormI
+}
 
 #endif

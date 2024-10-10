@@ -273,5 +273,5 @@ namespace DataStormI
         virtual Ice::CommunicatorPtr getCommunicator() const = 0;
     };
 
-} // namespace DataStormI
+}
 #endif

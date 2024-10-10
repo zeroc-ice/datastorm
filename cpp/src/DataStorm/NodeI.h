@@ -112,5 +112,5 @@ namespace DataStormI
         std::int64_t _nextPublisherSessionId;
     };
 
-} // namespace DataStormI
+}
 #endif

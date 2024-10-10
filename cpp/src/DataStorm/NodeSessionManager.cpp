@@ -52,7 +52,7 @@ namespace
         const shared_ptr<NodeSessionManager> _nodeSessionManager;
     };
 
-} // namespace
+}
 
 NodeSessionManager::NodeSessionManager(const shared_ptr<Instance>& instance, const shared_ptr<NodeI>& node)
     : _instance(instance),

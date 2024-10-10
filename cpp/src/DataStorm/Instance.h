@@ -136,5 +136,5 @@ namespace DataStormI
         bool _shutdown;
     };
 
-} // namespace DataStormI
+}
 #endif

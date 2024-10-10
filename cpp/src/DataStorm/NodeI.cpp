@@ -43,7 +43,7 @@ namespace
         shared_ptr<CallbackExecutor> _executor;
     };
 
-} // namespace
+}
 
 NodeI::NodeI(const shared_ptr<Instance>& instance)
     : _instance(instance),

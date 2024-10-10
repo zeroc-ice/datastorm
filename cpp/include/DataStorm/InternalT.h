@@ -580,4 +580,4 @@ namespace DataStormI
         std::map<std::string, std::unique_ptr<Factory>> _factories;
     };
 
-} // namespace DataStormI
+}

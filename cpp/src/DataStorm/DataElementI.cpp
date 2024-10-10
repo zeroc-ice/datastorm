@@ -46,7 +46,7 @@ namespace
         }
     }
 
-} // namespace
+}
 
 DataElementI::DataElementI(TopicI* parent, const string& name, int64_t id, const DataStorm::Config& config)
     : _traceLevels(parent->getInstance()->getTraceLevels()),

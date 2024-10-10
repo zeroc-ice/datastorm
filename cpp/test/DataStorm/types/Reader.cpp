@@ -72,7 +72,7 @@ namespace DataStorm
         }
     };
 
-} // namespace DataStorm
+}
 
 int
 main(int argc, char* argv[])

@@ -81,7 +81,7 @@ namespace Test
 #    define main Test::mainEntryPoint
     int mainEntryPoint(int, char**);
 
-} // namespace Test
+}
 
 class TestFailedException : public ::Ice::LocalException
 {

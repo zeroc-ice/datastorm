@@ -40,7 +40,7 @@ namespace
         shared_ptr<CallbackExecutor> _executor;
     };
 
-} // namespace
+}
 
 SessionI::SessionI(const std::shared_ptr<NodeI>& parent, optional<NodePrx> node)
     : _instance(parent->getInstance()),

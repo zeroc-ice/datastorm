@@ -140,7 +140,7 @@ namespace
         const optional<NodePrx> _node;
     };
 
-} // namespace
+}
 
 NodeSessionI::NodeSessionI(
     shared_ptr<Instance> instance,

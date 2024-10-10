@@ -45,10 +45,3 @@
 #if defined(_MSC_VER) && !defined(DATASTORM_BUILDING_DATASTORM)
 #    pragma comment(lib, DATASTORM_LIBNAME("DataStorm"))
 #endif
-
-//
-// Always enable the Ice C++11 mapping when using DataStorm.
-//
-#if !defined(ICE_CPP11_MAPPING)
-#    define ICE_CPP11_MAPPING 1
-#endif

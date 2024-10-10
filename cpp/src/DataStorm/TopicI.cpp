@@ -60,7 +60,7 @@ namespace
     };
     const auto alwaysMatchFilter = make_shared<AlwaysMatchFilter>();
 
-} // namespace
+}
 
 TopicI::TopicI(
     const weak_ptr<TopicFactoryI>& factory,

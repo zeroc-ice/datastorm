@@ -45,5 +45,5 @@ namespace DataStormI
         unsigned int _nextId;
     };
 
-} // namespace DataStormI
+}
 #endif

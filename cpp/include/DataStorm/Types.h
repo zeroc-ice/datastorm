@@ -316,5 +316,5 @@ namespace DataStorm
         return v;
     }
 
-} // namespace DataStorm
+}
 #endif

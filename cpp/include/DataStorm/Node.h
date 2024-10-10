@@ -206,5 +206,5 @@ namespace DataStorm
         template<typename, typename, typename> friend class Topic;
     };
 
-} // namespace DataStorm
+}
 #endif

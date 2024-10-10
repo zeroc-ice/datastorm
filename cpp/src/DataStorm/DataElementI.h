@@ -424,6 +424,6 @@ namespace DataStormI
         const std::shared_ptr<Filter> _filter;
     };
 
-} // namespace DataStormI
+}
 
 #endif

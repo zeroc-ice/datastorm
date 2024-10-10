@@ -378,5 +378,5 @@ namespace DataStormI
         virtual void remove() override;
     };
 
-} // namespace DataStormI
+}
 #endif

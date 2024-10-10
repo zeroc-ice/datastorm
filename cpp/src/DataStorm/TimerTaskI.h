@@ -20,6 +20,6 @@ namespace DataStormI
     private:
         std::function<void()> _task;
     };
-} // namespace DataStormI
+}
 
 #endif

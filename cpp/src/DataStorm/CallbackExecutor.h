@@ -35,6 +35,6 @@ namespace DataStormI
         std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _queue;
     };
 
-} // namespace DataStormI
+}
 
 #endif

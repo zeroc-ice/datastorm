@@ -221,5 +221,5 @@ namespace DataStormI
         DataStorm::WriterConfig _defaultConfig;
     };
 
-} // namespace DataStormI
+}
 #endif

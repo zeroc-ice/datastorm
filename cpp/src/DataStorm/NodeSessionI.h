@@ -50,5 +50,5 @@ namespace DataStormI
         std::map<Ice::Identity, std::optional<DataStormContract::SessionPrx>> _sessions;
     };
 
-} // namespace DataStormI
+}
 #endif

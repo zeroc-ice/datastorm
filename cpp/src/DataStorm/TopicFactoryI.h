@@ -81,5 +81,5 @@ namespace DataStormI
         std::int64_t _nextWriterId;
     };
 
-} // namespace DataStormI
+}
 #endif
