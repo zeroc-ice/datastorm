@@ -145,7 +145,7 @@ namespace
 NodeSessionI::NodeSessionI(
     shared_ptr<Instance> instance,
     optional<NodePrx> node,
-    shared_ptr<Ice::Connection> connection,
+    Ice::ConnectionPtr connection,
     bool forwardAnnouncements)
     : _instance(std::move(instance)),
       _traceLevels(_instance->getTraceLevels()),

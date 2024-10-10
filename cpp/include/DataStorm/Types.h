@@ -207,7 +207,7 @@ namespace DataStorm
          * @param value The value to encode
          * @return The resulting byte sequence
          */
-        static std::vector<std::byte> encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept;
+        static Ice::ByteSeq encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept;
     };
 
     /**
@@ -230,7 +230,7 @@ namespace DataStorm
          * @param value The byte sequence to decode
          * @return The resulting value
          */
-        static T decode(const Ice::CommunicatorPtr& communicator, const std::vector<std::byte>& value) noexcept;
+        static T decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& value) noexcept;
     };
 
     /**
@@ -259,7 +259,7 @@ namespace DataStorm
      **/
     template<typename T> struct Encoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
     {
-        static std::vector<std::byte> encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept
+        static Ice::ByteSeq encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept
         {
             return Encoder<std::shared_ptr<T>>::encode(communicator, std::make_shared<T>(value));
         }
@@ -270,7 +270,7 @@ namespace DataStorm
      **/
     template<typename T> struct Decoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
     {
-        static T decode(const Ice::CommunicatorPtr& communicator, const std::vector<std::byte>& data) noexcept
+        static T decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data) noexcept
         {
             return *Decoder<std::shared_ptr<T>>::decode(communicator, data);
         }
@@ -289,9 +289,9 @@ namespace DataStorm
      * Encoder template implementation
      */
     template<typename T, typename E>
-    std::vector<std::byte> Encoder<T, E>::encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept
+    Ice::ByteSeq Encoder<T, E>::encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept
     {
-        std::vector<std::byte> v;
+        Ice::ByteSeq v;
         Ice::OutputStream stream(communicator);
         stream.write(value);
         stream.finished(v);
@@ -302,7 +302,7 @@ namespace DataStorm
      * Decoder template implementation
      */
     template<typename T, typename E>
-    T Decoder<T, E>::decode(const Ice::CommunicatorPtr& communicator, const std::vector<std::byte>& value) noexcept
+    T Decoder<T, E>::decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& value) noexcept
     {
         T v;
         if (value.empty())

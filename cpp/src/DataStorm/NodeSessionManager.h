@@ -33,23 +33,23 @@ namespace DataStormI
         void init();
 
         std::shared_ptr<NodeSessionI>
-        createOrGet(std::optional<DataStormContract::NodePrx>, const std::shared_ptr<Ice::Connection>&, bool);
+        createOrGet(std::optional<DataStormContract::NodePrx>, const Ice::ConnectionPtr&, bool);
 
         void announceTopicReader(
             const std::string&,
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>& = nullptr) const;
+            const Ice::ConnectionPtr& = nullptr) const;
 
         void announceTopicWriter(
             const std::string&,
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>& = nullptr) const;
+            const Ice::ConnectionPtr& = nullptr) const;
 
         void announceTopics(
             const DataStormContract::StringSeq&,
             const DataStormContract::StringSeq&,
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>& = nullptr) const;
+            const Ice::ConnectionPtr& = nullptr) const;
 
         std::shared_ptr<NodeSessionI> getSession(const Ice::Identity&) const;
         std::shared_ptr<NodeSessionI> getSession(const std::string& name) const
@@ -90,7 +90,7 @@ namespace DataStormI
             std::pair<std::optional<DataStormContract::NodePrx>, std::optional<DataStormContract::LookupPrx>>>
             _connectedTo;
 
-        mutable std::shared_ptr<Ice::Connection> _exclude;
+        mutable Ice::ConnectionPtr _exclude;
         std::optional<DataStormContract::LookupPrx> _forwarder;
     };
 

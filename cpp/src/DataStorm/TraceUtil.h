@@ -224,7 +224,7 @@ namespace DataStormI
     class TraceLevels
     {
     public:
-        TraceLevels(std::shared_ptr<Ice::Communicator>);
+        TraceLevels(Ice::CommunicatorPtr);
 
         const int topic;
         const char* topicCat;
@@ -235,7 +235,7 @@ namespace DataStormI
         const int session;
         const char* sessionCat;
 
-        const std::shared_ptr<Ice::Logger> logger;
+        const Ice::LoggerPtr logger;
     };
 
     class Trace : public Ice::Trace

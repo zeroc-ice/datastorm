@@ -33,7 +33,7 @@ namespace DataStormI
     class Instance : public std::enable_shared_from_this<Instance>
     {
     public:
-        Instance(const std::shared_ptr<Ice::Communicator>&);
+        Instance(const Ice::CommunicatorPtr&);
 
         void init();
 
@@ -49,13 +49,13 @@ namespace DataStormI
             return _nodeSessionManager;
         }
 
-        std::shared_ptr<Ice::Communicator> getCommunicator() const
+        Ice::CommunicatorPtr getCommunicator() const
         {
             assert(_communicator);
             return _communicator;
         }
 
-        std::shared_ptr<Ice::ObjectAdapter> getObjectAdapter() const
+        Ice::ObjectAdapterPtr getObjectAdapter() const
         {
             assert(_adapter);
             return _adapter;
@@ -93,7 +93,7 @@ namespace DataStormI
             return _executor;
         }
 
-        std::shared_ptr<Ice::Timer> getTimer() const
+        Ice::TimerPtr getTimer() const
         {
             assert(_timer);
             return _timer;
@@ -119,14 +119,14 @@ namespace DataStormI
         std::shared_ptr<NodeSessionManager> _nodeSessionManager;
         std::shared_ptr<ForwarderManager> _collocatedForwarder;
         std::shared_ptr<NodeI> _node;
-        std::shared_ptr<Ice::Communicator> _communicator;
-        std::shared_ptr<Ice::ObjectAdapter> _adapter;
-        std::shared_ptr<Ice::ObjectAdapter> _collocatedAdapter;
-        std::shared_ptr<Ice::ObjectAdapter> _multicastAdapter;
+        Ice::CommunicatorPtr _communicator;
+        Ice::ObjectAdapterPtr _adapter;
+        Ice::ObjectAdapterPtr _collocatedAdapter;
+        Ice::ObjectAdapterPtr _multicastAdapter;
         std::optional<DataStormContract::LookupPrx> _lookup;
         std::shared_ptr<TraceLevels> _traceLevels;
         std::shared_ptr<CallbackExecutor> _executor;
-        std::shared_ptr<Ice::Timer> _timer;
+        Ice::TimerPtr _timer;
         std::chrono::milliseconds _retryDelay;
         int _retryMultiplier;
         int _retryCount;

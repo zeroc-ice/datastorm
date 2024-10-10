@@ -31,15 +31,15 @@ main(int argc, char* argv[])
             Node n22(c);
         }
         {
-            const shared_ptr<Ice::Communicator>& c2 = c;
+            const Ice::CommunicatorPtr& c2 = c;
             Node n23(c2);
         }
         {
-            const shared_ptr<Ice::Communicator> c3 = c;
+            const Ice::CommunicatorPtr c3 = c;
             Node n24(c3);
         }
         {
-            shared_ptr<Ice::Communicator>& c4 = c;
+            Ice::CommunicatorPtr& c4 = c;
             Node n25(c4);
         }
         c->destroy();

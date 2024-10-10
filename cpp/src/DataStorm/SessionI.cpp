@@ -23,7 +23,7 @@ namespace
     class DispatchInterceptorI : public Ice::Object
     {
     public:
-        DispatchInterceptorI(shared_ptr<Ice::Object> servant, shared_ptr<CallbackExecutor> executor)
+        DispatchInterceptorI(Ice::ObjectPtr servant, shared_ptr<CallbackExecutor> executor)
             : _servant(std::move(servant)),
               _executor(std::move(executor))
         {
@@ -36,7 +36,7 @@ namespace
         }
 
     private:
-        shared_ptr<Ice::Object> _servant;
+        Ice::ObjectPtr _servant;
         shared_ptr<CallbackExecutor> _executor;
     };
 
@@ -533,7 +533,7 @@ SessionI::disconnected(const Ice::Current& current)
 void
 SessionI::connected(
     optional<SessionPrx> session,
-    const shared_ptr<Ice::Connection>& connection,
+    const Ice::ConnectionPtr& connection,
     const TopicInfoSeq& topics)
 {
     lock_guard<mutex> lock(_mutex);
@@ -602,7 +602,7 @@ SessionI::connected(
 }
 
 bool
-SessionI::disconnected(const shared_ptr<Ice::Connection>& connection, exception_ptr ex)
+SessionI::disconnected(const Ice::ConnectionPtr& connection, exception_ptr ex)
 {
     lock_guard<mutex> lock(_mutex);
     if (_destroyed || (connection && _connection != connection) || !_session)
@@ -809,7 +809,7 @@ SessionI::destroyImpl(const exception_ptr& ex)
     }
 }
 
-shared_ptr<Ice::Connection>
+Ice::ConnectionPtr
 SessionI::getConnection() const
 {
     lock_guard<mutex> lock(_mutex);

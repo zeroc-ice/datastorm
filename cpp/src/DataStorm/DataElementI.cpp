@@ -18,7 +18,7 @@ namespace
 {
 
     DataSample
-    toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator, bool marshalKey)
+    toSample(const shared_ptr<Sample>& sample, const Ice::CommunicatorPtr& communicator, bool marshalKey)
     {
         return {
             sample->id,

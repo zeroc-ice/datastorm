@@ -624,7 +624,7 @@ namespace DataStorm
     private:
         std::shared_ptr<DataStormI::TopicReader> getReader() const noexcept;
         std::shared_ptr<DataStormI::TopicWriter> getWriter() const noexcept;
-        std::shared_ptr<Ice::Communicator> getCommunicator() const noexcept;
+        Ice::CommunicatorPtr getCommunicator() const noexcept;
 
         template<typename, typename, typename> friend class SingleKeyWriter;
         template<typename, typename, typename> friend class MultiKeyWriter;
@@ -2019,7 +2019,7 @@ namespace DataStorm
         auto tagI = _tagFactory->create(std::move(tag));
         auto updaterImpl = updater ? [updater](const std::shared_ptr<DataStormI::Sample>& previous,
                                            const std::shared_ptr<DataStormI::Sample>& next,
-                                           const std::shared_ptr<Ice::Communicator>& communicator)
+                                           const Ice::CommunicatorPtr& communicator)
     {
         Value value;
         if(previous)
@@ -2031,7 +2031,7 @@ namespace DataStorm
         std::static_pointer_cast<DataStormI::SampleT<Key, Value, UpdateTag>>(next)->setValue(std::move(value));
     } : std::function<void(const std::shared_ptr<DataStormI::Sample>&,
                            const std::shared_ptr<DataStormI::Sample>&,
-                           const std::shared_ptr<Ice::Communicator>&)>();
+                           const Ice::CommunicatorPtr&)>();
 
         if (_reader && !_writer)
         {
@@ -2112,7 +2112,7 @@ namespace DataStorm
     }
 
     template<typename Key, typename Value, typename UpdateTag>
-    std::shared_ptr<Ice::Communicator> Topic<Key, Value, UpdateTag>::getCommunicator() const noexcept
+    Ice::CommunicatorPtr Topic<Key, Value, UpdateTag>::getCommunicator() const noexcept
     {
         return _topicFactory->getCommunicator();
     }

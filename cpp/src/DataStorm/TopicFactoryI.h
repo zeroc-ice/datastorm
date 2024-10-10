@@ -50,11 +50,11 @@ namespace DataStormI
         void createSubscriberSession(
             const std::string&,
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>&);
+            const Ice::ConnectionPtr&);
         void createPublisherSession(
             const std::string&,
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>&);
+            const Ice::ConnectionPtr&);
 
         std::shared_ptr<Instance> getInstance() const
         {

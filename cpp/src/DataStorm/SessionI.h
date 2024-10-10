@@ -264,15 +264,15 @@ namespace DataStormI
 
         void connected(
             std::optional<DataStormContract::SessionPrx>,
-            const std::shared_ptr<Ice::Connection>&,
+            const Ice::ConnectionPtr&,
             const DataStormContract::TopicInfoSeq&);
-        bool disconnected(const std::shared_ptr<Ice::Connection>&, std::exception_ptr);
+        bool disconnected(const Ice::ConnectionPtr&, std::exception_ptr);
         bool retry(std::optional<DataStormContract::NodePrx>, std::exception_ptr);
         void destroyImpl(const std::exception_ptr&);
 
         const std::string& getId() const { return _id; }
 
-        std::shared_ptr<Ice::Connection> getConnection() const;
+        Ice::ConnectionPtr getConnection() const;
         std::optional<DataStormContract::SessionPrx> getSession() const;
         bool checkSession();
 
@@ -350,7 +350,7 @@ namespace DataStormI
         std::unique_lock<std::mutex>* _topicLock;
 
         std::optional<DataStormContract::SessionPrx> _session;
-        std::shared_ptr<Ice::Connection> _connection;
+        Ice::ConnectionPtr _connection;
         std::vector<std::function<void(std::optional<DataStormContract::SessionPrx>)>> _connectedCallbacks;
     };
 

@@ -34,7 +34,7 @@ namespace
     }
 
     static Topic::Updater noOpUpdater =
-        [](const shared_ptr<Sample>& previous, const shared_ptr<Sample>& next, const shared_ptr<Ice::Communicator>&)
+        [](const shared_ptr<Sample>& previous, const shared_ptr<Sample>& next, const Ice::CommunicatorPtr&)
     { next->setValue(previous); };
 
     // The always match filter always matches the value, it's used by the any key
@@ -50,7 +50,7 @@ namespace
             return alwaysmatch;
         }
 
-        virtual Ice::ByteSeq encode(const shared_ptr<Ice::Communicator>&) const { return Ice::ByteSeq{}; }
+        virtual Ice::ByteSeq encode(const Ice::CommunicatorPtr&) const { return Ice::ByteSeq{}; }
 
         virtual int64_t getId() const
         {

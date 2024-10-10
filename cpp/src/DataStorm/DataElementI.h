@@ -229,7 +229,7 @@ namespace DataStormI
             bool);
 
         virtual std::string toString() const = 0;
-        virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
+        virtual Ice::CommunicatorPtr getCommunicator() const override;
 
         std::int64_t getId() const { return _id; }
 

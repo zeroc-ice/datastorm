@@ -46,12 +46,12 @@ namespace DataStormI
 
         void createSubscriberSession(
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>&,
+            const Ice::ConnectionPtr&,
             const std::shared_ptr<PublisherSessionI>&);
 
         void createPublisherSession(
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>&,
+            const Ice::ConnectionPtr&,
             std::shared_ptr<SubscriberSessionI>);
 
         void removeSubscriberSession(
@@ -64,13 +64,13 @@ namespace DataStormI
             const std::shared_ptr<PublisherSessionI>&,
             const std::exception_ptr&);
 
-        std::shared_ptr<Ice::Connection> getSessionConnection(const std::string&) const;
+        Ice::ConnectionPtr getSessionConnection(const std::string&) const;
 
         std::shared_ptr<SessionI> getSession(const Ice::Identity&) const;
 
         std::optional<DataStormContract::NodePrx> getNodeWithExistingConnection(
             std::optional<DataStormContract::NodePrx>,
-            const std::shared_ptr<Ice::Connection>&);
+            const Ice::ConnectionPtr&);
 
         std::optional<DataStormContract::NodePrx> getProxy() const { return _proxy; }
 

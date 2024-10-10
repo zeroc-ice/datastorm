@@ -17,10 +17,10 @@ NodeShutdownException::what() const noexcept
     return "::DataStorm::NodeShutdownException";
 }
 
-Node::Node(std::shared_ptr<Ice::Communicator> communicator) : _ownsCommunicator(false) { init(communicator); }
+Node::Node(Ice::CommunicatorPtr communicator) : _ownsCommunicator(false) { init(communicator); }
 
 void
-Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
+Node::init(const Ice::CommunicatorPtr& communicator)
 {
     try
     {
@@ -80,13 +80,13 @@ Node::operator=(Node&& node) noexcept
     return *this;
 }
 
-shared_ptr<Ice::Communicator>
+Ice::CommunicatorPtr
 Node::getCommunicator() const noexcept
 {
     return _instance ? _instance->getCommunicator() : nullptr;
 }
 
-shared_ptr<Ice::Connection>
+Ice::ConnectionPtr
 Node::getSessionConnection(const string& ident) const noexcept
 {
     return _instance ? _instance->getNode()->getSessionConnection(ident) : nullptr;

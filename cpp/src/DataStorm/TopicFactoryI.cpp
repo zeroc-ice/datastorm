@@ -199,7 +199,7 @@ void
 TopicFactoryI::createPublisherSession(
     const string& topic,
     optional<DataStormContract::NodePrx> publisher,
-    const shared_ptr<Ice::Connection>& connection)
+    const Ice::ConnectionPtr& connection)
 {
     auto readers = getTopicReaders(topic);
     if (!readers.empty())
@@ -212,7 +212,7 @@ void
 TopicFactoryI::createSubscriberSession(
     const string& topic,
     optional<DataStormContract::NodePrx> subscriber,
-    const shared_ptr<Ice::Connection>& connection)
+    const Ice::ConnectionPtr& connection)
 {
     auto writers = getTopicWriters(topic);
     if (!writers.empty())
@@ -307,7 +307,7 @@ TopicFactoryI::shutdown() const
     }
 }
 
-shared_ptr<Ice::Communicator>
+Ice::CommunicatorPtr
 TopicFactoryI::getCommunicator() const
 {
     return getInstance()->getCommunicator();

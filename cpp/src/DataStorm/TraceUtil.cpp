@@ -8,7 +8,7 @@
 using namespace std;
 using namespace DataStormI;
 
-TraceLevels::TraceLevels(shared_ptr<Ice::Communicator> communicator)
+TraceLevels::TraceLevels(Ice::CommunicatorPtr communicator)
     : topic(0),
       topicCat("Topic"),
       data(0),

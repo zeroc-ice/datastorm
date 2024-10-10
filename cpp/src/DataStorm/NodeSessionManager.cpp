@@ -94,7 +94,7 @@ NodeSessionManager::init()
 shared_ptr<NodeSessionI>
 NodeSessionManager::createOrGet(
     optional<NodePrx> node,
-    const shared_ptr<Ice::Connection>& connection,
+    const Ice::ConnectionPtr& connection,
     bool forwardAnnouncements)
 {
     // TODO node should be non-optional
@@ -137,7 +137,7 @@ void
 NodeSessionManager::announceTopicReader(
     const string& topic,
     optional<NodePrx> node,
-    const shared_ptr<Ice::Connection>& connection) const
+    const Ice::ConnectionPtr& connection) const
 {
     unique_lock<mutex> lock(_mutex);
     if (connection && node->ice_getIdentity() == _nodePrx->ice_getIdentity())
@@ -181,7 +181,7 @@ void
 NodeSessionManager::announceTopicWriter(
     const string& topic,
     optional<NodePrx> node,
-    const shared_ptr<Ice::Connection>& connection) const
+    const Ice::ConnectionPtr& connection) const
 {
     unique_lock<mutex> lock(_mutex);
     if (connection && node->ice_getIdentity() == _nodePrx->ice_getIdentity())
@@ -225,7 +225,7 @@ NodeSessionManager::announceTopics(
     const StringSeq& readers,
     const StringSeq& writers,
     optional<NodePrx> node,
-    const shared_ptr<Ice::Connection>& connection) const
+    const Ice::ConnectionPtr& connection) const
 {
     unique_lock<mutex> lock(_mutex);
     if (connection && node->ice_getIdentity() == _nodePrx->ice_getIdentity())

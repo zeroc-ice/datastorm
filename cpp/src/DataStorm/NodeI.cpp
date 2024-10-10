@@ -263,7 +263,7 @@ NodeI::confirmCreateSession(
 void
 NodeI::createSubscriberSession(
     optional<NodePrx> subscriber,
-    const shared_ptr<Ice::Connection>& connection,
+    const Ice::ConnectionPtr& connection,
     const shared_ptr<PublisherSessionI>& session)
 {
     try
@@ -294,7 +294,7 @@ NodeI::createSubscriberSession(
 void
 NodeI::createPublisherSession(
     optional<NodePrx> publisher,
-    const shared_ptr<Ice::Connection>& con,
+    const Ice::ConnectionPtr& con,
     shared_ptr<SubscriberSessionI> session)
 {
     try
@@ -395,7 +395,7 @@ NodeI::removePublisherSession(
     }
 }
 
-shared_ptr<Ice::Connection>
+Ice::ConnectionPtr
 NodeI::getSessionConnection(const string& id) const
 {
     auto session = getSession(Ice::stringToIdentity(id));
@@ -522,9 +522,9 @@ NodeI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
 }
 
 optional<NodePrx>
-NodeI::getNodeWithExistingConnection(optional<NodePrx> node, const shared_ptr<Ice::Connection>& con)
+NodeI::getNodeWithExistingConnection(optional<NodePrx> node, const Ice::ConnectionPtr& con)
 {
-    shared_ptr<Ice::Connection> connection;
+    Ice::ConnectionPtr connection;
 
     //
     // If the node has a session with this node, use a bi-dir proxy associated

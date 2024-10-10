@@ -20,7 +20,7 @@ namespace DataStormI
         NodeSessionI(
             std::shared_ptr<Instance>,
             std::optional<DataStormContract::NodePrx>,
-            std::shared_ptr<Ice::Connection>,
+            Ice::ConnectionPtr,
             bool);
 
         void init();
@@ -29,7 +29,7 @@ namespace DataStormI
 
         std::optional<DataStormContract::NodePrx> getPublicNode() const { return _publicNode; }
         std::optional<DataStormContract::LookupPrx> getLookup() const { return _lookup; }
-        const std::shared_ptr<Ice::Connection>& getConnection() const { return _connection; }
+        const Ice::ConnectionPtr& getConnection() const { return _connection; }
         template<typename T> std::optional<T> getSessionForwarder(std::optional<T> session) const
         {
             return Ice::uncheckedCast<T>(forwarder(session));
@@ -41,7 +41,7 @@ namespace DataStormI
         const std::shared_ptr<Instance> _instance;
         const std::shared_ptr<TraceLevels> _traceLevels;
         std::optional<DataStormContract::NodePrx> _node;
-        const std::shared_ptr<Ice::Connection> _connection;
+        const Ice::ConnectionPtr _connection;
 
         std::mutex _mutex;
         bool _destroyed;

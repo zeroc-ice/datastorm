@@ -17,9 +17,9 @@
 using namespace std;
 using namespace DataStormI;
 
-Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator), _shutdown(false)
+Instance::Instance(const Ice::CommunicatorPtr& communicator) : _communicator(communicator), _shutdown(false)
 {
-    shared_ptr<Ice::Properties> properties = _communicator->getProperties();
+    Ice::PropertiesPtr properties = _communicator->getProperties();
 
     if (properties->getPropertyAsIntWithDefault("DataStorm.Node.Server.Enabled", 1) > 0)
     {
