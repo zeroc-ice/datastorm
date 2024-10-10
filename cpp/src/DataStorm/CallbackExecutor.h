@@ -1,7 +1,9 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
+
+#ifndef DATASTORM_CALLBACKEXECUTOR_H
+#define DATASTORM_CALLBACKEXECUTOR_H
 
 #include <condition_variable>
 #include <functional>
@@ -33,4 +35,6 @@ namespace DataStormI
         std::vector<std::pair<std::shared_ptr<DataElementI>, std::function<void()>>> _queue;
     };
 
-}
+} // namespace DataStormI
+
+#endif

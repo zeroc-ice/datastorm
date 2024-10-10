@@ -4,7 +4,9 @@
 #ifndef TEST_COMMON_H
 #define TEST_COMMON_H
 
-#include <IceUtil/IceUtil.h>
+#include <Ice/Ice.h>
+
+#include <iostream>
 
 #if defined(ICE_OS_WINRT) || (TARGET_OS_IPHONE)
 #    include <Ice/Initialize.h>
@@ -79,7 +81,7 @@ namespace Test
 #    define main Test::mainEntryPoint
     int mainEntryPoint(int, char**);
 
-}
+} // namespace Test
 
 class TestFailedException : public ::Ice::LocalException
 {

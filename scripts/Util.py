@@ -3160,7 +3160,6 @@ class CppMapping(Mapping):
     def getProps(self, process, current):
         props = Mapping.getProps(self, process, current)
         if isinstance(process, IceProcess):
-            props["Ice.NullHandleAbort"] = True
             props["Ice.PrintStackTraces"] = "1"
         return props
 

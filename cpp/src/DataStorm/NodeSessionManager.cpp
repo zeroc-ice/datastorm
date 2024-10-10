@@ -1,15 +1,16 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/ConnectionManager.h>
-#include <DataStorm/ForwarderManager.h>
-#include <DataStorm/Instance.h>
-#include <DataStorm/NodeI.h>
-#include <DataStorm/NodeSessionI.h>
-#include <DataStorm/NodeSessionManager.h>
-#include <DataStorm/Timer.h>
-#include <DataStorm/TopicFactoryI.h>
-#include <DataStorm/TraceUtil.h>
+
+#include "NodeSessionManager.h"
+#include "ConnectionManager.h"
+#include "ForwarderManager.h"
+#include "Instance.h"
+#include "NodeI.h"
+#include "NodeSessionI.h"
+#include "TimerTaskI.h"
+#include "TopicFactoryI.h"
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
@@ -22,7 +23,7 @@ namespace
     {
     public:
         SessionForwarderI(shared_ptr<NodeSessionManager> nodeSessionManager)
-            : _nodeSessionManager(move(nodeSessionManager))
+            : _nodeSessionManager(std::move(nodeSessionManager))
         {
         }
 
@@ -35,7 +36,12 @@ namespace
                 if (s)
                 {
                     auto id = Ice::Identity{curr.id.name.substr(0, pos), curr.id.category.substr(0, 1)};
-                    s->getConnection()->createProxy(id)->ice_invokeAsync(curr.operation, curr.mode, inEncaps, curr.ctx);
+                    // TODO check the return value?
+                    auto _ = s->getConnection()->createProxy(id)->ice_invokeAsync(
+                        curr.operation,
+                        curr.mode,
+                        inEncaps,
+                        curr.ctx);
                     return true;
                 }
             }
@@ -46,7 +52,7 @@ namespace
         const shared_ptr<NodeSessionManager> _nodeSessionManager;
     };
 
-}
+} // namespace
 
 NodeSessionManager::NodeSessionManager(const shared_ptr<Instance>& instance, const shared_ptr<NodeI>& node)
     : _instance(instance),
@@ -65,7 +71,7 @@ NodeSessionManager::init()
     auto instance = getInstance();
 
     auto forwarder = [self = shared_from_this()](Ice::ByteSeq e, const Ice::Current& c) { self->forward(e, c); };
-    _forwarder = Ice::uncheckedCast<LookupPrx>(instance->getCollocatedForwarder()->add(move(forwarder)));
+    _forwarder = Ice::uncheckedCast<LookupPrx>(instance->getCollocatedForwarder()->add(std::move(forwarder)));
 
     try
     {
@@ -87,10 +93,11 @@ NodeSessionManager::init()
 
 shared_ptr<NodeSessionI>
 NodeSessionManager::createOrGet(
-    const shared_ptr<NodePrx>& node,
+    optional<NodePrx> node,
     const shared_ptr<Ice::Connection>& connection,
     bool forwardAnnouncements)
 {
+    // TODO node should be non-optional
     unique_lock<mutex> lock(_mutex);
 
     auto p = _sessions.find(node->ice_getIdentity());
@@ -119,9 +126,9 @@ NodeSessionManager::createOrGet(
     _sessions.emplace(node->ice_getIdentity(), session);
 
     instance->getConnectionManager()->add(
-        node,
+        make_shared<NodePrx>(*node),
         connection,
-        [=, self = shared_from_this()](auto connection, auto ex) { self->destroySession(node); });
+        [=, self = shared_from_this()](auto _, auto ex) { self->destroySession(std::move(node)); });
 
     return session;
 }
@@ -129,7 +136,7 @@ NodeSessionManager::createOrGet(
 void
 NodeSessionManager::announceTopicReader(
     const string& topic,
-    const shared_ptr<NodePrx>& node,
+    optional<NodePrx> node,
     const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -164,7 +171,8 @@ NodeSessionManager::announceTopicReader(
         auto instance = _instance.lock();
         if (instance && instance->getLookup())
         {
-            instance->getLookup()->announceTopicReaderAsync(topic, nodePrx);
+            // TODO check the return value?
+            auto _ = instance->getLookup()->announceTopicReaderAsync(topic, nodePrx);
         }
     }
 }
@@ -172,7 +180,7 @@ NodeSessionManager::announceTopicReader(
 void
 NodeSessionManager::announceTopicWriter(
     const string& topic,
-    const shared_ptr<NodePrx>& node,
+    optional<NodePrx> node,
     const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -206,7 +214,8 @@ NodeSessionManager::announceTopicWriter(
         auto instance = _instance.lock();
         if (instance && instance->getLookup())
         {
-            instance->getLookup()->announceTopicWriterAsync(topic, nodePrx);
+            // TODO check the return value?
+            auto _ = instance->getLookup()->announceTopicWriterAsync(topic, nodePrx);
         }
     }
 }
@@ -215,7 +224,7 @@ void
 NodeSessionManager::announceTopics(
     const StringSeq& readers,
     const StringSeq& writers,
-    const shared_ptr<NodePrx>& node,
+    optional<NodePrx> node,
     const shared_ptr<Ice::Connection>& connection) const
 {
     unique_lock<mutex> lock(_mutex);
@@ -263,7 +272,8 @@ NodeSessionManager::announceTopics(
         auto instance = _instance.lock();
         if (instance && instance->getLookup())
         {
-            instance->getLookup()->announceTopicsAsync(readers, writers, nodePrx);
+            // TODO check the return value?
+            auto _ = instance->getLookup()->announceTopicsAsync(readers, writers, nodePrx);
         }
     }
 }
@@ -290,7 +300,8 @@ NodeSessionManager::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& cu
             auto l = session.second->getLookup();
             if (l)
             {
-                l->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+                // TODO check the return value?
+                auto _ = l->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
             }
         }
     }
@@ -298,34 +309,36 @@ NodeSessionManager::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& cu
     {
         if (lookup.second.second->ice_getCachedConnection() != _exclude)
         {
-            lookup.second.second->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+            // TODO check the return value?
+            auto _ = lookup.second.second->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
         }
     }
 }
 
 void
-NodeSessionManager::connect(const shared_ptr<LookupPrx>& lookup, const shared_ptr<NodePrx>& proxy)
+NodeSessionManager::connect(optional<LookupPrx> lookup, optional<NodePrx> proxy)
 {
     try
     {
         lookup->createSessionAsync(
             proxy,
-            [=, self = shared_from_this()](auto node) { connected(node, lookup); },
-            [=, self = shared_from_this()](auto ex) { disconnected(nullptr, lookup); });
+            [=, self = shared_from_this()](auto node) { self->connected(node, lookup); },
+            [=, self = shared_from_this()](auto ex) { self->disconnected(nullopt, lookup); });
     }
     catch (const Ice::ObjectAdapterDeactivatedException&)
     {
-        disconnected(nullptr, lookup);
+        disconnected(nullopt, lookup);
     }
     catch (const Ice::CommunicatorDestroyedException&)
     {
-        disconnected(nullptr, lookup);
+        disconnected(nullopt, lookup);
     }
 }
 
 void
-NodeSessionManager::connected(const shared_ptr<NodePrx>& node, const shared_ptr<LookupPrx>& lookup)
+NodeSessionManager::connected(optional<NodePrx> node, optional<LookupPrx> lookup)
 {
+    // TODO lookup and node should be non-optional
     unique_lock<mutex> lock(_mutex);
     auto instance = _instance.lock();
     if (!instance)
@@ -347,9 +360,9 @@ NodeSessionManager::connected(const shared_ptr<NodePrx>& node, const shared_ptr<
     }
 
     instance->getConnectionManager()->add(
-        lookup,
+        make_shared<LookupPrx>(*lookup),
         connection,
-        [=, self = shared_from_this()](auto connection, auto ex) { disconnected(node, lookup); });
+        [=, self = shared_from_this()](auto connection, auto ex) { self->disconnected(node, lookup); });
     auto l = p != _sessions.end() ? lookup->ice_fixed(connection) : lookup;
     _connectedTo.emplace(node->ice_getIdentity(), make_pair(node, l));
 
@@ -359,7 +372,8 @@ NodeSessionManager::connected(const shared_ptr<NodePrx>& node, const shared_ptr<
     {
         try
         {
-            l->announceTopicsAsync(readerNames, writerNames, _nodePrx);
+            // TODO check the return value?
+            auto _ = l->announceTopicsAsync(readerNames, writerNames, _nodePrx);
         }
         catch (const Ice::ObjectAdapterDeactivatedException&)
         {
@@ -371,7 +385,7 @@ NodeSessionManager::connected(const shared_ptr<NodePrx>& node, const shared_ptr<
 }
 
 void
-NodeSessionManager::disconnected(const shared_ptr<NodePrx>& node, const shared_ptr<LookupPrx>& lookup)
+NodeSessionManager::disconnected(optional<NodePrx> node, optional<LookupPrx> lookup)
 {
     unique_lock<mutex> lock(_mutex);
     auto instance = _instance.lock();
@@ -380,7 +394,7 @@ NodeSessionManager::disconnected(const shared_ptr<NodePrx>& node, const shared_p
         return;
     }
 
-    if (node != nullptr)
+    if (node != nullopt)
     {
         _retryCount = 0;
         if (_traceLevels->session > 0)
@@ -395,20 +409,21 @@ NodeSessionManager::disconnected(const shared_ptr<NodePrx>& node, const shared_p
     else
     {
         instance->getTimer()->schedule(
-            instance->getRetryDelay(_retryCount++),
-            [=, self = shared_from_this()]
-            {
-                auto instance = _instance.lock();
-                if (instance)
+            make_shared<TimerTaskI>(
+                [=, this, self = shared_from_this()]
                 {
-                    connect(lookup, _nodePrx);
-                }
-            });
+                    auto instance = _instance.lock();
+                    if (instance)
+                    {
+                        self->connect(lookup, _nodePrx);
+                    }
+                }),
+            instance->getRetryDelay(_retryCount++));
     }
 }
 
 void
-NodeSessionManager::destroySession(const shared_ptr<NodePrx>& node)
+NodeSessionManager::destroySession(optional<NodePrx> node)
 {
     unique_lock<mutex> lock(_mutex);
     auto p = _sessions.find(node->ice_getIdentity());

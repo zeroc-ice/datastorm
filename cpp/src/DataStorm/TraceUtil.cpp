@@ -1,9 +1,9 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/TraceUtil.h>
 
-#include <Ice/Ice.h>
+#include "TraceUtil.h"
+#include "Ice/Ice.h"
 
 using namespace std;
 using namespace DataStormI;

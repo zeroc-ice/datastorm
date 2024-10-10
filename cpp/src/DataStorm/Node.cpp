@@ -1,12 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <Ice/Initialize.h>
 
-#include <DataStorm/Instance.h>
-#include <DataStorm/Node.h>
-#include <DataStorm/NodeI.h>
-#include <DataStorm/TopicFactoryI.h>
+#include "DataStorm/Node.h"
+#include "Ice/Initialize.h"
+#include "Instance.h"
+#include "NodeI.h"
+#include "TopicFactoryI.h"
 
 using namespace std;
 using namespace DataStorm;
@@ -40,9 +40,9 @@ Node::init(const std::shared_ptr<Ice::Communicator>& communicator)
 
 Node::Node(Node&& node) noexcept
 {
-    _instance = move(node._instance);
-    _factory = move(node._factory);
-    _ownsCommunicator = move(node._ownsCommunicator);
+    _instance = std::move(node._instance);
+    _factory = std::move(node._factory);
+    _ownsCommunicator = node._ownsCommunicator;
 }
 
 Node::~Node()
@@ -74,9 +74,9 @@ Node::waitForShutdown() const noexcept
 Node&
 Node::operator=(Node&& node) noexcept
 {
-    _instance = move(node._instance);
-    _factory = move(node._factory);
-    _ownsCommunicator = move(node._ownsCommunicator);
+    _instance = std::move(node._instance);
+    _factory = std::move(node._factory);
+    _ownsCommunicator = node._ownsCommunicator;
     return *this;
 }
 

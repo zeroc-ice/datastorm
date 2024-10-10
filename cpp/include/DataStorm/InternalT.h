@@ -30,7 +30,7 @@ namespace DataStormI
 
         template<typename TT, typename SS>
         static auto testD(int)
-            -> decltype(TT::decode(std::declval<std::shared_ptr<Ice::Communicator>&>(), std::vector<unsigned char>()), std::true_type());
+            -> decltype(TT::decode(std::declval<std::shared_ptr<Ice::Communicator>&>(), std::vector<std::byte>()), std::true_type());
 
         template<typename, typename> static auto testD(...) -> std::false_type;
 
@@ -41,7 +41,7 @@ namespace DataStormI
 
     template<typename T, typename Enabler = void> struct EncoderT
     {
-        static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&, const T& value)
+        static std::vector<std::byte> encode(const std::shared_ptr<Ice::Communicator>&, const T& value)
         {
             return DataStorm::Encoder<T>::encode(value);
         }
@@ -49,7 +49,7 @@ namespace DataStormI
 
     template<typename T, typename Enabler = void> struct DecoderT
     {
-        static T decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>& data)
+        static T decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<std::byte>& data)
         {
             return DataStorm::Decoder<T>::decode(data);
         }
@@ -57,7 +57,7 @@ namespace DataStormI
 
     template<typename T> struct EncoderT<T, typename std::enable_if<has_communicator_parameter<T>::value>::type>
     {
-        static std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
+        static std::vector<std::byte> encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value)
         {
             return DataStorm::Encoder<T>::encode(communicator, value);
         }
@@ -65,7 +65,7 @@ namespace DataStormI
 
     template<typename T> struct DecoderT<T, typename std::enable_if<has_communicator_parameter<T>::value>::type>
     {
-        static T decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data)
+        static T decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<std::byte>& data)
         {
             return DataStorm::Decoder<T>::decode(communicator, data);
         }
@@ -105,7 +105,7 @@ namespace DataStormI
     template<typename T> class AbstractElementT : virtual public Element
     {
     public:
-        template<typename TT> AbstractElementT(TT&& v, long long int id) : _value(std::forward<TT>(v)), _id(id) {}
+        template<typename TT> AbstractElementT(TT&& v, std::int64_t id) : _value(std::forward<TT>(v)), _id(id) {}
 
         virtual std::string toString() const override
         {
@@ -114,18 +114,18 @@ namespace DataStormI
             return os.str();
         }
 
-        virtual std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>& communicator) const override
+        virtual std::vector<std::byte> encode(const std::shared_ptr<Ice::Communicator>& communicator) const override
         {
             return EncoderT<T>::encode(communicator, _value);
         }
 
-        virtual long long int getId() const override { return _id; }
+        virtual std::int64_t getId() const override { return _id; }
 
         const T& get() const { return _value; }
 
     protected:
         const T _value;
-        const long long int _id;
+        const std::int64_t _id;
     };
 
     template<typename K, typename V>
@@ -234,8 +234,8 @@ namespace DataStormI
 
         mutable std::mutex _mutex;
         std::map<K, std::weak_ptr<V>> _elements;
-        std::map<long long int, std::weak_ptr<V>> _elementsById;
-        long long int _nextId;
+        std::map<std::int64_t, std::weak_ptr<V>> _elementsById;
+        std::int64_t _nextId;
     };
 
     template<typename K> class KeyT : public Key, public AbstractElementT<K>
@@ -252,13 +252,13 @@ namespace DataStormI
     public:
         using AbstractFactoryT<K, KeyT<K>>::AbstractFactoryT;
 
-        virtual std::shared_ptr<Key> get(long long int id) const override
+        virtual std::shared_ptr<Key> get(std::int64_t id) const override
         {
             return AbstractFactoryT<K, KeyT<K>>::getImpl(id);
         }
 
         virtual std::shared_ptr<Key>
-        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
+        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<std::byte>& data) override
         {
             return AbstractFactoryT<K, KeyT<K>>::create(DecoderT<K>::decode(communicator, data));
         }
@@ -285,13 +285,13 @@ namespace DataStormI
     public:
         using AbstractFactoryT<T, TagT<T>>::AbstractFactoryT;
 
-        virtual std::shared_ptr<Tag> get(long long int id) const override
+        virtual std::shared_ptr<Tag> get(std::int64_t id) const override
         {
             return AbstractFactoryT<T, TagT<T>>::getImpl(id);
         }
 
         virtual std::shared_ptr<Tag>
-        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
+        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<std::byte>& data) override
         {
             return AbstractFactoryT<T, TagT<T>>::create(DecoderT<T>::decode(communicator, data));
         }
@@ -311,12 +311,12 @@ namespace DataStormI
         SampleT(
             const std::string& session,
             const std::string& origin,
-            long long int id,
+            std::int64_t id,
             DataStorm::SampleEvent event,
             const std::shared_ptr<DataStormI::Key>& key,
             const std::shared_ptr<DataStormI::Tag>& tag,
-            std::vector<unsigned char> value,
-            long long int timestamp)
+            std::vector<std::byte> value,
+            std::int64_t timestamp)
             : Sample(session, origin, id, event, key, tag, value, timestamp),
               _hasValue(false)
         {
@@ -326,7 +326,7 @@ namespace DataStormI
 
         SampleT(DataStorm::SampleEvent event, Value value) : Sample(event), _hasValue(true), _value(std::move(value)) {}
 
-        SampleT(std::vector<unsigned char> value, const std::shared_ptr<Tag>& tag)
+        SampleT(std::vector<std::byte> value, const std::shared_ptr<Tag>& tag)
             : Sample(DataStorm::SampleEvent::PartialUpdate, tag),
               _hasValue(false)
         {
@@ -371,8 +371,7 @@ namespace DataStormI
             _hasValue = true;
         }
 
-        virtual const std::vector<unsigned char>&
-        encode(const std::shared_ptr<Ice::Communicator>& communicator) override
+        virtual const std::vector<std::byte>& encode(const std::shared_ptr<Ice::Communicator>& communicator) override
         {
             if (_encodedValue.empty())
             {
@@ -381,7 +380,7 @@ namespace DataStormI
             return _encodedValue;
         }
 
-        virtual std::vector<unsigned char> encodeValue(const std::shared_ptr<Ice::Communicator>& communicator) override
+        virtual std::vector<std::byte> encodeValue(const std::shared_ptr<Ice::Communicator>& communicator) override
         {
             assert(_hasValue || event == DataStorm::SampleEvent::Remove);
             return EncoderT<Value>::encode(communicator, _value);
@@ -408,12 +407,12 @@ namespace DataStormI
         virtual std::shared_ptr<Sample> create(
             const std::string& session,
             const std::string& origin,
-            long long int id,
+            std::int64_t id,
             DataStorm::SampleEvent type,
             const std::shared_ptr<DataStormI::Key>& key,
             const std::shared_ptr<DataStormI::Tag>& tag,
-            std::vector<unsigned char> value,
-            long long int timestamp)
+            std::vector<std::byte> value,
+            std::int64_t timestamp)
         {
             return std::make_shared<
                 SampleT<Key, Value, UpdateTag>>(session, origin, id, type, key, tag, std::move(value), timestamp);
@@ -424,7 +423,7 @@ namespace DataStormI
     {
     public:
         template<typename CC>
-        FilterT(CC&& criteria, long long int id) : AbstractElementT<C>::AbstractElementT(std::forward<CC>(criteria), id)
+        FilterT(CC&& criteria, std::int64_t id) : AbstractElementT<C>::AbstractElementT(std::forward<CC>(criteria), id)
         {
         }
 
@@ -456,13 +455,13 @@ namespace DataStormI
     public:
         FilterFactoryT() {}
 
-        virtual std::shared_ptr<Filter> get(long long int id) const override
+        virtual std::shared_ptr<Filter> get(std::int64_t id) const override
         {
             return AbstractFactoryT<C, FilterT<C, V>>::getImpl(id);
         }
 
         virtual std::shared_ptr<Filter>
-        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) override
+        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<std::byte>& data) override
         {
             return AbstractFactoryT<C, FilterT<C, V>>::create(DecoderT<C>::decode(communicator, data));
         }
@@ -483,10 +482,10 @@ namespace DataStormI
         {
             virtual ~Factory() = default;
 
-            virtual std::shared_ptr<Filter> get(long long int) const = 0;
+            virtual std::shared_ptr<Filter> get(std::int64_t) const = 0;
 
             virtual std::shared_ptr<Filter>
-            decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+            decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<std::byte>&) = 0;
         };
 
         template<typename Criteria> struct FactoryT : Factory
@@ -504,10 +503,10 @@ namespace DataStormI
                 return filter;
             }
 
-            virtual std::shared_ptr<Filter> get(long long int id) const { return filterFactory.get(id); }
+            virtual std::shared_ptr<Filter> get(std::int64_t id) const { return filterFactory.get(id); }
 
             virtual std::shared_ptr<Filter>
-            decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data)
+            decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<std::byte>& data)
             {
                 return create(DecoderT<Criteria>::decode(communicator, data));
             }
@@ -540,7 +539,7 @@ namespace DataStormI
         virtual std::shared_ptr<Filter> decode(
             const std::shared_ptr<Ice::Communicator>& communicator,
             const std::string& name,
-            const std::vector<unsigned char>& data) override
+            const std::vector<std::byte>& data) override
         {
             auto p = _factories.find(name);
             if (p == _factories.end())
@@ -551,7 +550,7 @@ namespace DataStormI
             return p->second->decode(communicator, data);
         }
 
-        virtual std::shared_ptr<Filter> get(const std::string& name, long long int id) const override
+        virtual std::shared_ptr<Filter> get(const std::string& name, std::int64_t id) const override
         {
             auto p = _factories.find(name);
             if (p == _factories.end())
@@ -581,4 +580,4 @@ namespace DataStormI
         std::map<std::string, std::unique_ptr<Factory>> _factories;
     };
 
-}
+} // namespace DataStormI

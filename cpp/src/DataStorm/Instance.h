@@ -1,12 +1,13 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Config.h>
-#include <DataStorm/Contract.h>
+#ifndef DATASTORM_INSTANCE_H
+#define DATASTORM_INSTANCE_H
 
-#include <Ice/Ice.h>
+#include "DataStorm/Config.h"
+#include "DataStorm/Contract.h"
+#include "Ice/Ice.h"
 
 #include <cmath>
 #include <mutex>
@@ -28,7 +29,6 @@ namespace DataStormI
     class ForwarderManager;
     class NodeI;
     class CallbackExecutor;
-    class Timer;
 
     class Instance : public std::enable_shared_from_this<Instance>
     {
@@ -67,7 +67,7 @@ namespace DataStormI
             return _collocatedForwarder;
         }
 
-        std::shared_ptr<DataStormContract::LookupPrx> getLookup() const { return _lookup; }
+        std::optional<DataStormContract::LookupPrx> getLookup() const { return _lookup; }
 
         std::shared_ptr<TopicFactoryI> getTopicFactory() const
         {
@@ -93,7 +93,7 @@ namespace DataStormI
             return _executor;
         }
 
-        std::shared_ptr<Timer> getTimer() const
+        std::shared_ptr<Ice::Timer> getTimer() const
         {
             assert(_timer);
             return _timer;
@@ -123,10 +123,10 @@ namespace DataStormI
         std::shared_ptr<Ice::ObjectAdapter> _adapter;
         std::shared_ptr<Ice::ObjectAdapter> _collocatedAdapter;
         std::shared_ptr<Ice::ObjectAdapter> _multicastAdapter;
-        std::shared_ptr<DataStormContract::LookupPrx> _lookup;
+        std::optional<DataStormContract::LookupPrx> _lookup;
         std::shared_ptr<TraceLevels> _traceLevels;
         std::shared_ptr<CallbackExecutor> _executor;
-        std::shared_ptr<Timer> _timer;
+        std::shared_ptr<Ice::Timer> _timer;
         std::chrono::milliseconds _retryDelay;
         int _retryMultiplier;
         int _retryCount;
@@ -136,4 +136,5 @@ namespace DataStormI
         bool _shutdown;
     };
 
-}
+} // namespace DataStormI
+#endif

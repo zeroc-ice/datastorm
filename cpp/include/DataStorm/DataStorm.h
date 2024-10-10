@@ -1,18 +1,16 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Config.h>
+#ifndef DATASTORM_DATASTORM_H
+#define DATASTORM_DATASTORM_H
 
-#include <Ice/Ice.h>
-
-#include <DataStorm/CtrlCHandler.h>
-#include <DataStorm/InternalI.h>
-#include <DataStorm/InternalT.h>
-#include <DataStorm/Node.h>
-#include <DataStorm/Sample.h>
-#include <DataStorm/Types.h>
+#include "DataStorm/Config.h"
+#include "DataStorm/InternalI.h"
+#include "DataStorm/InternalT.h"
+#include "DataStorm/Node.h"
+#include "DataStorm/Sample.h"
+#include "DataStorm/Types.h"
 
 #include <regex>
 
@@ -1399,7 +1397,7 @@ namespace DataStorm
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        init(move(keys));
+        init(std::move(keys));
     } : std::function<void(std::vector<std::shared_ptr<DataStormI::Key>>)>(),
     update ? [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
     {
@@ -1429,7 +1427,7 @@ namespace DataStorm
         {
             samples.emplace_back(s);
         }
-        init(move(samples));
+        init(std::move(samples));
     } : std::function<void(const std::vector<std::shared_ptr<DataStormI::Sample>>&)>(),
     update ? [communicator, update](const std::shared_ptr<DataStormI::Sample>& sampleI)
     {
@@ -1666,7 +1664,7 @@ namespace DataStorm
         {
             keys.push_back(std::static_pointer_cast<DataStormI::KeyT<Key>>(k)->get());
         }
-        init(move(keys));
+        init(std::move(keys));
     } : std::function<void(std::vector<std::shared_ptr<DataStormI::Key>>)>(),
     update ? [update](CallbackReason action, std::shared_ptr<DataStormI::Key> key)
     {
@@ -2085,7 +2083,7 @@ namespace DataStorm
                 _name,
                 _keyFactory,
                 _tagFactory,
-                sampleFactory,
+                std::move(sampleFactory),
                 _keyFilterFactories,
                 _sampleFilterFactories);
             _reader->setUpdaters(_writer ? _writer->getUpdaters() : _updaters);
@@ -2120,3 +2118,4 @@ namespace DataStorm
     }
 
 }
+#endif

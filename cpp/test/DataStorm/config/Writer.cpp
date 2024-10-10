@@ -314,7 +314,7 @@ main(int argc, char* argv[])
             Ice::CommunicatorHolder holder(initData);
             Node node(holder.communicator());
             Topic<string, int> topic(node, "sendTimeTopic");
-            w.emplace_back(move(holder), move(node), move(topic), makeSingleKeyWriter(topic, "elem"));
+            w.emplace_back(std::move(holder), std::move(node), std::move(topic), makeSingleKeyWriter(topic, "elem"));
         }
         for (int i = 0; i < writerCount; ++i)
         {

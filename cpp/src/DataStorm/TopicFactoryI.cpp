@@ -1,12 +1,13 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/Instance.h>
-#include <DataStorm/NodeI.h>
-#include <DataStorm/NodeSessionManager.h>
-#include <DataStorm/TopicFactoryI.h>
-#include <DataStorm/TopicI.h>
-#include <DataStorm/TraceUtil.h>
+
+#include "TopicFactoryI.h"
+#include "Instance.h"
+#include "NodeI.h"
+#include "NodeSessionManager.h"
+#include "TopicI.h"
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
@@ -197,7 +198,7 @@ TopicFactoryI::getTopicWriters(const string& name) const
 void
 TopicFactoryI::createPublisherSession(
     const string& topic,
-    const shared_ptr<DataStormContract::NodePrx>& publisher,
+    optional<DataStormContract::NodePrx> publisher,
     const shared_ptr<Ice::Connection>& connection)
 {
     auto readers = getTopicReaders(topic);
@@ -210,7 +211,7 @@ TopicFactoryI::createPublisherSession(
 void
 TopicFactoryI::createSubscriberSession(
     const string& topic,
-    const shared_ptr<DataStormContract::NodePrx>& subscriber,
+    optional<DataStormContract::NodePrx> subscriber,
     const shared_ptr<Ice::Connection>& connection)
 {
     auto writers = getTopicWriters(topic);
@@ -235,7 +236,7 @@ TopicFactoryI::getTopicReaders() const
         {
             info.ids.push_back(q->getId());
         }
-        readers.push_back(move(info));
+        readers.push_back(std::move(info));
     }
     return readers;
 }
@@ -255,7 +256,7 @@ TopicFactoryI::getTopicWriters() const
         {
             info.ids.push_back(q->getId());
         }
-        writers.push_back(move(info));
+        writers.push_back(std::move(info));
     }
     return writers;
 }

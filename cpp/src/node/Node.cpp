@@ -3,6 +3,8 @@
 //
 #include <DataStorm/DataStorm.h>
 
+#include <iostream>
+
 using namespace std;
 
 void
@@ -27,7 +29,8 @@ main(int argc, char* argv[])
             string arg = argv[i];
             if (arg == "-v" || arg == "--version")
             {
-                cout << DATASTORM_STRING_VERSION << endl;
+                // TODO use ICE_VERSION
+                cout << "x.x.x" << endl;
                 return 0;
             }
             else if (arg == "-h" || arg == "--help")
@@ -38,9 +41,10 @@ main(int argc, char* argv[])
         }
 
         //
-        // CtrlCHandler::maskSignals() must be called before the node is created or any other threads are started.
+        // CtrlCHandler must be created before the node is created or any other
+        // threads are started.
         //
-        DataStorm::CtrlCHandler::maskSignals();
+        Ice::CtrlCHandler ctrlCHandler;
 
         //
         // Instantiates node.
@@ -56,7 +60,7 @@ main(int argc, char* argv[])
         //
         // Shutdown the node on Ctrl-C.
         //
-        DataStorm::CtrlCHandler ctrlCHandler([&node](int) { node.shutdown(); });
+        ctrlCHandler.setCallback([&node](int) { node.shutdown(); });
 
         //
         // Exit once the user hits Ctrl-C to shutdown the node.

@@ -100,7 +100,7 @@ endif
 #
 # Support for Ice libraries
 #
-$(eval $(call create-project-dependencies,ice,$(ICE_HOME),cpp,cpp,Ice++11))
+$(eval $(call create-project-dependencies,ice,$(ICE_HOME),cpp,cpp,Ice))
 
 ifeq ($(filter all cpp,$(DATASTORM_BIN_DIST)),)
 datastorm_cpp_cppflags := -I$(top_srcdir)/cpp/include -I$(top_srcdir)/cpp/include/generated

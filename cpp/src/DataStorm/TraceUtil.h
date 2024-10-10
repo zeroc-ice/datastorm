@@ -1,16 +1,17 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/DataElementI.h>
-#include <DataStorm/InternalI.h>
-#include <DataStorm/SessionI.h>
-#include <DataStorm/TopicI.h>
+#ifndef DATASTORM_TRACEUTIL_H
+#define DATASTORM_TRACEUTIL_H
 
-#include <Ice/CommunicatorF.h>
-#include <Ice/LoggerF.h>
-#include <Ice/LoggerUtil.h>
+#include "DataElementI.h"
+#include "DataStorm/InternalI.h"
+#include "Ice/CommunicatorF.h"
+#include "Ice/Logger.h"
+#include "Ice/LoggerUtil.h"
+#include "SessionI.h"
+#include "TopicI.h"
 
 namespace std
 {
@@ -47,7 +48,7 @@ namespace std
         return os;
     }
 
-}
+} // namespace std
 
 namespace Ice
 {
@@ -57,12 +58,12 @@ namespace Ice
         return os << (id.category.empty() ? "" : id.category + "/") << id.name;
     }
 
-}
+} // namespace Ice
 
 namespace DataStormContract
 {
 
-    inline std::string valueIdToString(long long int valueId)
+    inline std::string valueIdToString(std::int64_t valueId)
     {
         std::ostringstream os;
         if (valueId < 0)
@@ -147,7 +148,7 @@ namespace DataStormContract
         return os;
     }
 
-}
+} // namespace DataStormContract
 
 namespace DataStormI
 {
@@ -252,4 +253,5 @@ namespace DataStormI
         Warning(std::shared_ptr<TraceLevels> traceLevels) : Ice::Warning(traceLevels->logger) {}
     };
 
-}
+} // namespace DataStormI
+#endif

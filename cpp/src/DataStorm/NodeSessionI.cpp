@@ -1,11 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/ConnectionManager.h>
-#include <DataStorm/Instance.h>
-#include <DataStorm/NodeSessionI.h>
-#include <DataStorm/NodeSessionManager.h>
-#include <DataStorm/TraceUtil.h>
+
+#include "NodeSessionI.h"
+#include "ConnectionManager.h"
+#include "Instance.h"
+#include "NodeSessionManager.h"
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
@@ -20,16 +21,16 @@ namespace
         NodeForwarderI(
             shared_ptr<NodeSessionManager> nodeSessionManager,
             shared_ptr<NodeSessionI> session,
-            shared_ptr<NodePrx> node)
-            : _nodeSessionManager(move(nodeSessionManager)),
-              _session(move(session)),
-              _node(move(node))
+            optional<NodePrx> node)
+            : _nodeSessionManager(std::move(nodeSessionManager)),
+              _session(std::move(session)),
+              _node(std::move(node))
         {
         }
 
-        virtual void initiateCreateSession(shared_ptr<NodePrx> publisher, const Ice::Current& current) override
+        virtual void initiateCreateSession(optional<NodePrx> publisher, const Ice::Current& current) override
         {
-            if (publisher == nullptr)
+            if (publisher == nullopt)
             {
                 return;
             }
@@ -42,9 +43,10 @@ namespace
 
             try
             {
-                shared_ptr<SessionPrx> session;
+                optional<SessionPrx> session;
                 updateNodeAndSessionProxy(publisher, session, current);
-                _node->initiateCreateSessionAsync(publisher);
+                // TODO check the return value?
+                auto _ = _node->initiateCreateSessionAsync(publisher);
             }
             catch (const Ice::ObjectAdapterDeactivatedException&)
             {
@@ -55,12 +57,12 @@ namespace
         }
 
         virtual void createSession(
-            shared_ptr<NodePrx> subscriber,
-            shared_ptr<SubscriberSessionPrx> subscriberSession,
+            optional<NodePrx> subscriber,
+            optional<SubscriberSessionPrx> subscriberSession,
             bool /* fromRelay */,
             const Ice::Current& current) override
         {
-            if (subscriber == nullptr || subscriberSession == nullptr)
+            if (subscriber == nullopt || subscriberSession == nullopt)
             {
                 return;
             }
@@ -75,7 +77,8 @@ namespace
             {
                 updateNodeAndSessionProxy(subscriber, subscriberSession, current);
                 session->addSession(subscriberSession);
-                _node->createSessionAsync(subscriber, subscriberSession, true);
+                // TODO check the return value?
+                auto _ = _node->createSessionAsync(subscriber, subscriberSession, true);
             }
             catch (const Ice::ObjectAdapterDeactivatedException&)
             {
@@ -86,11 +89,11 @@ namespace
         }
 
         virtual void confirmCreateSession(
-            shared_ptr<NodePrx> publisher,
-            shared_ptr<PublisherSessionPrx> publisherSession,
+            optional<NodePrx> publisher,
+            optional<PublisherSessionPrx> publisherSession,
             const Ice::Current& current) override
         {
-            if (publisher == nullptr || publisherSession == nullptr)
+            if (publisher == nullopt || publisherSession == nullopt)
             {
                 return;
             }
@@ -104,7 +107,8 @@ namespace
             {
                 updateNodeAndSessionProxy(publisher, publisherSession, current);
                 session->addSession(publisherSession);
-                _node->confirmCreateSessionAsync(publisher, publisherSession);
+                // TODO check the return value?
+                auto _ = _node->confirmCreateSessionAsync(publisher, publisherSession);
             }
             catch (const Ice::ObjectAdapterDeactivatedException&)
             {
@@ -116,9 +120,9 @@ namespace
 
     private:
         template<typename T>
-        void updateNodeAndSessionProxy(shared_ptr<NodePrx>& node, shared_ptr<T>& session, const Ice::Current& current)
+        void updateNodeAndSessionProxy(optional<NodePrx> node, optional<T>& session, const Ice::Current& current)
         {
-            assert(node != nullptr);
+            assert(node != nullopt);
             if (node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
             {
                 auto peerSession = _nodeSessionManager->createOrGet(node, current.con, false);
@@ -133,20 +137,20 @@ namespace
 
         const shared_ptr<NodeSessionManager> _nodeSessionManager;
         const weak_ptr<NodeSessionI> _session;
-        const shared_ptr<NodePrx> _node;
+        const optional<NodePrx> _node;
     };
 
-}
+} // namespace
 
 NodeSessionI::NodeSessionI(
     shared_ptr<Instance> instance,
-    shared_ptr<NodePrx> node,
+    optional<NodePrx> node,
     shared_ptr<Ice::Connection> connection,
     bool forwardAnnouncements)
-    : _instance(move(instance)),
+    : _instance(std::move(instance)),
       _traceLevels(_instance->getTraceLevels()),
-      _node(move(node)),
-      _connection(move(connection))
+      _node(std::move(node)),
+      _connection(std::move(connection))
 {
     if (forwardAnnouncements)
     {
@@ -190,7 +194,8 @@ NodeSessionI::destroy()
 
         for (const auto& session : _sessions)
         {
-            session.second->disconnectedAsync();
+            // TODO check the return value?
+            auto _ = session.second->disconnectedAsync();
         }
     }
     catch (const Ice::ObjectAdapterDeactivatedException&)
@@ -208,14 +213,14 @@ NodeSessionI::destroy()
 }
 
 void
-NodeSessionI::addSession(shared_ptr<SessionPrx> session)
+NodeSessionI::addSession(optional<SessionPrx> session)
 {
     lock_guard<mutex> lock(_mutex);
-    _sessions[session->ice_getIdentity()] = move(session);
+    _sessions[session->ice_getIdentity()] = std::move(session);
 }
 
-shared_ptr<SessionPrx>
-NodeSessionI::forwarder(const std::shared_ptr<SessionPrx>& session) const
+optional<SessionPrx>
+NodeSessionI::forwarder(optional<SessionPrx> session) const
 {
     auto id = session->ice_getIdentity();
     auto proxy =

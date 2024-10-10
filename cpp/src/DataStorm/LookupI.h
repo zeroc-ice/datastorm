@@ -1,9 +1,11 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Contract.h>
+#ifndef DATASTORM_LOOKUPI_H
+#define DATASTORM_LOOKUPI_H
+
+#include "DataStorm/Contract.h"
 
 namespace DataStormI
 {
@@ -17,27 +19,28 @@ namespace DataStormI
         LookupI(
             std::shared_ptr<NodeSessionManager>,
             std::shared_ptr<TopicFactoryI>,
-            std::shared_ptr<DataStormContract::NodePrx>);
+            std::optional<DataStormContract::NodePrx>);
 
         virtual void
-        announceTopicReader(std::string, std::shared_ptr<DataStormContract::NodePrx>, const Ice::Current&) override;
+        announceTopicReader(std::string, std::optional<DataStormContract::NodePrx>, const Ice::Current&) override;
 
         virtual void
-        announceTopicWriter(std::string, std::shared_ptr<DataStormContract::NodePrx>, const Ice::Current&) override;
+        announceTopicWriter(std::string, std::optional<DataStormContract::NodePrx>, const Ice::Current&) override;
 
         virtual void announceTopics(
             DataStormContract::StringSeq,
             DataStormContract::StringSeq,
-            std::shared_ptr<DataStormContract::NodePrx>,
+            std::optional<DataStormContract::NodePrx>,
             const Ice::Current&) override;
 
-        virtual std::shared_ptr<DataStormContract::NodePrx>
-        createSession(std::shared_ptr<DataStormContract::NodePrx>, const Ice::Current&) override;
+        virtual std::optional<DataStormContract::NodePrx>
+        createSession(std::optional<DataStormContract::NodePrx>, const Ice::Current&) override;
 
     private:
         std::shared_ptr<NodeSessionManager> _nodeSessionManager;
         std::shared_ptr<TopicFactoryI> _topicFactory;
-        std::shared_ptr<DataStormContract::NodePrx> _nodePrx;
+        std::optional<DataStormContract::NodePrx> _nodePrx;
     };
 
-}
+} // namespace DataStormI
+#endif

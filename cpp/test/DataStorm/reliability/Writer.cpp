@@ -30,7 +30,7 @@ main(int argc, char* argv[])
         writer.waitForReaders();
         auto connection = node.getSessionConnection(sample.getSession());
         test(connection);
-        connection->close(Ice::ConnectionClose::Gracefully);
+        connection->close().get();
         writer.update("update2");
         barrier.getNextUnread();
         writer.update("update3");
