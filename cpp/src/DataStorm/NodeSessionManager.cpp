@@ -91,6 +91,13 @@ NodeSessionManager::init()
     }
 }
 
+void
+NodeSessionManager::destroy()
+{
+    unique_lock<mutex> lock(_mutex);
+    _instance.reset();
+}
+
 shared_ptr<NodeSessionI>
 NodeSessionManager::createOrGet(
     optional<NodePrx> node,

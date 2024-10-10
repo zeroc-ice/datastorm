@@ -25,6 +25,7 @@ namespace DataStormI
         NodeSessionManager(const std::shared_ptr<Instance>&, const std::shared_ptr<NodeI>&);
 
         void init();
+        void destroy();
 
         std::shared_ptr<NodeSessionI>
         createOrGet(std::optional<DataStormContract::NodePrx>, const Ice::ConnectionPtr&, bool);
@@ -69,7 +70,7 @@ namespace DataStormI
             return instance;
         }
 
-        const std::weak_ptr<Instance> _instance;
+        std::weak_ptr<Instance> _instance;
         const std::shared_ptr<TraceLevels> _traceLevels;
         const std::optional<DataStormContract::NodePrx> _nodePrx;
         const bool _forwardToMulticast;

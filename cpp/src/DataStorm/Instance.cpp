@@ -60,6 +60,7 @@ Instance::Instance(const Ice::CommunicatorPtr& communicator) : _communicator(com
         properties->setProperty("DataStorm.Node.Adapters.Multicast.Endpoints", "udp -h 239.255.0.1 -p 10000");
         properties->setProperty("DataStorm.Node.Adapters.Multicast.ProxyOptions", "-d");
         properties->setProperty("DataStorm.Node.Adapters.Multicast.ThreadPool.SizeMax", "1");
+        properties->setProperty("DataStorm.Node.Adapters.Multicast.MaxDispatches", "1");
 
         const string pfx = "DataStorm.Node.Multicast";
         auto props = properties->getPropertiesForPrefix(pfx);
@@ -171,8 +172,6 @@ Instance::waitForShutdown() const
 void
 Instance::destroy(bool ownsCommunicator)
 {
-    _timer->destroy();
-
     if (ownsCommunicator)
     {
         _communicator->destroy();
@@ -191,4 +190,7 @@ Instance::destroy(bool ownsCommunicator)
     _executor->destroy();
     _connectionManager->destroy();
     _collocatedForwarder->destroy();
+    // Destroy the session manager before the timer to avoid scheduling new tasks after the timer has been destroyed.
+    _nodeSessionManager->destroy();
+    _timer->destroy();
 }
