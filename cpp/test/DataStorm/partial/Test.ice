@@ -4,7 +4,7 @@
 module Test
 {
 
-class Stock
+struct Stock
 {
     float price;
     float lastBid;

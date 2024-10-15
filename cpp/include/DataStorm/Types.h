@@ -1,12 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Config.h>
+#ifndef DATASTORM_TYPES_H
+#define DATASTORM_TYPES_H
 
-#include <Ice/Communicator.h>
-#include <Ice/Optional.h>
+#include "Config.h"
+#include "Ice/Ice.h"
 
 namespace DataStorm
 {
@@ -73,9 +73,9 @@ namespace DataStorm
          * @param clearHistory The optional clear history policy.
          */
         Config(
-            Ice::optional<int> sampleCount = Ice::nullopt,
-            Ice::optional<int> sampleLifetime = Ice::nullopt,
-            Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt) noexcept
+            std::optional<int> sampleCount = std::nullopt,
+            std::optional<int> sampleLifetime = std::nullopt,
+            std::optional<ClearHistoryPolicy> clearHistory = std::nullopt) noexcept
             : sampleCount(std::move(sampleCount)),
               sampleLifetime(std::move(sampleLifetime)),
               clearHistory(std::move(clearHistory))
@@ -86,20 +86,20 @@ namespace DataStorm
          * The sampleCount configuration specifies how many samples are kept by the reader or writer in its sample
          * history. By default, the sample count is unlimited.
          */
-        Ice::optional<int> sampleCount;
+        std::optional<int> sampleCount;
 
         /**
          * The sampleLifetime configuration specifies samples to keep in the writer or reader history based on
          * their age. Samples with a timestamp older than the sampleLifetime value (in milliseconds) are discarded
          * from the history. By default, the samples are kept for an unlimited amount of time.
          */
-        Ice::optional<int> sampleLifetime;
+        std::optional<int> sampleLifetime;
 
         /**
          * The clear history policy specifies when samples are removed from the sample history. By default,
          * samples are removed when a new sample is is received which effectively disables the sample history.
          */
-        Ice::optional<ClearHistoryPolicy> clearHistory;
+        std::optional<ClearHistoryPolicy> clearHistory;
     };
 
     /**
@@ -123,10 +123,10 @@ namespace DataStorm
          * @param discardPolicy The discard policy.
          */
         ReaderConfig(
-            Ice::optional<int> sampleCount = Ice::nullopt,
-            Ice::optional<int> sampleLifetime = Ice::nullopt,
-            Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt,
-            Ice::optional<DiscardPolicy> discardPolicy = Ice::nullopt) noexcept
+            std::optional<int> sampleCount = std::nullopt,
+            std::optional<int> sampleLifetime = std::nullopt,
+            std::optional<ClearHistoryPolicy> clearHistory = std::nullopt,
+            std::optional<DiscardPolicy> discardPolicy = std::nullopt) noexcept
             : Config(std::move(sampleCount), std::move(sampleLifetime), std::move(clearHistory)),
               discardPolicy(std::move(discardPolicy))
         {
@@ -135,7 +135,7 @@ namespace DataStorm
         /**
          * Specifies if and how samples are discarded after being received by a reader.
          */
-        Ice::optional<DiscardPolicy> discardPolicy;
+        std::optional<DiscardPolicy> discardPolicy;
     };
 
     /**
@@ -160,10 +160,10 @@ namespace DataStorm
          * @param priority The writer priority.
          */
         WriterConfig(
-            Ice::optional<int> sampleCount = Ice::nullopt,
-            Ice::optional<int> sampleLifetime = Ice::nullopt,
-            Ice::optional<ClearHistoryPolicy> clearHistory = Ice::nullopt,
-            Ice::optional<int> priority = Ice::nullopt) noexcept
+            std::optional<int> sampleCount = std::nullopt,
+            std::optional<int> sampleLifetime = std::nullopt,
+            std::optional<ClearHistoryPolicy> clearHistory = std::nullopt,
+            std::optional<int> priority = std::nullopt) noexcept
             : Config(std::move(sampleCount), std::move(sampleLifetime), std::move(clearHistory)),
               priority(std::move(priority))
         {
@@ -172,7 +172,7 @@ namespace DataStorm
         /**
          * Specifies the writer priority. The priority is used by readers using the priority discard policy.
          */
-        Ice::optional<int> priority;
+        std::optional<int> priority;
     };
 
     /**
@@ -207,8 +207,7 @@ namespace DataStorm
          * @param value The value to encode
          * @return The resulting byte sequence
          */
-        static std::vector<unsigned char>
-        encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value) noexcept;
+        static Ice::ByteSeq encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept;
     };
 
     /**
@@ -231,9 +230,7 @@ namespace DataStorm
          * @param value The byte sequence to decode
          * @return The resulting value
          */
-        static T decode(
-            const std::shared_ptr<Ice::Communicator>& communicator,
-            const std::vector<unsigned char>& value) noexcept;
+        static T decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& value) noexcept;
     };
 
     /**
@@ -262,8 +259,7 @@ namespace DataStorm
      **/
     template<typename T> struct Encoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
     {
-        static std::vector<unsigned char>
-        encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value) noexcept
+        static Ice::ByteSeq encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept
         {
             return Encoder<std::shared_ptr<T>>::encode(communicator, std::make_shared<T>(value));
         }
@@ -274,8 +270,7 @@ namespace DataStorm
      **/
     template<typename T> struct Decoder<T, typename std::enable_if<std::is_base_of<::Ice::Value, T>::value>::type>
     {
-        static T
-        decode(const std::shared_ptr<Ice::Communicator>& communicator, const std::vector<unsigned char>& data) noexcept
+        static T decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data) noexcept
         {
             return *Decoder<std::shared_ptr<T>>::decode(communicator, data);
         }
@@ -294,10 +289,9 @@ namespace DataStorm
      * Encoder template implementation
      */
     template<typename T, typename E>
-    std::vector<unsigned char>
-    Encoder<T, E>::encode(const std::shared_ptr<Ice::Communicator>& communicator, const T& value) noexcept
+    Ice::ByteSeq Encoder<T, E>::encode(const Ice::CommunicatorPtr& communicator, const T& value) noexcept
     {
-        std::vector<unsigned char> v;
+        Ice::ByteSeq v;
         Ice::OutputStream stream(communicator);
         stream.write(value);
         stream.finished(v);
@@ -308,9 +302,7 @@ namespace DataStorm
      * Decoder template implementation
      */
     template<typename T, typename E>
-    T Decoder<T, E>::decode(
-        const std::shared_ptr<Ice::Communicator>& communicator,
-        const std::vector<unsigned char>& value) noexcept
+    T Decoder<T, E>::decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& value) noexcept
     {
         T v;
         if (value.empty())
@@ -325,3 +317,4 @@ namespace DataStorm
     }
 
 }
+#endif

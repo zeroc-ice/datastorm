@@ -1,11 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/NodeI.h>
-#include <DataStorm/SessionI.h>
-#include <DataStorm/TopicFactoryI.h>
-#include <DataStorm/TopicI.h>
-#include <DataStorm/TraceUtil.h>
+
+#include "TopicI.h"
+#include "NodeI.h"
+#include "SessionI.h"
+#include "TopicFactoryI.h"
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
@@ -33,7 +34,7 @@ namespace
     }
 
     static Topic::Updater noOpUpdater =
-        [](const shared_ptr<Sample>& previous, const shared_ptr<Sample>& next, const shared_ptr<Ice::Communicator>&)
+        [](const shared_ptr<Sample>& previous, const shared_ptr<Sample>& next, const Ice::CommunicatorPtr&)
     { next->setValue(previous); };
 
     // The always match filter always matches the value, it's used by the any key reader/writer.
@@ -48,12 +49,9 @@ namespace
             return alwaysmatch;
         }
 
-        virtual vector<unsigned char> encode(const shared_ptr<Ice::Communicator>&) const
-        {
-            return vector<unsigned char>();
-        }
+        virtual Ice::ByteSeq encode(const Ice::CommunicatorPtr&) const { return Ice::ByteSeq{}; }
 
-        virtual long long int getId() const
+        virtual int64_t getId() const
         {
             return 1; // 1 is reserved for the match all filter.
         }
@@ -72,11 +70,11 @@ TopicI::TopicI(
     const shared_ptr<FilterManager>& keyFilterFactories,
     const shared_ptr<FilterManager>& sampleFilterFactories,
     const string& name,
-    long long int id)
+    int64_t id)
     : _factory(factory),
       _keyFactory(keyFactory),
       _tagFactory(tagFactory),
-      _sampleFactory(move(sampleFactory)),
+      _sampleFactory(std::move(sampleFactory)),
       _keyFilterFactories(keyFilterFactories),
       _sampleFilterFactories(sampleFilterFactories),
       _name(name),
@@ -171,7 +169,7 @@ TopicI::getTags() const
 }
 
 ElementSpecSeq
-TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, const shared_ptr<SessionI>& session)
+TopicI::getElementSpecs(int64_t topicId, const ElementInfoSeq& infos, const shared_ptr<SessionI>& session)
 {
     ElementSpecSeq specs;
     for (const auto& info : infos)
@@ -187,7 +185,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                 {
                     elements.push_back({k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k)});
                 }
-                specs.push_back({move(elements), key->getId(), "", {}, info.id});
+                specs.push_back({std::move(elements), key->getId(), "", {}, info.id, ""});
             }
             for (auto e : _filteredElements)
             {
@@ -199,11 +197,12 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                         elements.push_back({f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f)});
                     }
                     specs.push_back(
-                        {move(elements),
+                        {std::move(elements),
                          -e.first->getId(),
                          e.first->getName(),
                          e.first->encode(_instance->getCommunicator()),
-                         info.id});
+                         info.id,
+                         ""});
                 }
             }
         }
@@ -229,7 +228,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                         elements.push_back({k->getId(), k->getConfig(), session->getLastIds(topicId, info.id, k)});
                     }
                     specs.push_back(
-                        {move(elements),
+                        {std::move(elements),
                          e.first->getId(),
                          "",
                          e.first->encode(_instance->getCommunicator()),
@@ -248,7 +247,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                         elements.push_back({f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f)});
                     }
                     specs.push_back(
-                        {move(elements),
+                        {std::move(elements),
                          -e.first->getId(),
                          e.first->getName(),
                          e.first->encode(_instance->getCommunicator()),
@@ -267,7 +266,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
                         elements.push_back({f->getId(), f->getConfig(), session->getLastIds(topicId, info.id, f)});
                     }
                     specs.push_back(
-                        {move(elements),
+                        {std::move(elements),
                          -alwaysMatchFilter->getId(),
                          alwaysMatchFilter->getName(),
                          alwaysMatchFilter->encode(_instance->getCommunicator()),
@@ -281,7 +280,7 @@ TopicI::getElementSpecs(long long int topicId, const ElementInfoSeq& infos, cons
 }
 
 void
-TopicI::attach(long long id, const shared_ptr<SessionI>& session, const shared_ptr<SessionPrx>& prx)
+TopicI::attach(long long id, const shared_ptr<SessionI>& session, optional<SessionPrx> prx)
 {
     auto p = _listeners.find({session});
     if (p == _listeners.end())
@@ -311,10 +310,10 @@ TopicI::detach(long long id, const shared_ptr<SessionI>& session)
 
 ElementSpecAckSeq
 TopicI::attachElements(
-    long long int topicId,
+    int64_t topicId,
     const ElementSpecSeq& elements,
     const shared_ptr<SessionI>& session,
-    const shared_ptr<SessionPrx>& prx,
+    optional<SessionPrx> prx,
     const chrono::time_point<chrono::system_clock>& now)
 {
     ElementSpecAckSeq specs;
@@ -355,7 +354,7 @@ TopicI::attachElements(
                     if (!acks.empty())
                     {
                         specs.push_back(
-                            {move(acks),
+                            {std::move(acks),
                              key->getId(),
                              "",
                              spec.id < 0 ? key->encode(_instance->getCommunicator()) : ByteSeq(),
@@ -403,7 +402,7 @@ TopicI::attachElements(
                     if (!acks.empty())
                     {
                         specs.push_back(
-                            {move(acks),
+                            {std::move(acks),
                              -filter->getId(),
                              filter->getName(),
                              spec.id > 0 ? filter->encode(_instance->getCommunicator()) : ByteSeq(),
@@ -419,10 +418,10 @@ TopicI::attachElements(
 
 DataSamplesSeq
 TopicI::attachElementsAck(
-    long long int topicId,
+    int64_t topicId,
     const ElementSpecAckSeq& elements,
     const shared_ptr<SessionI>& session,
-    const shared_ptr<SessionPrx>& prx,
+    const optional<SessionPrx> prx,
     const chrono::time_point<chrono::system_clock>& now,
     LongSeq& removedIds)
 {
@@ -607,7 +606,7 @@ void
 TopicI::setUpdaters(map<shared_ptr<Tag>, Updater> updaters)
 {
     unique_lock<mutex> lock(_mutex);
-    _updaters = move(updaters);
+    _updaters = std::move(updaters);
 }
 
 map<shared_ptr<Tag>, Topic::Updater>
@@ -745,7 +744,8 @@ TopicI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current) const
     // Forwarder proxy must be called with the mutex locked!
     for (auto listener : _listeners)
     {
-        listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+        // TODO check return value
+        auto _ = listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
     }
 }
 
@@ -870,7 +870,7 @@ TopicReaderI::TopicReaderI(
     const shared_ptr<FilterManager>& keyFilterFactories,
     const shared_ptr<FilterManager>& sampleFilterFactories,
     const string& name,
-    long long int id)
+    int64_t id)
     : TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
 {
     _defaultConfig = {-1, 0, DataStorm::ClearHistoryPolicy::OnAll, DataStorm::DiscardPolicy::None};
@@ -883,7 +883,7 @@ TopicReaderI::createFiltered(
     const string& name,
     DataStorm::ReaderConfig config,
     const string& sampleFilterName,
-    vector<unsigned char> sampleFilterCriteria)
+    Ice::ByteSeq sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<FilteredDataReaderI>(
@@ -892,8 +892,8 @@ TopicReaderI::createFiltered(
         ++_nextFilteredId,
         filter,
         sampleFilterName,
-        move(sampleFilterCriteria),
-        mergeConfigs(move(config)));
+        std::move(sampleFilterCriteria),
+        mergeConfigs(std::move(config)));
     element->init();
     addFiltered(element, filter);
     return element;
@@ -905,7 +905,7 @@ TopicReaderI::create(
     const string& name,
     DataStorm::ReaderConfig config,
     const string& sampleFilterName,
-    vector<unsigned char> sampleFilterCriteria)
+    Ice::ByteSeq sampleFilterCriteria)
 {
     lock_guard<mutex> lock(_mutex);
     auto element = make_shared<KeyDataReaderI>(
@@ -914,8 +914,8 @@ TopicReaderI::create(
         ++_nextId,
         keys,
         sampleFilterName,
-        move(sampleFilterCriteria),
-        mergeConfigs(move(config)));
+        std::move(sampleFilterCriteria),
+        mergeConfigs(std::move(config)));
     element->init();
     add(element, keys);
     return element;
@@ -925,7 +925,7 @@ void
 TopicReaderI::setDefaultConfig(DataStorm::ReaderConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    _defaultConfig = mergeConfigs(move(config));
+    _defaultConfig = mergeConfigs(std::move(config));
 }
 
 void
@@ -1007,7 +1007,7 @@ TopicWriterI::TopicWriterI(
     const shared_ptr<FilterManager>& keyFilterFactories,
     const shared_ptr<FilterManager>& sampleFilterFactories,
     const string& name,
-    long long int id)
+    int64_t id)
     : TopicI(factory, keyFactory, tagFactory, sampleFactory, keyFilterFactories, sampleFilterFactories, name, id)
 {
     _defaultConfig = {-1, 0, DataStorm::ClearHistoryPolicy::OnAll};
@@ -1018,7 +1018,7 @@ shared_ptr<DataWriter>
 TopicWriterI::create(const vector<shared_ptr<Key>>& keys, const string& name, DataStorm::WriterConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    auto element = make_shared<KeyDataWriterI>(this, name, ++_nextId, keys, mergeConfigs(move(config)));
+    auto element = make_shared<KeyDataWriterI>(this, name, ++_nextId, keys, mergeConfigs(std::move(config)));
     element->init();
     add(element, keys);
     return element;
@@ -1028,7 +1028,7 @@ void
 TopicWriterI::setDefaultConfig(DataStorm::WriterConfig config)
 {
     lock_guard<mutex> lock(_mutex);
-    _defaultConfig = mergeConfigs(move(config));
+    _defaultConfig = mergeConfigs(std::move(config));
 }
 
 void

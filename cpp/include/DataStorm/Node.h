@@ -1,10 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Config.h>
-#include <DataStorm/InternalI.h>
+#ifndef DATASTORM_NODE_H
+#define DATASTORM_NODE_H
+
+#include "Config.h"
+#include "InternalI.h"
 
 namespace DataStorm
 {
@@ -43,7 +45,7 @@ namespace DataStorm
          * @param communicator The Ice communicator used by the topic factory for its configuration and
          *                     communications.
          */
-        Node(std::shared_ptr<Ice::Communicator> communicator);
+        Node(Ice::CommunicatorPtr communicator);
 
         /**
          * Construct a DataStorm node.
@@ -173,7 +175,7 @@ namespace DataStorm
         /**
          * Returns the Ice communicator associated with the node.
          */
-        std::shared_ptr<Ice::Communicator> getCommunicator() const noexcept;
+        Ice::CommunicatorPtr getCommunicator() const noexcept;
 
         /**
          * Returns the Ice connection associated with a session given a session identifier. Session identifiers are
@@ -183,7 +185,7 @@ namespace DataStorm
          * @return The connection associated with the given session
          * @see DataStorm::Sample::ElementId DataStorm::Sample::getSession
          */
-        std::shared_ptr<Ice::Connection> getSessionConnection(const std::string& ident) const noexcept;
+        Ice::ConnectionPtr getSessionConnection(const std::string& ident) const noexcept;
 
     private:
         template<typename V, class... T> void init(int& argc, V argv, T&&... iceArgs)
@@ -195,7 +197,7 @@ namespace DataStorm
             init(communicator);
         }
 
-        void init(const std::shared_ptr<Ice::Communicator>&);
+        void init(const Ice::CommunicatorPtr&);
 
         std::shared_ptr<DataStormI::Instance> _instance;
         std::shared_ptr<DataStormI::TopicFactory> _factory;
@@ -205,3 +207,4 @@ namespace DataStorm
     };
 
 }
+#endif

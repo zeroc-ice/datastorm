@@ -1,12 +1,14 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/CallbackExecutor.h>
-#include <DataStorm/DataElementI.h>
-#include <DataStorm/Instance.h>
-#include <DataStorm/NodeI.h>
-#include <DataStorm/TopicI.h>
-#include <DataStorm/TraceUtil.h>
+
+#include "DataElementI.h"
+#include "CallbackExecutor.h"
+#include "Ice/Ice.h"
+#include "Instance.h"
+#include "NodeI.h"
+#include "TopicI.h"
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
@@ -15,8 +17,7 @@ using namespace DataStormContract;
 namespace
 {
 
-    DataSample
-    toSample(const shared_ptr<Sample>& sample, const shared_ptr<Ice::Communicator>& communicator, bool marshalKey)
+    DataSample toSample(const shared_ptr<Sample>& sample, const Ice::CommunicatorPtr& communicator, bool marshalKey)
     {
         return {
             sample->id,
@@ -46,7 +47,7 @@ namespace
 
 }
 
-DataElementI::DataElementI(TopicI* parent, const string& name, long long int id, const DataStorm::Config& config)
+DataElementI::DataElementI(TopicI* parent, const string& name, int64_t id, const DataStorm::Config& config)
     : _traceLevels(parent->getInstance()->getTraceLevels()),
       _name(name),
       _id(id),
@@ -74,7 +75,8 @@ void
 DataElementI::init()
 {
     auto forwarder = [self = shared_from_this()](Ice::ByteSeq e, const Ice::Current& c) { self->forward(e, c); };
-    _forwarder = Ice::uncheckedCast<SessionPrx>(_parent->getInstance()->getCollocatedForwarder()->add(move(forwarder)));
+    _forwarder =
+        Ice::uncheckedCast<SessionPrx>(_parent->getInstance()->getCollocatedForwarder()->add(std::move(forwarder)));
 }
 
 DataElementI::~DataElementI()
@@ -99,12 +101,12 @@ DataElementI::destroy()
 
 void
 DataElementI::attach(
-    long long int topicId,
-    long long int id,
+    int64_t topicId,
+    int64_t id,
     const shared_ptr<Key>& key,
     const shared_ptr<Filter>& filter,
     const shared_ptr<SessionI>& session,
-    const shared_ptr<SessionPrx>& prx,
+    optional<SessionPrx> prx,
     const ElementData& data,
     const chrono::time_point<chrono::system_clock>& now,
     ElementDataAckSeq& acks)
@@ -141,12 +143,12 @@ DataElementI::attach(
 
 std::function<void()>
 DataElementI::attach(
-    long long int topicId,
-    long long int id,
+    int64_t topicId,
+    int64_t id,
     const shared_ptr<Key>& key,
     const shared_ptr<Filter>& filter,
     const shared_ptr<SessionI>& session,
-    const shared_ptr<SessionPrx>& prx,
+    optional<SessionPrx> prx,
     const ElementDataAck& data,
     const chrono::time_point<chrono::system_clock>& now,
     DataSamplesSeq& samples)
@@ -182,21 +184,21 @@ DataElementI::attach(
         session->subscriberInitialized(topicId, id > 0 ? data.id : -data.id, data.samples, key, shared_from_this());
     if (!samplesI.empty())
     {
-        return [=]() { initSamples(samplesI, topicId, data.id, priority, now, id < 0); };
+        return [=, this]() { initSamples(samplesI, topicId, data.id, priority, now, id < 0); };
     }
     return nullptr;
 }
 
 bool
 DataElementI::attachKey(
-    long long int topicId,
-    long long int elementId,
+    int64_t topicId,
+    int64_t elementId,
     const shared_ptr<Key>& key,
     const shared_ptr<Filter>& sampleFilter,
     const shared_ptr<SessionI>& session,
-    const shared_ptr<SessionPrx>& prx,
+    optional<SessionPrx> prx,
     const string& facet,
-    long long int keyId,
+    int64_t keyId,
     const string& name,
     int priority)
 {
@@ -204,14 +206,16 @@ DataElementI::attachKey(
     auto p = _listeners.find({session, facet});
     if (p == _listeners.end())
     {
-        p = _listeners.emplace(ListenerKey{session, facet}, Listener(prx, facet)).first;
+        p = _listeners.emplace(ListenerKey{session, facet}, Listener(std::move(prx), facet)).first;
     }
 
     bool added = false;
     auto subscriber = p->second.addOrGet(topicId, elementId, keyId, nullptr, sampleFilter, name, priority, added);
     if (_onConnectedElements && added)
     {
-        _executor->queue(shared_from_this(), [=] { _onConnectedElements(DataStorm::CallbackReason::Connect, name); });
+        _executor->queue(
+            shared_from_this(),
+            [=, this] { _onConnectedElements(DataStorm::CallbackReason::Connect, name); });
     }
     if (addConnectedKey(key, subscriber))
     {
@@ -241,8 +245,8 @@ DataElementI::attachKey(
 
 void
 DataElementI::detachKey(
-    long long int topicId,
-    long long int elementId,
+    int64_t topicId,
+    int64_t elementId,
     const shared_ptr<Key>& key,
     const shared_ptr<SessionI>& session,
     const string& facet,
@@ -268,7 +272,7 @@ DataElementI::detachKey(
             {
                 _executor->queue(
                     shared_from_this(),
-                    [=] { _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name); });
+                    [=, this] { _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name); });
             }
             if (p->second.remove(topicId, elementId))
             {
@@ -298,14 +302,14 @@ DataElementI::detachKey(
 
 bool
 DataElementI::attachFilter(
-    long long int topicId,
-    long long int elementId,
+    int64_t topicId,
+    int64_t elementId,
     const shared_ptr<Key>& key,
     const shared_ptr<Filter>& sampleFilter,
     const shared_ptr<SessionI>& session,
-    const shared_ptr<SessionPrx>& prx,
+    optional<SessionPrx> prx,
     const string& facet,
-    long long int filterId,
+    int64_t filterId,
     const shared_ptr<Filter>& filter,
     const string& name,
     int priority)
@@ -321,7 +325,9 @@ DataElementI::attachFilter(
     auto subscriber = p->second.addOrGet(topicId, -elementId, filterId, filter, sampleFilter, name, priority, added);
     if (_onConnectedElements && added)
     {
-        _executor->queue(shared_from_this(), [=] { _onConnectedElements(DataStorm::CallbackReason::Connect, name); });
+        _executor->queue(
+            shared_from_this(),
+            [=, this] { _onConnectedElements(DataStorm::CallbackReason::Connect, name); });
     }
     if (addConnectedKey(key, subscriber))
     {
@@ -351,8 +357,8 @@ DataElementI::attachFilter(
 
 void
 DataElementI::detachFilter(
-    long long int topicId,
-    long long int elementId,
+    int64_t topicId,
+    int64_t elementId,
     const shared_ptr<Key>& key,
     const shared_ptr<SessionI>& session,
     const string& facet,
@@ -378,7 +384,7 @@ DataElementI::detachFilter(
             {
                 _executor->queue(
                     shared_from_this(),
-                    [=] { _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name); });
+                    [=, this] { _onConnectedElements(DataStorm::CallbackReason::Disconnect, subscriber->name); });
             }
             if (p->second.remove(topicId, -elementId))
             {
@@ -441,7 +447,7 @@ DataElementI::onConnectedKeys(
     function<void(DataStorm::CallbackReason, shared_ptr<Key>)> update)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onConnectedKeys = move(update);
+    _onConnectedKeys = std::move(update);
     if (init)
     {
         vector<shared_ptr<Key>> keys;
@@ -459,7 +465,7 @@ DataElementI::onConnectedElements(
     function<void(DataStorm::CallbackReason, string)> update)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onConnectedElements = move(update);
+    _onConnectedElements = std::move(update);
     if (init)
     {
         vector<string> elements;
@@ -477,8 +483,8 @@ DataElementI::onConnectedElements(
 void
 DataElementI::initSamples(
     const vector<shared_ptr<Sample>>&,
-    long long int,
-    long long int,
+    int64_t,
+    int64_t,
     int,
     const chrono::time_point<chrono::system_clock>&,
     bool)
@@ -490,7 +496,7 @@ DataElementI::getSamples(
     const shared_ptr<Key>&,
     const shared_ptr<Filter>&,
     const shared_ptr<DataStormContract::ElementConfig>&,
-    long long int,
+    int64_t,
     const chrono::time_point<chrono::system_clock>&)
 {
     return {};
@@ -544,7 +550,7 @@ DataElementI::hasListeners() const
     return _listenerCount > 0;
 }
 
-shared_ptr<Ice::Communicator>
+Ice::CommunicatorPtr
 DataElementI::getCommunicator() const
 {
     return _parent->getInstance()->getCommunicator();
@@ -558,7 +564,9 @@ DataElementI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subsc
     {
         if (key && subscribers.empty() && _onConnectedKeys)
         {
-            _executor->queue(shared_from_this(), [=] { _onConnectedKeys(DataStorm::CallbackReason::Connect, key); });
+            _executor->queue(
+                shared_from_this(),
+                [=, this] { _onConnectedKeys(DataStorm::CallbackReason::Connect, key); });
         }
         subscribers.push_back(subscriber);
         return true;
@@ -580,7 +588,7 @@ DataElementI::removeConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Su
             {
                 _executor->queue(
                     shared_from_this(),
-                    [=] { _onConnectedKeys(DataStorm::CallbackReason::Disconnect, key); });
+                    [=, this] { _onConnectedKeys(DataStorm::CallbackReason::Disconnect, key); });
             }
             _connectedKeys.erase(key);
         }
@@ -636,7 +644,8 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
         // If there's at least one subscriber interested in the update
         if (!_sample || listener.second.matchOne(_sample, false))
         {
-            listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+            // TODO do we need to check the result?
+            auto _ = listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
         }
     }
 }
@@ -644,9 +653,9 @@ DataElementI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& current)
 DataReaderI::DataReaderI(
     TopicReaderI* topic,
     const string& name,
-    long long int id,
+    int64_t id,
     const string& sampleFilterName,
-    vector<unsigned char> sampleFilterCriteria,
+    Ice::ByteSeq sampleFilterCriteria,
     const DataStorm::ReaderConfig& config)
     : DataElementI(topic, name, id, config),
       _parent(topic),
@@ -654,7 +663,7 @@ DataReaderI::DataReaderI(
 {
     if (!sampleFilterName.empty())
     {
-        _config->sampleFilter = FilterInfo{sampleFilterName, move(sampleFilterCriteria)};
+        _config->sampleFilter = FilterInfo{sampleFilterName, std::move(sampleFilterCriteria)};
     }
 }
 
@@ -713,8 +722,8 @@ DataReaderI::getNextUnread()
 void
 DataReaderI::initSamples(
     const vector<shared_ptr<Sample>>& samples,
-    long long int topic,
-    long long int element,
+    int64_t topic,
+    int64_t element,
     int priority,
     const chrono::time_point<chrono::system_clock>& now,
     bool checkKey)
@@ -843,7 +852,7 @@ void
 DataReaderI::queue(
     const shared_ptr<Sample>& sample,
     int priority,
-    const shared_ptr<SessionI>& session,
+    const shared_ptr<SessionI>&,
     const string& facet,
     const chrono::time_point<chrono::system_clock>& now,
     bool checkKey)
@@ -949,7 +958,7 @@ DataReaderI::onSamples(
     function<void(const shared_ptr<Sample>&)> update)
 {
     unique_lock<mutex> lock(_parent->_mutex);
-    _onSamples = move(update);
+    _onSamples = std::move(update);
     if (init && !_samples.empty())
     {
         vector<shared_ptr<Sample>> samples(_samples.begin(), _samples.end());
@@ -979,11 +988,7 @@ DataReaderI::addConnectedKey(const shared_ptr<Key>& key, const shared_ptr<Subscr
     }
 }
 
-DataWriterI::DataWriterI(
-    TopicWriterI* topic,
-    const string& name,
-    long long int id,
-    const DataStorm::WriterConfig& config)
+DataWriterI::DataWriterI(TopicWriterI* topic, const string& name, int64_t id, const DataStorm::WriterConfig& config)
     : DataElementI(topic, name, id, config),
       _parent(topic)
 {
@@ -1054,10 +1059,10 @@ DataWriterI::publish(const shared_ptr<Key>& key, const shared_ptr<Sample>& sampl
 KeyDataReaderI::KeyDataReaderI(
     TopicReaderI* topic,
     const string& name,
-    long long int id,
+    int64_t id,
     const vector<shared_ptr<Key>>& keys,
     const string& sampleFilterName,
-    const vector<unsigned char> sampleFilterCriteria,
+    const Ice::ByteSeq sampleFilterCriteria,
     const DataStorm::ReaderConfig& config)
     : DataReaderI(topic, name, id, sampleFilterName, sampleFilterCriteria, config),
       _keys(keys)
@@ -1142,7 +1147,7 @@ KeyDataReaderI::matchKey(const shared_ptr<Key>& key) const
 KeyDataWriterI::KeyDataWriterI(
     TopicWriterI* topic,
     const string& name,
-    long long int id,
+    int64_t id,
     const vector<shared_ptr<Key>>& keys,
     const DataStorm::WriterConfig& config)
     : DataWriterI(topic, name, id, config),
@@ -1228,7 +1233,7 @@ KeyDataWriterI::getSamples(
     const shared_ptr<Key>& key,
     const shared_ptr<Filter>& sampleFilter,
     const shared_ptr<DataStormContract::ElementConfig>& config,
-    long long int lastId,
+    int64_t lastId,
     const chrono::time_point<chrono::system_clock>& now)
 {
     DataSamples samples;
@@ -1320,7 +1325,8 @@ KeyDataWriterI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& curren
         // If there's at least one subscriber interested in the update (check the key if any writer)
         if (!_sample || listener.second.matchOne(_sample, _keys.empty()))
         {
-            listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
+            // TODO do we need to check the result?
+            auto _ = listener.second.proxy->ice_invokeAsync(current.operation, current.mode, inEncaps, current.ctx);
         }
     }
 }
@@ -1328,10 +1334,10 @@ KeyDataWriterI::forward(const Ice::ByteSeq& inEncaps, const Ice::Current& curren
 FilteredDataReaderI::FilteredDataReaderI(
     TopicReaderI* topic,
     const string& name,
-    long long int id,
+    int64_t id,
     const shared_ptr<Filter>& filter,
     const string& sampleFilterName,
-    vector<unsigned char> sampleFilterCriteria,
+    Ice::ByteSeq sampleFilterCriteria,
     const DataStorm::ReaderConfig& config)
     : DataReaderI(topic, name, id, sampleFilterName, sampleFilterCriteria, config),
       _filter(filter)

@@ -6,6 +6,8 @@
 #include <Ice/Identity.ice>
 #include <DataStorm/Sample.ice>
 
+[["cpp:include:deque"]]
+
 module DataStormContract
 {
 

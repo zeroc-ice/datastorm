@@ -1,10 +1,12 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Contract.h>
-#include <DataStorm/InternalI.h>
+#ifndef DATASTORM_TOPIC_FACTORYI_H
+#define DATASTORM_TOPIC_FACTORYI_H
+
+#include "DataStorm/Contract.h"
+#include "DataStorm/InternalI.h"
 
 namespace DataStormI
 {
@@ -37,7 +39,7 @@ namespace DataStormI
             const std::shared_ptr<FilterManager>&,
             const std::shared_ptr<FilterManager>&) override;
 
-        virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
+        virtual Ice::CommunicatorPtr getCommunicator() const override;
 
         void removeTopicReader(const std::string&, const std::shared_ptr<TopicI>&);
         void removeTopicWriter(const std::string&, const std::shared_ptr<TopicI>&);
@@ -47,12 +49,12 @@ namespace DataStormI
 
         void createSubscriberSession(
             const std::string&,
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<Ice::Connection>&);
+            std::optional<DataStormContract::NodePrx>,
+            const Ice::ConnectionPtr&);
         void createPublisherSession(
             const std::string&,
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<Ice::Connection>&);
+            std::optional<DataStormContract::NodePrx>,
+            const Ice::ConnectionPtr&);
 
         std::shared_ptr<Instance> getInstance() const
         {
@@ -75,8 +77,9 @@ namespace DataStormI
         std::shared_ptr<TraceLevels> _traceLevels;
         std::map<std::string, std::vector<std::shared_ptr<TopicI>>> _readers;
         std::map<std::string, std::vector<std::shared_ptr<TopicI>>> _writers;
-        long long int _nextReaderId;
-        long long int _nextWriterId;
+        std::int64_t _nextReaderId;
+        std::int64_t _nextWriterId;
     };
 
 }
+#endif

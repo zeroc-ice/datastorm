@@ -1,40 +1,41 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/ForwarderManager.h>
+
+#include "ForwarderManager.h"
 
 using namespace std;
 using namespace DataStormI;
 
-ForwarderManager::ForwarderManager(const shared_ptr<Ice::ObjectAdapter>& adapter, const string& category)
+ForwarderManager::ForwarderManager(const Ice::ObjectAdapterPtr& adapter, const string& category)
     : _adapter(adapter),
       _category(category),
       _nextId(0)
 {
 }
 
-shared_ptr<Ice::ObjectPrx>
+optional<Ice::ObjectPrx>
 ForwarderManager::add(function<void(Ice::ByteSeq, Response, Exception, const Ice::Current&)> forwarder)
 {
     lock_guard<mutex> lock(_mutex);
     ostringstream os;
     os << _nextId++;
-    _forwarders.emplace(os.str(), move(forwarder));
+    _forwarders.emplace(os.str(), std::move(forwarder));
     try
     {
         return _adapter->createProxy({os.str(), _category});
     }
     catch (const Ice::ObjectAdapterDeactivatedException&)
     {
-        return nullptr;
+        return nullopt;
     }
 }
 
-shared_ptr<Ice::ObjectPrx>
+optional<Ice::ObjectPrx>
 ForwarderManager::add(function<void(Ice::ByteSeq, const Ice::Current&)> forwarder)
 {
     return add(
-        [forwarder = move(forwarder)](auto inEncaps, auto response, auto exception, auto current)
+        [forwarder = std::move(forwarder)](auto inEncaps, auto response, auto exception, auto current)
         {
             try
             {
@@ -65,7 +66,7 @@ ForwarderManager::destroy()
 void
 ForwarderManager::ice_invokeAsync(
     Ice::ByteSeq inEncaps,
-    function<void(bool, const vector<Ice::Byte>&)> response,
+    function<void(bool, const Ice::ByteSeq&)> response,
     function<void(exception_ptr)> exception,
     const Ice::Current& current)
 {
@@ -79,5 +80,5 @@ ForwarderManager::ice_invokeAsync(
         }
         forwarder = p->second;
     }
-    forwarder(move(inEncaps), move(response), move(exception), current);
+    forwarder(std::move(inEncaps), std::move(response), std::move(exception), current);
 }

@@ -1,7 +1,9 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
+
+#ifndef DATASTORM_CALLBACK_EXECUTOR_H
+#define DATASTORM_CALLBACK_EXECUTOR_H
 
 #include <condition_variable>
 #include <functional>
@@ -34,3 +36,5 @@ namespace DataStormI
     };
 
 }
+
+#endif

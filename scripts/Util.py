@@ -122,6 +122,7 @@ class Component(object):
                 expr = "id=\"{0}\" version=\"(.*)\" target".format(self.getNugetPackage(mapping))
             if expr:
                 with open(file, "r") as config:
+                    print("#### expr: {0}".format(expr))
                     m = re.search(expr, config.read())
                     if m:
                         self.nugetVersion = m.group(1)
@@ -3160,7 +3161,6 @@ class CppMapping(Mapping):
     def getProps(self, process, current):
         props = Mapping.getProps(self, process, current)
         if isinstance(process, IceProcess):
-            props["Ice.NullHandleAbort"] = True
             props["Ice.PrintStackTraces"] = "1"
         return props
 

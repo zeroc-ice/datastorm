@@ -1,12 +1,13 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Config.h>
-#include <DataStorm/Contract.h>
+#ifndef DATASTORM_NODE_SESSION_MANAGER_H
+#define DATASTORM_NODE_SESSION_MANAGER_H
 
-#include <Ice/Ice.h>
+#include "DataStorm/Config.h"
+#include "DataStorm/Contract.h"
+#include "Ice/Ice.h"
 
 namespace DataStormI
 {
@@ -23,25 +24,26 @@ namespace DataStormI
         NodeSessionManager(const std::shared_ptr<Instance>&, const std::shared_ptr<NodeI>&);
 
         void init();
+        void destroy();
 
         std::shared_ptr<NodeSessionI>
-        createOrGet(const std::shared_ptr<DataStormContract::NodePrx>&, const std::shared_ptr<Ice::Connection>&, bool);
+        createOrGet(std::optional<DataStormContract::NodePrx>, const Ice::ConnectionPtr&, bool);
 
         void announceTopicReader(
             const std::string&,
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<Ice::Connection>& = nullptr) const;
+            std::optional<DataStormContract::NodePrx>,
+            const Ice::ConnectionPtr& = nullptr) const;
 
         void announceTopicWriter(
             const std::string&,
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<Ice::Connection>& = nullptr) const;
+            std::optional<DataStormContract::NodePrx>,
+            const Ice::ConnectionPtr& = nullptr) const;
 
         void announceTopics(
             const DataStormContract::StringSeq&,
             const DataStormContract::StringSeq&,
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<Ice::Connection>& = nullptr) const;
+            std::optional<DataStormContract::NodePrx>,
+            const Ice::ConnectionPtr& = nullptr) const;
 
         std::shared_ptr<NodeSessionI> getSession(const Ice::Identity&) const;
         std::shared_ptr<NodeSessionI> getSession(const std::string& name) const
@@ -52,19 +54,13 @@ namespace DataStormI
         void forward(const Ice::ByteSeq&, const Ice::Current&) const;
 
     private:
-        void connect(
-            const std::shared_ptr<DataStormContract::LookupPrx>&,
-            const std::shared_ptr<DataStormContract::NodePrx>&);
+        void connect(std::optional<DataStormContract::LookupPrx>, std::optional<DataStormContract::NodePrx>);
 
-        void connected(
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<DataStormContract::LookupPrx>&);
+        void connected(std::optional<DataStormContract::NodePrx>, std::optional<DataStormContract::LookupPrx>);
 
-        void disconnected(
-            const std::shared_ptr<DataStormContract::NodePrx>&,
-            const std::shared_ptr<DataStormContract::LookupPrx>&);
+        void disconnected(std::optional<DataStormContract::NodePrx>, std::optional<DataStormContract::LookupPrx>);
 
-        void destroySession(const std::shared_ptr<DataStormContract::NodePrx>&);
+        void destroySession(std::optional<DataStormContract::NodePrx>);
 
         std::shared_ptr<Instance> getInstance() const
         {
@@ -73,9 +69,9 @@ namespace DataStormI
             return instance;
         }
 
-        const std::weak_ptr<Instance> _instance;
+        std::weak_ptr<Instance> _instance;
         const std::shared_ptr<TraceLevels> _traceLevels;
-        const std::shared_ptr<DataStormContract::NodePrx> _nodePrx;
+        const std::optional<DataStormContract::NodePrx> _nodePrx;
         const bool _forwardToMulticast;
 
         mutable std::mutex _mutex;
@@ -85,11 +81,12 @@ namespace DataStormI
         std::map<Ice::Identity, std::shared_ptr<NodeSessionI>> _sessions;
         std::map<
             Ice::Identity,
-            std::pair<std::shared_ptr<DataStormContract::NodePrx>, std::shared_ptr<DataStormContract::LookupPrx>>>
+            std::pair<std::optional<DataStormContract::NodePrx>, std::optional<DataStormContract::LookupPrx>>>
             _connectedTo;
 
-        mutable std::shared_ptr<Ice::Connection> _exclude;
-        std::shared_ptr<DataStormContract::LookupPrx> _forwarder;
+        mutable Ice::ConnectionPtr _exclude;
+        std::optional<DataStormContract::LookupPrx> _forwarder;
     };
 
 }
+#endif

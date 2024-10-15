@@ -1,16 +1,15 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/DataElementI.h>
-#include <DataStorm/InternalI.h>
-#include <DataStorm/SessionI.h>
-#include <DataStorm/TopicI.h>
+#ifndef DATASTORM_TRACE_UTIL_H
+#define DATASTORM_TRACE_UTIL_H
 
-#include <Ice/CommunicatorF.h>
-#include <Ice/LoggerF.h>
-#include <Ice/LoggerUtil.h>
+#include "DataElementI.h"
+#include "DataStorm/InternalI.h"
+#include "Ice/Ice.h"
+#include "SessionI.h"
+#include "TopicI.h"
 
 namespace std
 {
@@ -62,7 +61,7 @@ namespace Ice
 namespace DataStormContract
 {
 
-    inline std::string valueIdToString(long long int valueId)
+    inline std::string valueIdToString(std::int64_t valueId)
     {
         std::ostringstream os;
         if (valueId < 0)
@@ -223,7 +222,7 @@ namespace DataStormI
     class TraceLevels
     {
     public:
-        TraceLevels(std::shared_ptr<Ice::Communicator>);
+        TraceLevels(Ice::CommunicatorPtr);
 
         const int topic;
         const char* topicCat;
@@ -234,7 +233,7 @@ namespace DataStormI
         const int session;
         const char* sessionCat;
 
-        const std::shared_ptr<Ice::Logger> logger;
+        const Ice::LoggerPtr logger;
     };
 
     class Trace : public Ice::Trace
@@ -253,3 +252,4 @@ namespace DataStormI
     };
 
 }
+#endif

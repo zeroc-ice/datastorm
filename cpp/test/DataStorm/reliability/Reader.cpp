@@ -53,7 +53,7 @@ main(int argc, char* argv[])
                     this_thread::sleep_for(chrono::milliseconds(200));
                     connection = node.getSessionConnection(sample.getSession());
                 }
-                connection->close(Ice::ConnectionClose::Gracefully);
+                connection->close().get();
             }
         }
         auto writer = makeSingleKeyWriter(topic, "barrier");

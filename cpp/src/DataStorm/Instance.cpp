@@ -1,31 +1,28 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/CallbackExecutor.h>
-#include <DataStorm/ConnectionManager.h>
-#include <DataStorm/Instance.h>
-#include <DataStorm/LookupI.h>
-#include <DataStorm/Node.h>
-#include <DataStorm/NodeI.h>
-#include <DataStorm/NodeSessionManager.h>
-#include <DataStorm/Timer.h>
-#include <DataStorm/TopicFactoryI.h>
-#include <DataStorm/TraceUtil.h>
 
-#include <IceUtil/UUID.h>
+#include "Instance.h"
+#include "CallbackExecutor.h"
+#include "ConnectionManager.h"
+#include "DataStorm/Node.h"
+#include "LookupI.h"
+#include "NodeI.h"
+#include "NodeSessionManager.h"
+#include "TopicFactoryI.h"
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
 
-Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communicator(communicator), _shutdown(false)
+Instance::Instance(const Ice::CommunicatorPtr& communicator) : _communicator(communicator), _shutdown(false)
 {
-    shared_ptr<Ice::Properties> properties = _communicator->getProperties();
+    Ice::PropertiesPtr properties = _communicator->getProperties();
 
     if (properties->getPropertyAsIntWithDefault("DataStorm.Node.Server.Enabled", 1) > 0)
     {
         properties->setProperty("DataStorm.Node.Adapters.Server.ThreadPool.SizeMax", "1");
         properties->setProperty("DataStorm.Node.Adapters.Server.Endpoints", "tcp");
-        properties->setProperty("DataStorm.Node.Adapters.Server.ACM.Heartbeat", "2");
 
         const string pfx = "DataStorm.Node.Server";
         auto props = properties->getPropertiesForPrefix(pfx);
@@ -94,7 +91,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
     // Create a collocated object adapter with a random name to prevent user configuration
     // of the adapter.
     //
-    auto collocated = IceUtil::generateUUID();
+    auto collocated = Ice::generateUUID();
     properties->setProperty(collocated + ".AdapterId", collocated);
     _collocatedAdapter = _communicator->createObjectAdapter(collocated);
 
@@ -103,7 +100,7 @@ Instance::Instance(const shared_ptr<Ice::Communicator>& communicator) : _communi
 
     _executor = make_shared<CallbackExecutor>();
     _connectionManager = make_shared<ConnectionManager>(_executor);
-    _timer = make_shared<Timer>();
+    _timer = make_shared<Ice::Timer>();
     _traceLevels = make_shared<TraceLevels>(_communicator);
 }
 
@@ -124,8 +121,8 @@ Instance::init()
     _adapter->add(lookupI, {"Lookup", "DataStorm"});
     if (_multicastAdapter)
     {
-        auto lookup = _multicastAdapter->add(lookupI, {"Lookup", "DataStorm"});
-        _lookup = Ice::uncheckedCast<DataStormContract::LookupPrx>(lookup->ice_collocationOptimized(false));
+        auto lookup = _multicastAdapter->add<DataStormContract::LookupPrx>(lookupI, {"Lookup", "DataStorm"});
+        _lookup = lookup->ice_collocationOptimized(false);
     }
 
     _adapter->activate();
@@ -172,8 +169,6 @@ Instance::waitForShutdown() const
 void
 Instance::destroy(bool ownsCommunicator)
 {
-    _timer->destroy();
-
     if (ownsCommunicator)
     {
         _communicator->destroy();
@@ -192,4 +187,7 @@ Instance::destroy(bool ownsCommunicator)
     _executor->destroy();
     _connectionManager->destroy();
     _collocatedForwarder->destroy();
+    // Destroy the session manager before the timer to avoid scheduling new tasks after the timer has been destroyed.
+    _nodeSessionManager->destroy();
+    _timer->destroy();
 }

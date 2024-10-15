@@ -1,14 +1,13 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#include <DataStorm/TraceUtil.h>
 
-#include <Ice/Ice.h>
+#include "TraceUtil.h"
 
 using namespace std;
 using namespace DataStormI;
 
-TraceLevels::TraceLevels(shared_ptr<Ice::Communicator> communicator)
+TraceLevels::TraceLevels(Ice::CommunicatorPtr communicator)
     : topic(0),
       topicCat("Topic"),
       data(0),

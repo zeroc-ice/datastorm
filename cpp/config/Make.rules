@@ -14,9 +14,8 @@
 slice2cpp_targetext     = cpp
 slice2cpp_path          = $(ice_bindir)/slice2cpp
 
-# Use the C++14 standard
-cppflags                += -std=c++14
-
+# Use the C++20 standard
+cppflags                += -std=c++20
 #
 # $(call make-cpp-src-project,$1=project)
 #
@@ -43,6 +42,6 @@ endef
 #
 define create-cpp-test-project
 $1_srcext               := cpp
-$1_dependencies         := $$(or $$($1_dependencies),DataStorm Ice++11)
+$1_dependencies         := $$(or $$($1_dependencies),DataStorm Ice)
 $(create-test-project)
 endef

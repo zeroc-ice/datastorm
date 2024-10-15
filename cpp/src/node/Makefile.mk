@@ -4,7 +4,7 @@
 
 $(project)_programs = dsnode
 
-$(project)_dependencies := DataStorm Ice++11
+$(project)_dependencies := DataStorm Ice
 $(project)_targetdir    := $(bindir)
 
 projects += $(project)

@@ -1,13 +1,17 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Config.h>
-#include <DataStorm/Sample.h>
-#include <DataStorm/Types.h>
+#ifndef DATASTORM_INTERNALI_H
+#define DATASTORM_INTERNALI_H
 
-#include <Ice/Ice.h>
+#include "DataStorm/Sample.h"
+#include "Ice/Ice.h"
+#include "Types.h"
+
+#include <chrono>
+#include <string>
+#include <vector>
 
 //
 // Private abstract API used by the template based API and the internal DataStorm implementation.
@@ -28,8 +32,8 @@ namespace DataStormI
     public:
         virtual ~Element() = default;
         virtual std::string toString() const = 0;
-        virtual std::vector<unsigned char> encode(const std::shared_ptr<Ice::Communicator>&) const = 0;
-        virtual long long int getId() const = 0;
+        virtual Ice::ByteSeq encode(const Ice::CommunicatorPtr&) const = 0;
+        virtual std::int64_t getId() const = 0;
     };
 
     class Key : public Filterable, virtual public Element
@@ -40,9 +44,8 @@ namespace DataStormI
     {
     public:
         virtual ~KeyFactory() = default;
-        virtual std::shared_ptr<Key> get(long long int) const = 0;
-        virtual std::shared_ptr<Key>
-        decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+        virtual std::shared_ptr<Key> get(std::int64_t) const = 0;
+        virtual std::shared_ptr<Key> decode(const Ice::CommunicatorPtr&, const Ice::ByteSeq&) = 0;
     };
 
     class Tag : virtual public Element
@@ -53,9 +56,8 @@ namespace DataStormI
     {
     public:
         virtual ~TagFactory() = default;
-        virtual std::shared_ptr<Tag> get(long long int) const = 0;
-        virtual std::shared_ptr<Tag>
-        decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+        virtual std::shared_ptr<Tag> get(std::int64_t) const = 0;
+        virtual std::shared_ptr<Tag> decode(const Ice::CommunicatorPtr&, const Ice::ByteSeq&) = 0;
     };
 
     class Sample : public Filterable
@@ -64,12 +66,12 @@ namespace DataStormI
         Sample(
             const std::string& session,
             const std::string& origin,
-            long long int id,
+            std::int64_t id,
             DataStorm::SampleEvent event,
             const std::shared_ptr<Key>& key,
             const std::shared_ptr<Tag>& tag,
-            std::vector<unsigned char> value,
-            long long int timestamp)
+            Ice::ByteSeq value,
+            std::int64_t timestamp)
             : session(session),
               origin(origin),
               id(id),
@@ -86,22 +88,22 @@ namespace DataStormI
         virtual bool hasValue() const = 0;
         virtual void setValue(const std::shared_ptr<Sample>&) = 0;
 
-        virtual void decode(const std::shared_ptr<Ice::Communicator>&) = 0;
-        virtual const std::vector<unsigned char>& encode(const std::shared_ptr<Ice::Communicator>&) = 0;
-        virtual std::vector<unsigned char> encodeValue(const std::shared_ptr<Ice::Communicator>&) = 0;
+        virtual void decode(const Ice::CommunicatorPtr&) = 0;
+        virtual const Ice::ByteSeq& encode(const Ice::CommunicatorPtr&) = 0;
+        virtual Ice::ByteSeq encodeValue(const Ice::CommunicatorPtr&) = 0;
 
-        const std::vector<unsigned char>& getEncodedValue() const { return _encodedValue; }
+        const Ice::ByteSeq& getEncodedValue() const { return _encodedValue; }
 
         std::string session;
         std::string origin;
-        long long int id;
+        std::int64_t id;
         DataStorm::SampleEvent event;
         std::shared_ptr<Key> key;
         std::shared_ptr<Tag> tag;
         std::chrono::time_point<std::chrono::system_clock> timestamp;
 
     protected:
-        std::vector<unsigned char> _encodedValue;
+        Ice::ByteSeq _encodedValue;
     };
 
     class SampleFactory
@@ -112,12 +114,12 @@ namespace DataStormI
         virtual std::shared_ptr<Sample> create(
             const std::string&,
             const std::string&,
-            long long int,
+            std::int64_t,
             DataStorm::SampleEvent,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Tag>&,
-            std::vector<unsigned char>,
-            long long int) = 0;
+            Ice::ByteSeq,
+            std::int64_t) = 0;
     };
 
     class Filter : virtual public Element
@@ -132,9 +134,8 @@ namespace DataStormI
     public:
         virtual ~FilterFactory() = default;
 
-        virtual std::shared_ptr<Filter> get(long long int) const = 0;
-        virtual std::shared_ptr<Filter>
-        decode(const std::shared_ptr<Ice::Communicator>&, const std::vector<unsigned char>&) = 0;
+        virtual std::shared_ptr<Filter> get(std::int64_t) const = 0;
+        virtual std::shared_ptr<Filter> decode(const Ice::CommunicatorPtr&, const Ice::ByteSeq&) = 0;
     };
 
     class FilterManager
@@ -142,10 +143,10 @@ namespace DataStormI
     public:
         virtual ~FilterManager() = default;
 
-        virtual std::shared_ptr<Filter> get(const std::string&, long long int) const = 0;
+        virtual std::shared_ptr<Filter> get(const std::string&, std::int64_t) const = 0;
 
         virtual std::shared_ptr<Filter>
-        decode(const std::shared_ptr<Ice::Communicator>&, const std::string&, const std::vector<unsigned char>&) = 0;
+        decode(const Ice::CommunicatorPtr&, const std::string&, const Ice::ByteSeq&) = 0;
     };
 
     class DataElement
@@ -153,7 +154,7 @@ namespace DataStormI
     public:
         virtual ~DataElement() = default;
 
-        using Id = std::tuple<std::string, long long int, long long int>;
+        using Id = std::tuple<std::string, std::int64_t, std::int64_t>;
 
         virtual std::vector<std::string> getConnectedElements() const = 0;
         virtual std::vector<std::shared_ptr<Key>> getConnectedKeys() const = 0;
@@ -165,7 +166,7 @@ namespace DataStormI
             std::function<void(DataStorm::CallbackReason, std::string)>) = 0;
 
         virtual void destroy() = 0;
-        virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
+        virtual Ice::CommunicatorPtr getCommunicator() const = 0;
     };
 
     class DataReader : virtual public DataElement
@@ -202,10 +203,8 @@ namespace DataStormI
     public:
         virtual ~Topic() = default;
 
-        using Updater = std::function<void(
-            const std::shared_ptr<Sample>&,
-            const std::shared_ptr<Sample>&,
-            const std::shared_ptr<Ice::Communicator>&)>;
+        using Updater = std::function<
+            void(const std::shared_ptr<Sample>&, const std::shared_ptr<Sample>&, const Ice::CommunicatorPtr&)>;
 
         virtual void setUpdater(const std::shared_ptr<Tag>&, Updater) = 0;
 
@@ -224,14 +223,14 @@ namespace DataStormI
             const std::string&,
             DataStorm::ReaderConfig,
             const std::string& = std::string(),
-            std::vector<unsigned char> = {}) = 0;
+            Ice::ByteSeq = {}) = 0;
 
         virtual std::shared_ptr<DataReader> create(
             const std::vector<std::shared_ptr<Key>>&,
             const std::string&,
             DataStorm::ReaderConfig,
             const std::string& = std::string(),
-            std::vector<unsigned char> = {}) = 0;
+            Ice::ByteSeq = {}) = 0;
 
         virtual void setDefaultConfig(DataStorm::ReaderConfig) = 0;
         virtual bool hasWriters() const = 0;
@@ -270,7 +269,8 @@ namespace DataStormI
             const std::shared_ptr<FilterManager>&,
             const std::shared_ptr<FilterManager>&) = 0;
 
-        virtual std::shared_ptr<Ice::Communicator> getCommunicator() const = 0;
+        virtual Ice::CommunicatorPtr getCommunicator() const = 0;
     };
 
 }
+#endif

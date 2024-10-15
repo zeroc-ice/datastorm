@@ -1,13 +1,13 @@
 //
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
-#pragma once
 
-#include <DataStorm/Contract.h>
-#include <DataStorm/ForwarderManager.h>
-#include <DataStorm/InternalI.h>
+#ifndef DATASTORM_DATA_ELEMENTI_H
+#define DATASTORM_DATA_ELEMENTI_H
 
-#include <deque>
+#include "DataStorm/Contract.h"
+#include "DataStorm/InternalI.h"
+#include "ForwarderManager.h"
 
 namespace DataStormI
 {
@@ -25,7 +25,7 @@ namespace DataStormI
         struct Subscriber
         {
             Subscriber(
-                long long int id,
+                std::int64_t id,
                 const std::shared_ptr<Filter>& filter,
                 const std::shared_ptr<Filter>& sampleFilter,
                 const std::string& name,
@@ -38,9 +38,9 @@ namespace DataStormI
             {
             }
 
-            long long int topicId;
-            long long int elementId;
-            long long int id;
+            std::int64_t topicId;
+            std::int64_t elementId;
+            std::int64_t id;
             std::set<std::shared_ptr<Key>> keys;
             std::shared_ptr<Filter> filter;
             std::shared_ptr<Filter> sampleFilter;
@@ -70,10 +70,8 @@ namespace DataStormI
 
         struct Listener
         {
-            Listener(const std::shared_ptr<DataStormContract::SessionPrx>& proxy, const std::string& facet)
-                : proxy(
-                      facet.empty() ? proxy
-                                    : Ice::uncheckedCast<DataStormContract::SessionPrx>(proxy->ice_facet(facet)))
+            Listener(std::optional<DataStormContract::SessionPrx> proxy, const std::string& facet)
+                : proxy(facet.empty() ? proxy : proxy->ice_facet<DataStormContract::SessionPrx>(facet))
             {
             }
 
@@ -93,9 +91,9 @@ namespace DataStormI
             }
 
             std::shared_ptr<Subscriber> addOrGet(
-                long long int topicId,
-                long long int elementId,
-                long long int id,
+                std::int64_t topicId,
+                std::int64_t elementId,
+                std::int64_t id,
                 const std::shared_ptr<Filter>& filter,
                 const std::shared_ptr<Filter>& sampleFilter,
                 const std::string& name,
@@ -113,23 +111,23 @@ namespace DataStormI
                 return p->second;
             }
 
-            std::shared_ptr<Subscriber> get(long long int topicId, long long int elementId)
+            std::shared_ptr<Subscriber> get(std::int64_t topicId, std::int64_t elementId)
             {
                 return subscribers.find(std::make_pair(topicId, elementId))->second;
             }
 
-            bool remove(long long int topicId, long long int elementId)
+            bool remove(std::int64_t topicId, std::int64_t elementId)
             {
                 subscribers.erase(std::make_pair(topicId, elementId));
                 return subscribers.empty();
             }
 
-            std::shared_ptr<DataStormContract::SessionPrx> proxy;
-            std::map<std::pair<long long int, long long int>, std::shared_ptr<Subscriber>> subscribers;
+            std::optional<DataStormContract::SessionPrx> proxy;
+            std::map<std::pair<std::int64_t, std::int64_t>, std::shared_ptr<Subscriber>> subscribers;
         };
 
     public:
-        DataElementI(TopicI*, const std::string&, long long int, const DataStorm::Config&);
+        DataElementI(TopicI*, const std::string&, std::int64_t, const DataStorm::Config&);
         virtual ~DataElementI();
 
         void init();
@@ -137,63 +135,63 @@ namespace DataStormI
         virtual void destroy() override;
 
         void attach(
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Filter>&,
             const std::shared_ptr<SessionI>&,
-            const std::shared_ptr<DataStormContract::SessionPrx>&,
+            std::optional<DataStormContract::SessionPrx>,
             const DataStormContract::ElementData&,
             const std::chrono::time_point<std::chrono::system_clock>&,
             DataStormContract::ElementDataAckSeq&);
 
         std::function<void()> attach(
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Filter>&,
             const std::shared_ptr<SessionI>&,
-            const std::shared_ptr<DataStormContract::SessionPrx>&,
+            std::optional<DataStormContract::SessionPrx>,
             const DataStormContract::ElementDataAck&,
             const std::chrono::time_point<std::chrono::system_clock>&,
             DataStormContract::DataSamplesSeq&);
 
         bool attachKey(
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Filter>&,
             const std::shared_ptr<SessionI>&,
-            const std::shared_ptr<DataStormContract::SessionPrx>&,
+            std::optional<DataStormContract::SessionPrx>,
             const std::string&,
-            long long int,
+            std::int64_t,
             const std::string&,
             int);
 
         void detachKey(
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<SessionI>&,
             const std::string&,
             bool);
 
         bool attachFilter(
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Filter>&,
             const std::shared_ptr<SessionI>&,
-            const std::shared_ptr<DataStormContract::SessionPrx>&,
+            std::optional<DataStormContract::SessionPrx>,
             const std::string&,
-            long long int,
+            std::int64_t,
             const std::shared_ptr<Filter>&,
             const std::string&,
             int);
 
         void detachFilter(
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             const std::shared_ptr<Key>&,
             const std::shared_ptr<SessionI>&,
             const std::string&,
@@ -210,8 +208,8 @@ namespace DataStormI
 
         virtual void initSamples(
             const std::vector<std::shared_ptr<Sample>>&,
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             int,
             const std::chrono::time_point<std::chrono::system_clock>&,
             bool);
@@ -219,7 +217,7 @@ namespace DataStormI
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Filter>&,
             const std::shared_ptr<DataStormContract::ElementConfig>&,
-            long long int,
+            std::int64_t,
             const std::chrono::time_point<std::chrono::system_clock>&);
 
         virtual void queue(
@@ -231,9 +229,9 @@ namespace DataStormI
             bool);
 
         virtual std::string toString() const = 0;
-        virtual std::shared_ptr<Ice::Communicator> getCommunicator() const override;
+        virtual Ice::CommunicatorPtr getCommunicator() const override;
 
-        long long int getId() const { return _id; }
+        std::int64_t getId() const { return _id; }
 
         std::shared_ptr<DataStormContract::ElementConfig> getConfig() const;
 
@@ -252,13 +250,13 @@ namespace DataStormI
 
         const std::shared_ptr<TraceLevels> _traceLevels;
         const std::string _name;
-        const long long int _id;
+        const std::int64_t _id;
         const std::shared_ptr<DataStormContract::ElementConfig> _config;
         const std::shared_ptr<CallbackExecutor> _executor;
 
         size_t _listenerCount;
         mutable std::shared_ptr<Sample> _sample;
-        std::shared_ptr<DataStormContract::SessionPrx> _forwarder;
+        std::optional<DataStormContract::SessionPrx> _forwarder;
         std::map<std::shared_ptr<Key>, std::vector<std::shared_ptr<Subscriber>>> _connectedKeys;
         std::map<ListenerKey, Listener> _listeners;
 
@@ -280,9 +278,9 @@ namespace DataStormI
         DataReaderI(
             TopicReaderI*,
             const std::string&,
-            long long int,
+            std::int64_t,
             const std::string&,
-            std::vector<unsigned char>,
+            Ice::ByteSeq,
             const DataStorm::ReaderConfig&);
 
         virtual int getInstanceCount() const override;
@@ -294,8 +292,8 @@ namespace DataStormI
 
         virtual void initSamples(
             const std::vector<std::shared_ptr<Sample>>&,
-            long long int,
-            long long int,
+            std::int64_t,
+            std::int64_t,
             int,
             const std::chrono::time_point<std::chrono::system_clock>&,
             bool) override;
@@ -328,7 +326,7 @@ namespace DataStormI
     class DataWriterI : public DataElementI, public DataWriter
     {
     public:
-        DataWriterI(TopicWriterI*, const std::string&, long long int, const DataStorm::WriterConfig&);
+        DataWriterI(TopicWriterI*, const std::string&, std::int64_t, const DataStorm::WriterConfig&);
         void init();
 
         virtual void publish(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) override;
@@ -337,7 +335,8 @@ namespace DataStormI
         virtual void send(const std::shared_ptr<Key>&, const std::shared_ptr<Sample>&) const = 0;
 
         TopicWriterI* _parent;
-        std::shared_ptr<DataStormContract::SubscriberSessionPrx> _subscribers;
+        // TODO it should be probably a non-nullable proxy
+        std::optional<DataStormContract::SubscriberSessionPrx> _subscribers;
         std::deque<std::shared_ptr<Sample>> _samples;
         std::shared_ptr<Sample> _last;
     };
@@ -348,10 +347,10 @@ namespace DataStormI
         KeyDataReaderI(
             TopicReaderI*,
             const std::string&,
-            long long int,
+            std::int64_t,
             const std::vector<std::shared_ptr<Key>>&,
             const std::string&,
-            std::vector<unsigned char>,
+            Ice::ByteSeq,
             const DataStorm::ReaderConfig&);
 
         virtual void destroyImpl() override;
@@ -373,7 +372,7 @@ namespace DataStormI
         KeyDataWriterI(
             TopicWriterI*,
             const std::string&,
-            long long int,
+            std::int64_t,
             const std::vector<std::shared_ptr<Key>>&,
             const DataStorm::WriterConfig&);
 
@@ -390,7 +389,7 @@ namespace DataStormI
             const std::shared_ptr<Key>&,
             const std::shared_ptr<Filter>&,
             const std::shared_ptr<DataStormContract::ElementConfig>&,
-            long long int,
+            std::int64_t,
             const std::chrono::time_point<std::chrono::system_clock>&) override;
 
     private:
@@ -406,10 +405,10 @@ namespace DataStormI
         FilteredDataReaderI(
             TopicReaderI*,
             const std::string&,
-            long long int,
+            std::int64_t,
             const std::shared_ptr<Filter>&,
             const std::string&,
-            std::vector<unsigned char>,
+            Ice::ByteSeq,
             const DataStorm::ReaderConfig&);
 
         virtual void destroyImpl() override;
@@ -426,3 +425,5 @@ namespace DataStormI
     };
 
 }
+
+#endif
