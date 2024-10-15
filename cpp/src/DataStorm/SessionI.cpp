@@ -79,9 +79,9 @@ void
 SessionI::announceTopics(TopicInfoSeq topics, bool, const Ice::Current&)
 {
     //
-    // Retain topics outside the synchronization. This is necessary to ensure the
-    // topic destructor doesn't get called within the synchronization. The topic
-    // destructor can callback on the session to disconnect.
+    // Retain topics outside the synchronization. This is necessary to ensure the topic destructor
+    // doesn't get called within the synchronization. The topic destructor can callback on the
+    // session to disconnect.
     //
     vector<shared_ptr<TopicI>> retained;
     {
@@ -545,8 +545,8 @@ SessionI::connected(optional<SessionPrx> session, const Ice::ConnectionPtr& conn
     {
         auto self = shared_from_this();
         _instance->getConnectionManager()->add(
-            self,
             connection,
+            self,
             [self](auto connection, auto ex)
             {
                 if (self->disconnected(connection, ex))

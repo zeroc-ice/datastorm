@@ -132,8 +132,8 @@ NodeSessionManager::createOrGet(optional<NodePrx> node, const Ice::ConnectionPtr
     // TODO we should review this code, to avoid using the proxy shared_ptr as a map key.
     // Specially the connection manager doesn't use this proxy for lookup.
     instance->getConnectionManager()->add(
-        make_shared<NodePrx>(*node),
         connection,
+        make_shared<NodePrx>(*node),
         [self = shared_from_this(), node](auto _, auto ex) { self->destroySession(std::move(node)); });
 
     return session;
@@ -366,8 +366,8 @@ NodeSessionManager::connected(optional<NodePrx> node, optional<LookupPrx> lookup
     }
 
     instance->getConnectionManager()->add(
-        make_shared<LookupPrx>(*lookup),
         connection,
+        make_shared<LookupPrx>(*lookup),
         [=, self = shared_from_this()](auto connection, auto ex) { self->disconnected(node, lookup); });
     auto l = p != _sessions.end() ? lookup->ice_fixed(connection) : lookup;
     _connectedTo.emplace(node->ice_getIdentity(), make_pair(node, l));

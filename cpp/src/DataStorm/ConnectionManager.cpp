@@ -14,8 +14,8 @@ ConnectionManager::ConnectionManager(const shared_ptr<CallbackExecutor>& executo
 
 void
 ConnectionManager::add(
-    const shared_ptr<void>& object,
     const Ice::ConnectionPtr& connection,
+    shared_ptr<void> object,
     function<void(const Ice::ConnectionPtr&, exception_ptr)> callback)
 {
     lock_guard<mutex> lock(_mutex);

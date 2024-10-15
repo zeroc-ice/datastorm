@@ -6,11 +6,9 @@
 #define DATASTORM_SESSIONI_H
 
 #include "DataStorm/Contract.h"
+#include "Ice/Ice.h"
 #include "NodeI.h"
 
-#include "Ice/Ice.h"
-
-// TODO temporary for shadow warnings
 #if defined(__clang__)
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wshadow"
