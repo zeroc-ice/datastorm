@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_DATAELEMENTI_H
-#define DATASTORM_DATAELEMENTI_H
+#ifndef DATASTORM_DATA_ELEMENTI_H
+#define DATASTORM_DATA_ELEMENTI_H
 
 #include "DataStorm/Contract.h"
 #include "DataStorm/InternalI.h"

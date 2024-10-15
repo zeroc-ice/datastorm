@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_TRACEUTIL_H
-#define DATASTORM_TRACEUTIL_H
+#ifndef DATASTORM_TRACE_UTIL_H
+#define DATASTORM_TRACE_UTIL_H
 
 #include "DataElementI.h"
 #include "DataStorm/InternalI.h"

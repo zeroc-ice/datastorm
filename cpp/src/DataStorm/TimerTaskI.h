@@ -1,5 +1,6 @@
-
-// TODO temporary until we fix https://github.com/zeroc-ice/ice/issues/2877
+//
+// Copyright (c) ZeroC, Inc. All rights reserved.
+//
 
 #ifndef DATASTORMI_TIMER_TASKI_H
 #define DATASTORMI_TIMER_TASKI_H
@@ -10,6 +11,7 @@
 
 namespace DataStormI
 {
+    // TODO temporary until we fix https://github.com/zeroc-ice/ice/issues/2877
     class TimerTaskI : public Ice::TimerTask
     {
     public:

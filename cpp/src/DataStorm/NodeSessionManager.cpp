@@ -87,7 +87,7 @@ NodeSessionManager::init()
     auto connectTo = communicator->getProperties()->getProperty("DataStorm.Node.ConnectTo");
     if (!connectTo.empty())
     {
-        connect(Ice::uncheckedCast<LookupPrx>(communicator->stringToProxy("DataStorm/Lookup:" + connectTo)), _nodePrx);
+        connect(LookupPrx{communicator, "DataStorm/Lookup:" + connectTo}, _nodePrx);
     }
 }
 

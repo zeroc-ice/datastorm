@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_NODESESSIONMANAGER_H
-#define DATASTORM_NODESESSIONMANAGER_H
+#ifndef DATASTORM_NODE_SESSION_MANAGER_H
+#define DATASTORM_NODE_SESSION_MANAGER_H
 
 #include "DataStorm/Config.h"
 #include "DataStorm/Contract.h"

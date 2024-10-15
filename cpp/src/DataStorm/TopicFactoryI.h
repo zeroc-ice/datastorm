@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_TOPICFACTORYI_H
-#define DATASTORM_TOPICFACTORYI_H
+#ifndef DATASTORM_TOPIC_FACTORYI_H
+#define DATASTORM_TOPIC_FACTORYI_H
 
 #include "DataStorm/Contract.h"
 #include "DataStorm/InternalI.h"

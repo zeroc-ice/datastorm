@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_CALLBACKEXECUTOR_H
-#define DATASTORM_CALLBACKEXECUTOR_H
+#ifndef DATASTORM_CALLBACK_EXECUTOR_H
+#define DATASTORM_CALLBACK_EXECUTOR_H
 
 #include <condition_variable>
 #include <functional>

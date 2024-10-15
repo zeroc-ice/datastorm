@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_NODESESSIONI_H
-#define DATASTORM_NODESESSIONI_H
+#ifndef DATASTORM_NODE_SESSIONI_H
+#define DATASTORM_NODE_SESSIONI_H
 
 #include "DataStorm/Contract.h"
 #include "Ice/Ice.h"

@@ -22,7 +22,7 @@ namespace DataStormI
     class PublisherSessionI;
     class SubscriberSessionI;
 
-    class NodeI : virtual public DataStormContract::Node, public std::enable_shared_from_this<NodeI>
+    class NodeI final : virtual public DataStormContract::Node, public std::enable_shared_from_this<NodeI>
     {
     public:
         NodeI(const std::shared_ptr<Instance>&);
@@ -31,18 +31,18 @@ namespace DataStormI
         void init();
         void destroy(bool);
 
-        virtual void initiateCreateSession(std::optional<DataStormContract::NodePrx>, const Ice::Current&) override;
+        void initiateCreateSession(std::optional<DataStormContract::NodePrx>, const Ice::Current&) final;
 
-        virtual void createSession(
+        void createSession(
             std::optional<DataStormContract::NodePrx>,
             std::optional<DataStormContract::SubscriberSessionPrx>,
             bool,
-            const Ice::Current&) override;
+            const Ice::Current&) final;
 
-        virtual void confirmCreateSession(
+        void confirmCreateSession(
             std::optional<DataStormContract::NodePrx>,
             std::optional<DataStormContract::PublisherSessionPrx>,
-            const Ice::Current&) override;
+            const Ice::Current&) final;
 
         void createSubscriberSession(
             std::optional<DataStormContract::NodePrx>,

@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_CONNECTIONMANAGER_H
-#define DATASTORM_CONNECTIONMANAGER_H
+#ifndef DATASTORM_CONNECTION_MANAGER_H
+#define DATASTORM_CONNECTION_MANAGER_H
 
 #include "DataStorm/Config.h"
 #include "Ice/Connection.h"

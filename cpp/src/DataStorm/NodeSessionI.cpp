@@ -120,7 +120,7 @@ namespace
 
     private:
         template<typename T>
-        void updateNodeAndSessionProxy(optional<NodePrx> node, optional<T>& session, const Ice::Current& current)
+        void updateNodeAndSessionProxy(optional<NodePrx>& node, optional<T>& session, const Ice::Current& current)
         {
             assert(node != nullopt);
             if (node->ice_getEndpoints().empty() && node->ice_getAdapterId().empty())
@@ -154,7 +154,7 @@ NodeSessionI::NodeSessionI(
 {
     if (forwardAnnouncements)
     {
-        _lookup = Ice::uncheckedCast<LookupPrx>(_connection->createProxy({"Lookup", "DataStorm"}));
+        _lookup = _connection->createProxy<LookupPrx>({"Lookup", "DataStorm"});
     }
 }
 
@@ -165,7 +165,7 @@ NodeSessionI::init()
     {
         auto bidirNode = _node->ice_fixed(_connection);
         auto fwd = make_shared<NodeForwarderI>(_instance->getNodeSessionManager(), shared_from_this(), bidirNode);
-        _publicNode = Ice::uncheckedCast<NodePrx>(_instance->getObjectAdapter()->add(fwd, _node->ice_getIdentity()));
+        _publicNode = _instance->getObjectAdapter()->add<NodePrx>(fwd, _node->ice_getIdentity());
     }
     else
     {
@@ -224,6 +224,6 @@ NodeSessionI::forwarder(optional<SessionPrx> session) const
 {
     auto id = session->ice_getIdentity();
     auto proxy =
-        _instance->getObjectAdapter()->createProxy({id.name + '-' + _node->ice_getIdentity().name, id.category + 'f'});
-    return Ice::uncheckedCast<SessionPrx>(proxy->ice_oneway());
+        _instance->getObjectAdapter()->createProxy<SessionPrx>({id.name + '-' + _node->ice_getIdentity().name, id.category + 'f'});
+    return proxy->ice_oneway();
 }

@@ -72,7 +72,7 @@ NodeI::init()
     try
     {
         auto adapter = instance->getObjectAdapter();
-        _proxy = Ice::uncheckedCast<NodePrx>(adapter->addWithUUID(self));
+        _proxy = adapter->addWithUUID<NodePrx>(self);
 
         auto interceptor = make_shared<DispatchInterceptorI>(self, instance->getCallbackExecutor());
         adapter->addDefaultServant(interceptor, "s");
@@ -449,8 +449,8 @@ NodeI::createSubscriberSessionServant(optional<NodePrx> node)
             auto session = make_shared<SubscriberSessionI>(shared_from_this(), node);
             ostringstream os;
             os << ++_nextSubscriberSessionId;
-            auto prx = getInstance()->getObjectAdapter()->createProxy({os.str(), "s"})->ice_oneway();
-            session->init(Ice::uncheckedCast<SessionPrx>(prx));
+            auto prx = getInstance()->getObjectAdapter()->createProxy<SessionPrx>({os.str(), "s"})->ice_oneway();
+            session->init(prx);
             _subscribers.emplace(node->ice_getIdentity(), session);
             _subscriberSessions.emplace(session->getProxy()->ice_getIdentity(), session);
             return session;
@@ -478,8 +478,8 @@ NodeI::createPublisherSessionServant(optional<NodePrx> node)
             auto session = make_shared<PublisherSessionI>(shared_from_this(), node);
             ostringstream os;
             os << ++_nextPublisherSessionId;
-            auto prx = getInstance()->getObjectAdapter()->createProxy({os.str(), "p"})->ice_oneway();
-            session->init(Ice::uncheckedCast<SessionPrx>(prx));
+            auto prx = getInstance()->getObjectAdapter()->createProxy<SessionPrx>({os.str(), "p"})->ice_oneway();
+            session->init(prx);
             _publishers.emplace(node->ice_getIdentity(), session);
             _publisherSessions.emplace(session->getProxy()->ice_getIdentity(), session);
             return session;

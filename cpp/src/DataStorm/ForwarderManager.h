@@ -2,8 +2,8 @@
 // Copyright (c) ZeroC, Inc. All rights reserved.
 //
 
-#ifndef DATASTORM_FORWARDERMANAGER_H
-#define DATASTORM_FORWARDERMANAGER_H
+#ifndef DATASTORM_FORWARDER_MANAGER_H
+#define DATASTORM_FORWARDER_MANAGER_H
 
 #include "DataStorm/Config.h"
 #include "Ice/Ice.h"
