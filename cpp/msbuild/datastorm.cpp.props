@@ -33,7 +33,7 @@
     <ItemDefinitionGroup>
         <ClCompile>
             <WarningLevel>Level3</WarningLevel>
-            <PreprocessorDefinitions>_CONSOLE;_WIN32_WINNT=0x601;WIN32_LEAN_AND_MEAN;ICE_CPP11_MAPPING</PreprocessorDefinitions>
+            <PreprocessorDefinitions>_CONSOLE;_WIN32_WINNT=0x0A00;WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
             <DisableSpecificWarnings>4250;4251;4275</DisableSpecificWarnings>
             <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
             <TreatWarningAsError>true</TreatWarningAsError>
@@ -46,10 +46,8 @@
             <!-- PDB settings -->
             <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
             <ProgramDataBaseFileName>$(IntDir)$(TargetName)-objs.pdb</ProgramDataBaseFileName>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
-        <ResourceCompile>
-            <PreprocessorDefinitions>ICE_CPP11_MAPPING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-        </ResourceCompile>
         <Link>
             <AdditionalDependencies />
             <LinkTimeCodeGeneration />

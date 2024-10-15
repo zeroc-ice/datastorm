@@ -58,7 +58,6 @@ Instance::Instance(const Ice::CommunicatorPtr& communicator) : _communicator(com
         properties->setProperty("DataStorm.Node.Adapters.Multicast.Endpoints", "udp -h 239.255.0.1 -p 10000");
         properties->setProperty("DataStorm.Node.Adapters.Multicast.ProxyOptions", "-d");
         properties->setProperty("DataStorm.Node.Adapters.Multicast.ThreadPool.SizeMax", "1");
-        properties->setProperty("DataStorm.Node.Adapters.Multicast.MaxDispatches", "1");
 
         const string pfx = "DataStorm.Node.Multicast";
         auto props = properties->getPropertiesForPrefix(pfx);
