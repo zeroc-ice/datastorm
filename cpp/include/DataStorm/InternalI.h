@@ -6,8 +6,7 @@
 #define DATASTORM_INTERNALI_H
 
 #include "DataStorm/Sample.h"
-#include "Ice/BuiltinSequences.h"
-#include "Ice/Communicator.h"
+#include "Ice/Ice.h"
 #include "Types.h"
 
 #include <chrono>

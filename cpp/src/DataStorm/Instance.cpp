@@ -6,8 +6,6 @@
 #include "CallbackExecutor.h"
 #include "ConnectionManager.h"
 #include "DataStorm/Node.h"
-#include "Ice/Timer.h"
-#include "Ice/UUID.h"
 #include "LookupI.h"
 #include "NodeI.h"
 #include "NodeSessionManager.h"

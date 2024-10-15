@@ -4,7 +4,7 @@
 
 #include "DataElementI.h"
 #include "CallbackExecutor.h"
-#include "Ice/BuiltinSequences.h"
+#include "Ice/Ice.h"
 #include "Instance.h"
 #include "NodeI.h"
 #include "TopicI.h"
@@ -17,8 +17,7 @@ using namespace DataStormContract;
 namespace
 {
 
-    DataSample
-    toSample(const shared_ptr<Sample>& sample, const Ice::CommunicatorPtr& communicator, bool marshalKey)
+    DataSample toSample(const shared_ptr<Sample>& sample, const Ice::CommunicatorPtr& communicator, bool marshalKey)
     {
         return {
             sample->id,

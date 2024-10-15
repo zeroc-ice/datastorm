@@ -5,7 +5,7 @@
 #ifndef DATASTORMI_TIMER_TASKI_H
 #define DATASTORMI_TIMER_TASKI_H
 
-#include "Ice/Timer.h"
+#include "Ice/Ice.h"
 
 #include <functional>
 

@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <DataStorm/Config.h>
-#include <DataStorm/InternalI.h>
-#include <DataStorm/Types.h>
-
-#include <Ice/Ice.h>
+#include "Config.h"
+#include "Ice/Ice.h"
+#include "InternalI.h"
+#include "Types.h"
 
 namespace DataStorm
 {
@@ -257,8 +256,7 @@ namespace DataStormI
             return AbstractFactoryT<K, KeyT<K>>::getImpl(id);
         }
 
-        virtual std::shared_ptr<Key>
-        decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data) override
+        virtual std::shared_ptr<Key> decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data) override
         {
             return AbstractFactoryT<K, KeyT<K>>::create(DecoderT<K>::decode(communicator, data));
         }
@@ -290,8 +288,7 @@ namespace DataStormI
             return AbstractFactoryT<T, TagT<T>>::getImpl(id);
         }
 
-        virtual std::shared_ptr<Tag>
-        decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data) override
+        virtual std::shared_ptr<Tag> decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data) override
         {
             return AbstractFactoryT<T, TagT<T>>::create(DecoderT<T>::decode(communicator, data));
         }
@@ -484,8 +481,7 @@ namespace DataStormI
 
             virtual std::shared_ptr<Filter> get(std::int64_t) const = 0;
 
-            virtual std::shared_ptr<Filter>
-            decode(const Ice::CommunicatorPtr&, const Ice::ByteSeq&) = 0;
+            virtual std::shared_ptr<Filter> decode(const Ice::CommunicatorPtr&, const Ice::ByteSeq&) = 0;
         };
 
         template<typename Criteria> struct FactoryT : Factory
@@ -505,8 +501,7 @@ namespace DataStormI
 
             virtual std::shared_ptr<Filter> get(std::int64_t id) const { return filterFactory.get(id); }
 
-            virtual std::shared_ptr<Filter>
-            decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data)
+            virtual std::shared_ptr<Filter> decode(const Ice::CommunicatorPtr& communicator, const Ice::ByteSeq& data)
             {
                 return create(DecoderT<Criteria>::decode(communicator, data));
             }
@@ -536,10 +531,8 @@ namespace DataStormI
             return factory->create(criteria);
         }
 
-        virtual std::shared_ptr<Filter> decode(
-            const Ice::CommunicatorPtr& communicator,
-            const std::string& name,
-            const Ice::ByteSeq& data) override
+        virtual std::shared_ptr<Filter>
+        decode(const Ice::CommunicatorPtr& communicator, const std::string& name, const Ice::ByteSeq& data) override
         {
             auto p = _factories.find(name);
             if (p == _factories.end())

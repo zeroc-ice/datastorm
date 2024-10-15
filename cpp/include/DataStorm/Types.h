@@ -6,7 +6,7 @@
 #define DATASTORM_TYPES_H
 
 #include "Config.h"
-#include "Ice/Communicator.h"
+#include "Ice/Ice.h"
 
 namespace DataStorm
 {

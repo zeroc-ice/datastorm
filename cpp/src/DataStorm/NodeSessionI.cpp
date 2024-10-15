@@ -223,7 +223,7 @@ optional<SessionPrx>
 NodeSessionI::forwarder(optional<SessionPrx> session) const
 {
     auto id = session->ice_getIdentity();
-    auto proxy =
-        _instance->getObjectAdapter()->createProxy<SessionPrx>({id.name + '-' + _node->ice_getIdentity().name, id.category + 'f'});
+    auto proxy = _instance->getObjectAdapter()->createProxy<SessionPrx>(
+        {id.name + '-' + _node->ice_getIdentity().name, id.category + 'f'});
     return proxy->ice_oneway();
 }

@@ -7,9 +7,7 @@
 
 #include "DataElementI.h"
 #include "DataStorm/InternalI.h"
-#include "Ice/CommunicatorF.h"
-#include "Ice/Logger.h"
-#include "Ice/LoggerUtil.h"
+#include "Ice/Ice.h"
 #include "SessionI.h"
 #include "TopicI.h"
 

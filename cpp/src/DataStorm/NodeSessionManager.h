@@ -7,8 +7,7 @@
 
 #include "DataStorm/Config.h"
 #include "DataStorm/Contract.h"
-
-#include <Ice/Ice.h>
+#include "Ice/Ice.h"
 
 namespace DataStormI
 {

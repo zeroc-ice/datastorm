@@ -6,7 +6,7 @@
 #define DATASTORM_CONNECTION_MANAGER_H
 
 #include "DataStorm/Config.h"
-#include "Ice/Connection.h"
+#include "Ice/Ice.h"
 
 namespace DataStormI
 {

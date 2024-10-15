@@ -5,7 +5,6 @@
 #include "SessionI.h"
 #include "CallbackExecutor.h"
 #include "ConnectionManager.h"
-#include "Ice/Timer.h"
 #include "Instance.h"
 #include "NodeI.h"
 #include "TimerTaskI.h"
@@ -531,10 +530,7 @@ SessionI::disconnected(const Ice::Current& current)
 }
 
 void
-SessionI::connected(
-    optional<SessionPrx> session,
-    const Ice::ConnectionPtr& connection,
-    const TopicInfoSeq& topics)
+SessionI::connected(optional<SessionPrx> session, const Ice::ConnectionPtr& connection, const TopicInfoSeq& topics)
 {
     lock_guard<mutex> lock(_mutex);
     if (_destroyed || _session)

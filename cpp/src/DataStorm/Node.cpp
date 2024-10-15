@@ -3,7 +3,7 @@
 //
 
 #include "DataStorm/Node.h"
-#include "Ice/Initialize.h"
+#include "Ice/Ice.h"
 #include "Instance.h"
 #include "NodeI.h"
 #include "TopicFactoryI.h"

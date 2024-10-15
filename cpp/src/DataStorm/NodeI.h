@@ -68,9 +68,8 @@ namespace DataStormI
 
         std::shared_ptr<SessionI> getSession(const Ice::Identity&) const;
 
-        std::optional<DataStormContract::NodePrx> getNodeWithExistingConnection(
-            std::optional<DataStormContract::NodePrx>,
-            const Ice::ConnectionPtr&);
+        std::optional<DataStormContract::NodePrx>
+        getNodeWithExistingConnection(std::optional<DataStormContract::NodePrx>, const Ice::ConnectionPtr&);
 
         std::optional<DataStormContract::NodePrx> getProxy() const { return _proxy; }
 

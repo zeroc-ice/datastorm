@@ -3,7 +3,6 @@
 //
 
 #include "TraceUtil.h"
-#include "Ice/Ice.h"
 
 using namespace std;
 using namespace DataStormI;

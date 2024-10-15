@@ -5,8 +5,8 @@
 #ifndef DATASTORM_NODE_H
 #define DATASTORM_NODE_H
 
-#include <DataStorm/Config.h>
-#include <DataStorm/InternalI.h>
+#include "Config.h"
+#include "InternalI.h"
 
 namespace DataStorm
 {

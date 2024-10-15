@@ -99,10 +99,7 @@ NodeSessionManager::destroy()
 }
 
 shared_ptr<NodeSessionI>
-NodeSessionManager::createOrGet(
-    optional<NodePrx> node,
-    const Ice::ConnectionPtr& connection,
-    bool forwardAnnouncements)
+NodeSessionManager::createOrGet(optional<NodePrx> node, const Ice::ConnectionPtr& connection, bool forwardAnnouncements)
 {
     // TODO node should be non-optional
     unique_lock<mutex> lock(_mutex);
