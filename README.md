@@ -5,7 +5,11 @@
 
 # DataStorm - Data Centric Pub/Sub Framework
 
-DataStorm is a new high-performance brokerless data centric [pub/sub
+> [!IMPORTANT]
+> This repository is archived. Starting with Ice 3.8, DataStorm is part of
+> [Ice](https://github.com/zeroc-ice/ice) and is developed in the Ice repository.
+
+DataStorm is a high-performance brokerless data centric [pub/sub
 framework](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern). It
 allows you to distribute data between your applications through a simple yet
 powerful API.
@@ -22,8 +26,6 @@ You can also use DataStorm without Ice, in particular:
 - [DataStorm vs IceStorm](#datastorm-vs-icestorm)
 - [Languages](#languages)
 - [Platforms](#platforms)
-- [Branches](#branches)
-- [Documentation](#documentation)
 - [Copyright and License](#copyright-and-license)
 
 ## DataStorm vs IceStorm
@@ -42,7 +44,7 @@ topic. These subscribers are regular Ice objects that you implement, and they
 receive the message sent by the publisher just like any other Ice request
 dispatch.
 
-DataStorm is a brand-new library-based pub/sub service.
+DataStorm is a library-based pub/sub service.
 
 DataStorm is all about distributing data. When one of your applications needs
 data produced by another application, DataStorm helps you publish, filter and
@@ -57,16 +59,6 @@ DataStorm supports only the C++ programming language.
 
 You should be able to build DataStorm on the same platforms and with the same
 C++ compilers as Ice. DataStorm relies on C++11 features and the Ice C++11 mapping.
-
-## Branches
-
-- `main`
-  DataStorm 1.1.x plus various patches (stable, frequently updated)
-
-## Documentation
-
-- [DataStorm Release Notes](https://doc.zeroc.com/datastorm/latest/release-notes)
-- [DataStorm Manual](https://doc.zeroc.com/datastorm/latest)
 
 ## Copyright and License
 
